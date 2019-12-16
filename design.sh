@@ -60,49 +60,40 @@ set -- "${POSITIONAL[@]}" # restore positional parameters
 mkdir "$OUTPUT" && cd "$OUTPUT"
 mkdir input && cd input
 
-QUERY="txid${TAXID}[Organism:exp] AND refseq[filter]"
-echo "Query NCBI ${QUERY}"
 # download ref. seq
-FILES=$(esearch -db "nucleotide" -query "${QUERY}" | efetch -format fasta | awk '/^>/{s=++d".fasta"} {print > s}END{print "FILES="d}'|awk -F'=' '/FILES=/{print $2}')
-QUERY="txid${TAXID}[Organism:exp] and \"complete genome\"[title]"
-echo "Query NCBI ${QUERY}"
-
-# download genomes
-esearch -db nuccore -query "${QUERY}" | efetch -format fasta | awk -v d=$FILES '/^>/{d++;s=d".fasta"} {print > s}'
+for TID in $(echo $TAXID|awk -F',' '{for(i = 1; i <= NF; i++){print $i}}'); do 
+  QUERY="txid${TID}[Organism:exp] and \"complete genome\"[title]"
+  echo "Query NCBI ${QUERY}"
+  # download genomes
+  esearch -db nuccore -query "${QUERY}" | efetch -format fasta >> genomes.fa
+done
 cd ..
 
-# create index for leading sequence
-seqkit faidx -f input/1.fasta
-REFSEQID=$(awk -F'\t' '{print $1}' input/1.fasta.seqkit.fai)
-REFSEQID2=$(awk '{print $1}' input/1.fasta.seqkit.fai)
-SEQLEN=$(awk -F'\t' '{print $2}' input/1.fasta.seqkit.fai)
-awk -v ref="$REFSEQID" -v len="$SEQLEN" 'BEGIN{print ref"\t"1"\t"len; exit}' > input/1.fasta.bed
+# cluster 
+mmseqs easy-linclust input/genomes.fa input/genomes.clu  input/tmp --kmer-per-seq 1000 --min-seq-id 0.97 --cov-mode 1 -c 0.95
+
+# id to genomes lookup
+awk 'BEGIN{cnt=0}/^>/{gsub(">","",$1); print $1"\t"cnt; cnt++}' input/genomes.clu_rep_seq.fasta > id.lookup
 
 # compute mappability
-genmap index -FD input -I index
+genmap index -F input/genomes.clu_rep_seq.fasta -I index
 mkdir mapping
-genmap map -S input/1.fasta.bed -E $ERRORINPROB --csv -K $PROBLEN -t -b --frequency-large  -I index -O mapping
+genmap map -E $ERRORINPROB --csv -K $PROBLEN -t -b --frequency-large -I index -O mapping
+
+# setcover the k-mers  
+mkdir setcover
+setcover mapping/genomes.clu_rep_seq.genmap.csv $COVERAGE > setcover/result
+awk -vproblen="$PROBLEN" 'FNR==NR{f[$2]=$1; next}  {split($0,a,";"); split(a[1],b,","); print f[b[1]]"\t"b[2]"\t"b[2]+problen }' id.lookup setcover/result > setcover/result.bed 
+seqkit subseq --quiet --bed "setcover/result.bed" "input/genomes.clu_rep_seq.fasta" > "prob.fa"
 
 # reformat genmap output
-awk -F';' 'BEGIN{getline; total= NF-1} {split($1,a,","); pos=a[2]; cons="1"; cnt=0; for(i = 2; i <= NF; i++) { if(length($i) != 0) { cnt++; cons=cons";"i} } print pos"\t"cnt/total"\t"cons}' "mapping/1.genmap.csv" > "mapping/kmers.conserv"
-
-#awk -F' ' '!/^>/{for(i=1; i <= NF; i++){print i"\t"$i}}' "mapping/1.genmap.txt" > "mapping/kmers.conserv"
-# perform k-means to pick distant k-mers
-#Rscript -e 'd=read.table("mapping/kmers.conserv",h=1);d$C=kmeans(d,'$K')$cluster;d;' | awk '/^[0-9]/{print}' | sort -k3,3nr  > "mapping/top.kmers.cluster"
-#sort -k2,2nr -k1,1n "mapping/kmers.conserv" | awk -vLEN=40 'BEGIN{ pos=-(LEN+1); }  (pos + LEN) < $1 || (pos - LEN) > $1 {print; pos=$1}' | head -n $K > "mapping/top.kmers"
-#awk -vK=$K 'NF==4 && !($4 in f){print $2"\t"$3"\t"$4; f[$4]=1;}' "mapping/top.kmers.cluster" > "mapping/top.kmers.rep"
-IFS=$'\n'
-CNT=0
-
-# create bed file 
-awk -v ref="$REFSEQID2" -v problen="$PROBLEN" '{print ref"\t"($1-1)"\t"($1+problen-1)"\t"$2" "$3}' mapping/kmers.conserv >  mapping/kmers.conserv.bed
-seqkit subseq --quiet --bed mapping/kmers.conserv.bed "input/1.fasta" > "prob.fa"
+#awk -F';' 'BEGIN{getline; total= NF-1} {split($1,a,","); pos=a[2]; cons="1"; cnt=0; for(i = 2; i <= NF; i++) { if(length($i) != 0) { cnt++; cons=cons";"i} } print pos"\t"cnt/total"\t"cons}' "mapping/genomes.genmap.csv" > "mapping/kmers.conserv"
 
 # get all tax. ids
 #esearch -db taxonomy -query "txid${TAXID}[Organism:exp]" | efetch -format docsum | xtract -pattern DocumentSummary -element TaxId > taxids
-mmseqs easy-search "prob.fa" $MMDB mmseqs.search tmp --spaced-kmer-mode 0 --search-type 3 --format-output query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,taxid,taxname,taxlineage
-awk -v taxid=$TAXID -F'\t' '$12 != taxid {print}' mmseqs.search > mmseqs.search.notax
-awk 'FNR==NR{f[$1]=$12";"f[$1]; next } {print $0"\t"f[$1]}' <(cat mmseqs.search.notax) <(seqkit fx2tab  prob.fa ) > prob.tsv
+#mmseqs easy-search "prob.fa" $MMDB mmseqs.search tmp --spaced-kmer-mode 0 --search-type 3 --format-output query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,taxid,taxname,taxlineage
+#awk -v taxid=$TAXID -F'\t' '$12 != taxid {print}' mmseqs.search > mmseqs.search.notax
+#awk 'FNR==NR{f[$1]=$12";"f[$1]; next } {print $0"\t"f[$1]}' <(cat mmseqs.search.notax) <(seqkit fx2tab  prob.fa ) > prob.tsv
 
 #time blastn -query "prob.fa" -db nt -remote -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore staxids" > blast.nt.search
 #awk 'NR==FNR{str=$2; for(i=3; i <=NF; i++) { str=str"\t"$i;} f[">"$1]=str; next} /^>/ {printf("%s\t%s\n", $0, f[$1]); getline; print}' <(awk -F'\t' '!($1":"$13 in a) {f[$1]=$13"\t"f[$1]; a[$1":"$13]=1} END{for(i in f){print i"\t"f[i];}}' blast.nt.search) "prob.fa"
