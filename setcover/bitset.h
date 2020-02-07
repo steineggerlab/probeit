@@ -169,6 +169,31 @@ class Bitset {
   }
 
 
+  int AndNotCountDontStore(Bitset& rh_bitset) {
+    // Return count
+    int count = 0;
+
+    // The SIMD vector
+    __m256i A, B, C;
+
+    // The char* of right hand bitset
+    char* rbits = rh_bitset.Get();
+
+    // How many chars a SIMD vector contains
+    // For example, 128-bit SIMD, and char is 8, so it processes 16 bytes each
+    // time (span = 16)
+    int span = SIMD_SIZE / CHAR_SIZE;
+
+    for (int i = 0; i < num_bytes_; i += span) {
+      A = _mm256_load_si256((__m256i*)&bits_[i]);
+      B = _mm256_load_si256((__m256i*)&rbits[i]);
+      C = _mm256_andnot_si256(B, A);
+      count += popcnt256(C);
+    }
+
+    return count;
+  }
+
   int AndNotCount(Bitset& rh_bitset) {
     // Return count
     int count = 0;
