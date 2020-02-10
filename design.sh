@@ -113,59 +113,48 @@ awk -F";" 'NR==1{next}{n=split($2, b, "|"); pg[$1]=1; prevK=0; for(i = 1; i<=n &
 mkdir setcover
 setcover mapping/uniq.genmap.csv $COVERAGE "$PROBLEN1" > "setcover/result"
 
-# compute mappability
-mkdir mapping_20
-genmap map -E $ERRORINPROB -S filter/crosstaxa.bed --csv -K 20 -t -b --frequency-large -I index -O mapping_20
-
-buildOverlappingSets=$(cat << 'EOF'
-NR==FNR{
-   split($1, b, ",");
-   genome=b[1];
-   probCnt++;
-   probePos=b[2];
-   n=split($2 ,a, "|");  
-   delete ids;
-   for(p = probePos - 100; p < probePos+100; p++){
-           if(p >= (probePos-problen2) && p <= probePos + problen1 || ignore[genome","p][idx][b[1]] == 1){
-	      ignore[genome","p][idx][b[1]]=1;
-              continue;
-           }  
-	   probesAtPos[genome][p]++;
-	   idx = probesAtPos[genome][p];
-	   probeName[genome][p][idx]=probCnt;
-   	   for(i = 1; i<=n; i++) 
-	   { 
-	     split(a[i], b, ",");
-	     lookup[genome","p][idx][b[1]]=1;
-	   }
-   }
-   next;
-}
-$1 in lookup{
-   split($1, b, ",");
-   genome=b[1];
-   probePos=b[2];
-   probesAtPosCnt = 0
-   for(i in lookup[$1]) probesAtPosCnt++
-   n=split($2 , a, "|"); 
-   for(probeIdx = 1; probeIdx <= probesAtPosCnt; probeIdx++){
-      split($1, c, ",");
-      str=probeName[genome][probePos][probeIdx]","c[2]";"
-      str=str""a[i]
-      for(i = 2; i<=n; i++) {
-         split(a[i], b, ",");
-         if(lookup[genome","probePos][probeIdx][b[1]] == 1){
-            str=str"|"a[i]
-         }
-      }
-      print str
-   }
+buildFastaForShortProb=$(cat << 'EOF'
+FNR == NR {
+    seqname[NR-1]=$1; 
+    seq[NR-1]=$2; 
+    next
+} 
+{   
+    split($0,entry,";"); 
+    n=split(entry[2], a, "|"); 
+    for(i = 1; i <= n; i++){
+        split(a[i], b,","); 
+        seqLen=length(seq[b[1]]); 
+        probeStart=b[2] + 1;
+        probeEnd=probeStart + problen;
+        start=(probeStart - window > 1) ? probeStart - window : 1; 
+        end=(probeStart+problen+window < seqLen) ? b[2]+problen+window : seqLen; 
+        split(seq[b[1]], seqChar, ""); 
+        str=""; 
+        for(pos=start; pos <= end ; pos++) { 
+            if(pos >= probeStart && pos <= probeEnd){ 
+                str=str"N" 
+            } else { 
+                str = str""seqChar[pos] 
+            } 
+        } 
+        print ">"entry[1]"_"b[1]"\t"start"\t"end"\t"seqLen; 
+        print str; 
+    } 
 }
 EOF
 )
 
-awk -vproblen1="$PROBLEN1" -vproblen2="$PROBLEN2" -F';' "$buildOverlappingSets" setcover/result mapping_20/*.genmap.csv 
+mkdir input_20
+awk -F'\t' -vproblen=$PROBLEN1 -vwindow=50 "$buildFastaForShortProb" <(seqkit fx2tab cluster/genomes.clu_rep_seq.fasta) setcover/result > input_20/seq.fa
+genmap index -F input_20/seq.fa -I index_20
 
+# compute mappability
+mkdir mapping_20
+genmap map -E $ERRORINPROB --csv -K $PROBLEN2 -t -b --frequency-large -I index_20 -O mapping_20
+awk -F";" 'NR==1{next}{n=split($2, b, "|"); pg[$1]=1; prevK=0; for(i = 1; i<=n && prevK==0; i++){ if(b[i]!=$1 && b[i] in pg){ prevK=1 }} if(prevK == 0){ print} }' mapping_20/*.genmap.csv > mapping_20/uniq.genmap.csv
+mkdir setcover_20
+setcover mapping_20/uniq.genmap.csv 1 1 > "setcover_20/result"
 
-awk -vproblen="$PROBLEN1" 'FNR==NR{f[$2]=$1; next}  {split($0,a,";"); split(a[1],b,","); print f[b[1]]"\t"b[2]"\t"b[2]+problen }' "id.lookup" "setcover/result" > "setcover/result.bed"
-seqkit subseq --quiet --bed "setcover/result.bed" "cluster/genomes.clu_rep_seq.fasta" > "prob.fa"
+#awk -vproblen="$PROBLEN1" 'FNR==NR{f[$2]=$1; next}  {split($0,a,";"); split(a[1],b,","); print f[b[1]]"\t"b[2]"\t"b[2]+problen }' "id.lookup" "setcover/result" > "setcover/result.bed"
+#seqkit subseq --quiet --bed "setcover/result.bed" "cluster/genomes.clu_rep_seq.fasta" > "prob.fa"
