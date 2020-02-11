@@ -114,33 +114,58 @@ mkdir setcover
 setcover mapping/uniq.genmap.csv $COVERAGE "$PROBLEN1" > "setcover/result"
 
 buildFastaForShortProb=$(cat << 'EOF'
+BEGIN{
+    cnt = 1;    
+}
 FNR == NR {
-    seqname[NR-1]=$1; 
-    seq[NR-1]=$2; 
+    seqname[NR-1]=$1;
+    seq[NR-1]=$2;
     next
-} 
-{   
-    split($0,entry,";"); 
-    n=split(entry[2], a, "|"); 
+}
+{
+    split($0,entry,";");
+    n=split(entry[2], a, "|");
     for(i = 1; i <= n; i++){
-        split(a[i], b,","); 
-        seqLen=length(seq[b[1]]); 
+        split(a[i], b,",");
         probeStart=b[2] + 1;
         probeEnd=probeStart + problen;
-        start=(probeStart - window > 1) ? probeStart - window : 1; 
-        end=(probeStart+problen+window < seqLen) ? b[2]+problen+window : seqLen; 
-        split(seq[b[1]], seqChar, ""); 
-        str=""; 
-        for(pos=start; pos <= end ; pos++) { 
-            if(pos >= probeStart && pos <= probeEnd){ 
-                str=str"N" 
-            } else { 
-                str = str""seqChar[pos] 
-            } 
-        } 
-        print ">"entry[1]"_"b[1]"\t"start"\t"end"\t"seqLen; 
-        print str; 
-    } 
+        probPos[cnt] = b[1]":"probeStart":"probeEnd
+        cnt++;
+    }
+}
+END{
+    for(key in probPos){
+        n=split(probPos[key], values, ":");
+        seqId1=values[1];
+        probeStart=values[2];
+        probeEnd=values[3];
+        seqLen=length(seq[seqId1]);
+        start=(probeStart - window > 1) ? probeStart - window : 1;
+        end=(probeStart+problen+window < seqLen) ? probeStart+problen+window : seqLen;
+        delete maskMap;
+        for(key2 in probPos){
+            n=split(probPos[key2], values, ":");
+            seqId2=values[1];
+            if(seqId1 == seqId2){
+                probeStartMask=values[2];
+                probeEndMask=values[3];
+                for(pos = probeStartMask; pos < probeEndMask; pos++){
+                    maskMap[pos]=1;
+                }
+            }
+        }
+        str=""
+        split(seq[seqId1], seqChar, "");
+        for(pos=start; pos <= end ; pos++) {
+            if(pos in maskMap){
+                str=str"N"
+            } else {
+                str = str""seqChar[pos]
+            }
+        }
+        print ">"probPos[key]"\t"start"\t"end"\t"seqLen;
+        print str;
+    }
 }
 EOF
 )

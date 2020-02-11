@@ -1,4 +1,4 @@
-#include "bitset.h"
+#include <string.h>
 #include "IITree.h"
 #include <fstream>
 #include <iostream>
@@ -8,65 +8,84 @@
 #include <vector>
 #include <algorithm>
 #include <limits.h>
+
 struct Probe{
-    Probe(int genome, int start, int end, Bitset * set)
-     :genome(genome), start(start), end(end), set(set) {}
+    Probe(int genome, int start, int end, std::vector<std::pair<int,int>> * genomeAndPosition)
+     :genome(genome), start(start), end(end), genomeAndPosition(genomeAndPosition) {}
     int genome;
     int start;
     int end;
-    Bitset * set;
+    std::vector<std::pair<int,int>> * genomeAndPosition;
 };
 
 std::vector<int> setCover(std::vector<Probe> & sets, size_t totalGenomes, int minCovered, int range){
     std::vector<int> coverageCount(totalGenomes);
     std::fill(coverageCount.begin(), coverageCount.end(), 0);
-    Bitset covered(totalGenomes);
+    char * covered = new char [totalGenomes];
+    memset(covered, 0, sizeof(char) * totalGenomes);
+    int coveredCount = 0;
     std::vector<int> probes;
     std::vector<std::pair<long long, long long>> ranges;
-    int max=-1;
-    int pos=-1;
+    int maxProbeCover=-1;
+    int maxProbeIdx=-1;
     for(size_t i = 0; i < sets.size(); i++){
-        int cnt = sets[i].set->Count();
-        pos = (cnt > max) ? i : pos;
-        max = (cnt > max) ? cnt : max;
+        int cnt = sets[i].genomeAndPosition->size();
+        maxProbeIdx = (cnt > maxProbeCover) ? i : maxProbeIdx;
+        maxProbeCover = (cnt > maxProbeCover) ? cnt : maxProbeCover;
     }
     std::cerr << "Total Genomes: " << totalGenomes << std::endl;
     size_t cnt = 0;
-    while(covered.Count() < totalGenomes){
-        std::cerr << ++cnt <<"\t" << covered.Count() << std::endl;
-        probes.push_back(pos);
-        for(size_t i = 0; i < totalGenomes; i++){
-            if(sets[pos].set->isSet(i)){
-                coverageCount[i]++;
-                if(coverageCount[i] == minCovered){
-                    covered.Set(i);
-                }
+    while(coveredCount < totalGenomes && maxProbeCover > 0){
+        probes.push_back(maxProbeIdx);
+        for(size_t setElmIdx = 0; setElmIdx < sets[maxProbeIdx].genomeAndPosition->size(); setElmIdx++){
+            int elmIdx = sets[maxProbeIdx].genomeAndPosition->at(setElmIdx).first;
+            coverageCount[elmIdx]++;
+            if(coverageCount[elmIdx] == minCovered){
+                covered[elmIdx] = 1;
+                coveredCount++;
             }
         }
-        int probLen = sets[pos].end - sets[pos].start;
-        size_t genomeOffset = (INT_MAX * static_cast<size_t>(sets[pos].genome));
+        std::cerr << ++cnt <<"\t" << coveredCount << std::endl;
 
-        ranges.emplace_back(genomeOffset + sets[pos].start - (probLen - 1), genomeOffset + sets[pos].end + (probLen - 1));
+        int probLen = sets[maxProbeIdx].end - sets[maxProbeIdx].start;
         IITree<long long, long long> ignore;
+        for(size_t setElmIdx = 0; setElmIdx < sets[maxProbeIdx].genomeAndPosition->size(); setElmIdx++){
+            int genome   = sets[maxProbeIdx].genomeAndPosition->at(setElmIdx).first;
+            int startPos = sets[maxProbeIdx].genomeAndPosition->at(setElmIdx).second;
+            size_t genomeOffset = (INT_MAX * static_cast<size_t>(genome));
+            ranges.emplace_back(genomeOffset + startPos - (probLen - 1), genomeOffset + startPos + probLen + 1);
+        }
         for(size_t i = 0; i < ranges.size(); i++){
             ignore.add(ranges[i].first, ranges[i].second, 0);
         }
         ignore.index();
         //covered.Or(sets[pos]);
-        max=-1;
-        pos=-1;
-        for(size_t i = 0; i < sets.size(); i++){
-            int cnt = sets[i].set->AndNotCount(covered);
-            size_t genomeOffset = (INT_MAX * static_cast<size_t>(sets[i].genome));
-            cnt = (ignore.overlap(genomeOffset + sets[i].start, genomeOffset + sets[i].end)) ? 0 :  cnt;
-            pos = (cnt > max) ? i : pos;
-            max = (cnt > max) ? cnt : max;
+        maxProbeCover=-1;
+        maxProbeIdx=-1;
+        for(size_t i = 0; i < sets.size(); i++) {
+            int setCoverElement = 0;
+            for(size_t setElmIdx = 0; setElmIdx < sets[i].genomeAndPosition->size(); setElmIdx++){
+                int genome = sets[i].genomeAndPosition->at(setElmIdx).first;
+                setCoverElement += (covered[genome]);
+            }
+            
+            int cnt = sets[i].genomeAndPosition->size() - setCoverElement;
+            bool hasOverlap = false;
+            for(size_t setElmIdx = 0; setElmIdx < sets[i].genomeAndPosition->size(); setElmIdx++) {
+                int genome = sets[i].genomeAndPosition->at(setElmIdx).first;
+                int startPos = sets[i].genomeAndPosition->at(setElmIdx).second;
+                size_t genomeOffset = (INT_MAX * static_cast<size_t>(genome));
+                hasOverlap |= ignore.overlap(genomeOffset + startPos - (probLen - 1), genomeOffset + startPos + probLen + 1);
+            }
+            cnt = (hasOverlap) ? 0 :  cnt;
+            maxProbeIdx = (cnt > maxProbeCover) ? i : maxProbeIdx;
+            maxProbeCover = (cnt > maxProbeCover) ? cnt : maxProbeCover;
         }
     }
     return probes;
 }
 
-std::vector<Probe> readInSet(std::string filePath, int probeLen){
+std::vector<Probe> readInSet(std::string filePath, size_t & totalGenomes, int probeLen){
     std::set<int> genomeIds;
     std::fstream infile;
     infile.open(filePath, std::fstream::in);
@@ -88,11 +107,9 @@ std::vector<Probe> readInSet(std::string filePath, int probeLen){
     infile.clear();
     infile.seekg(0, std::ios::beg);
     
-    size_t totalGenomes = genomeIds.size();
+    totalGenomes = genomeIds.size()+1;
     std::cerr << "Parse" << std::endl;
-    size_t simKmerCnt = 0;
     while (std::getline(infile, line)) {
-        Bitset * lineBitSet = new Bitset(totalGenomes);
         //0,7;0,7|93,159|1656,227
         std::string currGenomeAndPos = line.substr(0, line.find(";"));
         size_t columnPos = currGenomeAndPos.find(",");
@@ -102,24 +119,23 @@ std::vector<Probe> readInSet(std::string filePath, int probeLen){
         //std::cout <<kmerInGenome << std::endl;
         size_t pos = 0;
         std::string genomeAndPos;
+        std::vector<std::pair<int, int>> * genomeAndPosition = new std::vector<std::pair<int, int>>();
         while ((pos = kmerInGenome.find(pipes)) != std::string::npos ) {
             genomeAndPos = kmerInGenome.substr(0, pos);
             size_t columnPos = genomeAndPos.find(",");
             int currGenome = stoi(genomeAndPos.substr(0, columnPos));
-            lineBitSet->Set(currGenome);
+            int currGenomePos = stoi(genomeAndPos.substr(columnPos+1, genomeAndPos.length()));
+            genomeAndPosition->emplace_back(currGenome, currGenomePos);
             // iterate pipe by pipe
             kmerInGenome.erase(0, pos + pipes.length());
         }
         
         genomeAndPos = kmerInGenome.substr(0, pos);
-        lineBitSet->Set(stoi(genomeAndPos.substr(0, genomeAndPos.find(","))));
-        genomicSets.emplace_back(genome, genomePos, genomePos+probeLen, lineBitSet);
+        genomicSets.emplace_back(genome, genomePos, genomePos+probeLen, genomeAndPosition);
     }
     infile.close();
     return genomicSets;
 }
-
-
 
 int main(int argc, char ** argv){
     int minCovered = 1;
@@ -130,8 +146,8 @@ int main(int argc, char ** argv){
     if(argc == 4){
         range = atoi(argv[3]);
     }
-    std::vector<Probe> probeSet = readInSet(std::string(argv[1]), 40);
-    size_t totalGenomes = probeSet[0].set->Size();
+    size_t totalGenomes;
+    std::vector<Probe> probeSet = readInSet(std::string(argv[1]), totalGenomes, 40);
 
     std::cerr << "SetCover Mincover=" << minCovered << std::endl;
     std::vector<int> cover = setCover(probeSet, totalGenomes, minCovered, range);
@@ -147,7 +163,7 @@ int main(int argc, char ** argv){
     infile.open(argv[1], std::fstream::in);
     std::string line;
     while (std::getline(infile, line)) {
-        if( cnt == coverLine){
+        if(cnt == coverLine){
            std::cout << line << std::endl;
            if(cover.size()==0){
               break;
@@ -158,9 +174,8 @@ int main(int argc, char ** argv){
         cnt++; 
     }
     
-    
     for(size_t set = 0; set < probeSet.size(); set++){
-        delete probeSet[set].set;
+        delete probeSet[set].genomeAndPosition;
     }
     
     return 0;
