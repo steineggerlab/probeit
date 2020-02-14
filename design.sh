@@ -107,7 +107,8 @@ genmap index -F <(awk '/^>/{print $1} !/^>/{print}' cluster/genomes.clu_rep_seq.
 genmap map -E $ERRORINPROB -S filter/crosstaxa.bed --csv -K ${PROBLEN1} -t -b --frequency-large -I index -O mapping
 
 # remove duplicate k-mers and skips first line
-awk -F";" 'NR==1{next}{n=split($2, b, "|"); pg[$1]=1; prevK=0; for(i = 1; i<=n && prevK==0; i++){ if(b[i]!=$1 && b[i] in pg){ prevK=1 }} if(prevK == 0){ print} }' mapping/*.genmap.csv > mapping/uniq.genmap.csv
+awk -F";" 'NR==1{next}{n=split($2, b, "|"); s=$1";"; delete found; for(i=1; i<=n; i++){ split(b[i], e, ","); if(!(e[1] in found)){ s=s""b[i]"|"; } found[e[1]]=1; } print substr(s, 1, length(s)-1); }' mapping/*.genmap.csv > mapping/no.double.entry.csv
+awk -F";" '{n=split($2, b, "|"); pg[$1]=1; prevK=0; for(i = 1; i<=n && prevK==0; i++){ if(b[i]!=$1 && b[i] in pg){ prevK=1 }} if(prevK == 0){ print} }' mapping/no.double.entry.csv > mapping/uniq.genmap.csv
 
 # setcover the k-mers  
 mkdir setcover
@@ -115,10 +116,11 @@ setcover mapping/uniq.genmap.csv $COVERAGE "$PROBLEN1" > "setcover/result"
 
 buildFastaForShortProb=$(cat << 'EOF'
 BEGIN{
-    cnt = 1;    
+    cnt = 1;
 }
 FNR == NR {
-    seqname[NR-1]=$1;
+    split($1, header, " ");
+    seqname[NR-1]=header[1];
     seq[NR-1]=$2;
     next
 }
@@ -163,7 +165,7 @@ END{
                 str = str""seqChar[pos]
             }
         }
-        print ">"probPos[key]"\t"start"\t"end"\t"seqLen;
+        print ">"seqname[seqId1]":"probeStart-1":"probeEnd-1"\t"start"\t"end"\t"seqLen;
         print str;
     }
 }
@@ -171,15 +173,28 @@ EOF
 )
 
 mkdir input_20
-awk -F'\t' -vproblen=$PROBLEN1 -vwindow=50 "$buildFastaForShortProb" <(seqkit fx2tab cluster/genomes.clu_rep_seq.fasta) setcover/result > input_20/seq.fa
+awk -F'\t' -vproblen=$PROBLEN1 -vwindow=200 "$buildFastaForShortProb" <(seqkit fx2tab cluster/genomes.clu_rep_seq.fasta) setcover/result > "input_20/seq.fa"
 genmap index -F input_20/seq.fa -I index_20
+awk 'BEGIN{cnt=0}/^>/{gsub(">","",$1); print $1"\t"cnt; cnt++}' "input_20/seq.fa" > "id_20.lookup"
 
 # compute mappability
 mkdir mapping_20
-genmap map -E $ERRORINPROB --csv -K $PROBLEN2 -t -b --frequency-large -I index_20 -O mapping_20
-awk -F";" 'NR==1{next}{n=split($2, b, "|"); pg[$1]=1; prevK=0; for(i = 1; i<=n && prevK==0; i++){ if(b[i]!=$1 && b[i] in pg){ prevK=1 }} if(prevK == 0){ print} }' mapping_20/*.genmap.csv > mapping_20/uniq.genmap.csv
+genmap map -E $ERRORINPROB --csv -K $PROBLEN2    -t -b --frequency-large -I index_20 -O mapping_20
+
+# remove duplicate k-mers and skips first line
+awk -F";" 'NR==1{next}{n=split($2, b, "|"); s=$1";"; delete found; for(i=1; i<=n; i++){ split(b[i], e, ","); if(!(e[1] in found)){ s=s""b[i]"|"; } found[e[1]]=1; } print substr(s, 1, length(s)-1); }' mapping_20/*.genmap.csv > mapping_20/no.double.entry.csv
+awk -F";" '{n=split($2, b, "|"); pg[$1]=1; prevK=0; for(i = 1; i<=n && prevK==0; i++){ if(b[i]!=$1 && b[i] in pg){ prevK=1 }} if(prevK == 0){ print} }'  mapping_20/no.double.entry.csv > mapping_20/uniq.genmap.csv
 mkdir setcover_20
+
+# minimize 20-mers
 setcover mapping_20/uniq.genmap.csv 1 1 > "setcover_20/result"
 
-#awk -vproblen="$PROBLEN1" 'FNR==NR{f[$2]=$1; next}  {split($0,a,";"); split(a[1],b,","); print f[b[1]]"\t"b[2]"\t"b[2]+problen }' "id.lookup" "setcover/result" > "setcover/result.bed"
-#seqkit subseq --quiet --bed "setcover/result.bed" "cluster/genomes.clu_rep_seq.fasta" > "prob.fa"
+# extract probes
+awk -vproblen="$PROBLEN1" 'FNR==NR{f[$2]=$1; next}  {split($0,a,";"); split(a[1],b,","); print f[b[1]]"\t"b[2]"\t"b[2]+problen"\t"a[2] }' "id.lookup" "setcover/result" > "setcover/result.bed"
+seqkit subseq --quiet --bed "setcover/result.bed" "cluster/genomes.clu_rep_seq.fasta" > "prob40.fa"
+# check if probe capute expected stuff
+while read i; do awk '{n=split($2, s, ""); cnt = 0; for(i=0; i<=n; i++){if(s[i]=="|") {cnt++}} print cnt+1; } ' <(echo $i); echo $(grep -c $(echo $i|awk '{print $3}' ) cluster/genomes.clu_rep_seq.fasta) ; done < <(seqkit fx2tab prob40.fa) | awk '{first=$1; getnextline; if($1!=first){print "ERROR"}}'
+
+awk -vproblen="$PROBLEN2" 'FNR==NR{f[$2]=$1; next} {split($0,a,";"); split(a[1],b,",");  print f[b[1]]"\t"b[2]"\t"b[2]+problen"\t"a[2] }' "id_20.lookup" "setcover_20/result" > "setcover_20/result.bed"
+seqkit subseq --quiet --bed "setcover_20/result.bed" "input_20/seq.fa" > "prob20.fa"
+while read i; do awk '{n=split($2, s, ""); cnt = 0; for(i=0; i<=n; i++){if(s[i]=="|") {cnt++}} print cnt+1; } ' <(echo $i); echo $(grep -c $(echo $i|awk '{print $3}' ) input_20/seq.fa) ; done < <(seqkit fx2tab prob20.fa) | awk '{first=$1; getnextline; if($1!=first){print "ERROR"}}'
