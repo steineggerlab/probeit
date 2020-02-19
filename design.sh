@@ -112,7 +112,7 @@ awk -F";" '{n=split($2, b, "|"); pg[$1]=1; prevK=0; for(i = 1; i<=n && prevK==0;
 
 # setcover the k-mers  
 mkdir setcover
-setcover mapping/uniq.genmap.csv $COVERAGE "$PROBLEN1" > "setcover/result"
+setcover mapping/uniq.genmap.csv $COVERAGE "$PROBLEN1" 0.9 > "setcover/result"
 
 buildFastaForShortProb=$(cat << 'EOF'
 BEGIN{
@@ -179,7 +179,7 @@ awk 'BEGIN{cnt=0}/^>/{gsub(">","",$1); print $1"\t"cnt; cnt++}' "input_20/seq.fa
 
 # compute mappability
 mkdir mapping_20
-genmap map -E $ERRORINPROB --csv -K $PROBLEN2    -t -b --frequency-large -I index_20 -O mapping_20
+genmap map -E 1 --csv -K $PROBLEN2    -t -b --frequency-large -I index_20 -O mapping_20
 
 # remove duplicate k-mers and skips first line
 awk -F";" 'NR==1{next}{n=split($2, b, "|"); s=$1";"; delete found; for(i=1; i<=n; i++){ split(b[i], e, ","); if(!(e[1] in found)){ s=s""b[i]"|"; } found[e[1]]=1; } print substr(s, 1, length(s)-1); }' mapping_20/*.genmap.csv > mapping_20/no.double.entry.csv
@@ -187,7 +187,7 @@ awk -F";" '{n=split($2, b, "|"); pg[$1]=1; prevK=0; for(i = 1; i<=n && prevK==0;
 mkdir setcover_20
 
 # minimize 20-mers
-setcover mapping_20/uniq.genmap.csv 1 1 > "setcover_20/result"
+setcover mapping_20/uniq.genmap.csv 1 1 0.9 > "setcover_20/result"
 
 # extract probes
 awk -vproblen="$PROBLEN1" 'FNR==NR{f[$2]=$1; next}  {split($0,a,";"); split(a[1],b,","); print f[b[1]]"\t"b[2]"\t"b[2]+problen"\t"a[2] }' "id.lookup" "setcover/result" > "setcover/result.bed"
