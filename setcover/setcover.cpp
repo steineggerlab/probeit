@@ -10,15 +10,16 @@
 #include <limits.h>
 
 struct Probe{
-    Probe(int genome, int start, int end, std::vector<std::pair<int,int>> * genomeAndPosition)
-     :genome(genome), start(start), end(end), genomeAndPosition(genomeAndPosition) {}
+    Probe(size_t line, int genome, int start, int end, std::vector<std::pair<int,int>> * genomeAndPosition)
+     :line(line), genome(genome), start(start), end(end), genomeAndPosition(genomeAndPosition) {}
+    size_t line;
     int genome;
     int start;
     int end;
     std::vector<std::pair<int,int>> * genomeAndPosition;
 };
 
-std::vector<int> setCover(std::vector<Probe> & sets, size_t totalGenomes, int minCovered, int range){
+std::vector<int> setCover(std::vector<Probe> & sets, size_t totalGenomes, int minCovered, int range, float percentCoverd){
     std::vector<int> coverageCount(totalGenomes);
     std::fill(coverageCount.begin(), coverageCount.end(), 0);
     char * covered = new char [totalGenomes];
@@ -36,7 +37,7 @@ std::vector<int> setCover(std::vector<Probe> & sets, size_t totalGenomes, int mi
     std::cerr << "Total Genomes: " << totalGenomes << std::endl;
     size_t cnt = 0;
     while(coveredCount < totalGenomes && maxProbeCover > 0){
-        probes.push_back(maxProbeIdx);
+        probes.push_back(sets[maxProbeIdx].line);
         for(size_t setElmIdx = 0; setElmIdx < sets[maxProbeIdx].genomeAndPosition->size(); setElmIdx++){
             int elmIdx = sets[maxProbeIdx].genomeAndPosition->at(setElmIdx).first;
             coverageCount[elmIdx]++;
@@ -46,6 +47,10 @@ std::vector<int> setCover(std::vector<Probe> & sets, size_t totalGenomes, int mi
             }
         }
         std::cerr << ++cnt <<"\t" << coveredCount << std::endl;
+
+        if(static_cast<float>(coveredCount)/static_cast<float>(totalGenomes) >= percentCoverd ){
+            break;
+        }
 
         int probLen = sets[maxProbeIdx].end - sets[maxProbeIdx].start;
         IITree<long long, long long> ignore;
@@ -108,6 +113,7 @@ std::vector<Probe> readInSet(std::string filePath, size_t & totalGenomes, int pr
     infile.seekg(0, std::ios::beg);
     
     totalGenomes = genomeIds.size()+1;
+    size_t lineCnt = 0;
     std::cerr << "Parse" << std::endl;
     while (std::getline(infile, line)) {
         //0,7;0,7|93,159|1656,227
@@ -131,7 +137,8 @@ std::vector<Probe> readInSet(std::string filePath, size_t & totalGenomes, int pr
         }
         
         genomeAndPos = kmerInGenome.substr(0, pos);
-        genomicSets.emplace_back(genome, genomePos, genomePos+probeLen, genomeAndPosition);
+        genomicSets.emplace_back(lineCnt, genome, genomePos, genomePos+probeLen, genomeAndPosition);
+        lineCnt++;
     }
     infile.close();
     return genomicSets;
@@ -140,36 +147,49 @@ std::vector<Probe> readInSet(std::string filePath, size_t & totalGenomes, int pr
 int main(int argc, char ** argv){
     int minCovered = 1;
     int range = 1;
+    float percentCoverd = 1.0f;
     if(argc >= 3){
         minCovered = atoi(argv[2]);
     }
     if(argc == 4){
         range = atoi(argv[3]);
     }
+    if(argc == 5){
+        percentCoverd = atof(argv[4]);
+    }
     size_t totalGenomes;
     std::vector<Probe> probeSet = readInSet(std::string(argv[1]), totalGenomes, 40);
-
+    
     std::cerr << "SetCover Mincover=" << minCovered << std::endl;
-    std::vector<int> cover = setCover(probeSet, totalGenomes, minCovered, range);
-    std::sort(cover.begin(), cover.end(), std::greater<int>());
-    for(size_t i = 0; i< cover.size(); i++){
-        std::cerr << cover[i] << std::endl;
+    int coverProbCnt = INT_MAX;
+    std::vector<int> result;
+    for(size_t i = 0; i < 10; i++){
+        std::random_shuffle ( probeSet.begin(), probeSet.end() );
+        std::vector<int> cover = setCover(probeSet, totalGenomes, minCovered, range, percentCoverd);
+        if(cover.size() < coverProbCnt){
+            coverProbCnt = cover.size();
+            result = cover;
+        }
+    }
+    std::sort(result.begin(), result.end(), std::greater<int>());
+    for(size_t i = 0; i< result.size(); i++){
+        std::cerr << result[i] << std::endl;
     }
 
     int cnt = 0;
-    int coverLine = cover.back();
-    cover.pop_back();
+    int coverLine = result.back();
+    result.pop_back();
     std::fstream infile;
     infile.open(argv[1], std::fstream::in);
     std::string line;
     while (std::getline(infile, line)) {
         if(cnt == coverLine){
            std::cout << line << std::endl;
-           if(cover.size()==0){
+           if(result.size()==0){
               break;
            }
-           coverLine = cover.back();
-           cover.pop_back();
+           coverLine = result.back();
+           result.pop_back();
         }
         cnt++; 
     }
