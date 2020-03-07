@@ -99,12 +99,12 @@ mmseqs easy-search "mmseqs/probes.fa" "mmseqs/filterdb" "mmseqs/mmseqs.search" "
 # create bed file for clusters and substract the detected alignments  
 mkdir filter
 seqkit fx2tab "cluster/genomes.clu_rep_seq.fasta" -i -l -n |  awk '{print $1"\t"1"\t"$2}' > "filter/genomes.clu_rep_seq.bed"
-bedtools subtract -a "filter/genomes.clu_rep_seq.bed" -b <(awk -v problen="${PROBLEN1}" '{split($1, a, "."); split(a[2], b, "_"); gsub(/_[0-9]+$/,"", $1); print $1"\t"b[2]"\t"b[2]+problen}' "mmseqs/mmseqs.search") > "filter/crosstaxa.bed"
+bedtools subtract -a "filter/genomes.clu_rep_seq.bed" -b <(awk -v problen="${PROBLEN1}" '{split($1, a, "."); split(a[2], b, "_"); gsub(/_[0-9]+$/,"", $1); print $1"\t"b[2]-1"\t"b[2]-1+problen}' "mmseqs/mmseqs.search") > "filter/crosstaxa.bed"
 
 # compute mappability
 mkdir mapping
 genmap index -F <(awk '/^>/{print $1} !/^>/{print}' cluster/genomes.clu_rep_seq.fasta) -I index
-genmap map -E $ERRORINPROB -S filter/crosstaxa.bed --csv -K ${PROBLEN1} -t -b --frequency-large -I index -O mapping
+genmap map --no-reverse-complement -E $ERRORINPROB -S filter/crosstaxa.bed --csv -K ${PROBLEN1} -t -b --frequency-large -I index -O mapping
 
 # remove duplicate k-mers and skips first line
 awk -F";" 'NR==1{next}{n=split($2, b, "|"); s=$1";"; delete found; for(i=1; i<=n; i++){ split(b[i], e, ","); if(!(e[1] in found)){ s=s""b[i]"|"; } found[e[1]]=1; } print substr(s, 1, length(s)-1); }' mapping/*.genmap.csv > mapping/no.double.entry.csv
@@ -179,7 +179,7 @@ awk 'BEGIN{cnt=0}/^>/{gsub(">","",$1); print $1"\t"cnt; cnt++}' "input_20/seq.fa
 
 # compute mappability
 mkdir mapping_20
-genmap map -E 1 --csv -K $PROBLEN2    -t -b --frequency-large -I index_20 -O mapping_20
+genmap map --no-reverse-complement -E 1 --csv -K $PROBLEN2 -t -b --frequency-large -I index_20 -O mapping_20
 
 # remove duplicate k-mers and skips first line
 awk -F";" 'NR==1{next}{n=split($2, b, "|"); s=$1";"; delete found; for(i=1; i<=n; i++){ split(b[i], e, ","); if(!(e[1] in found)){ s=s""b[i]"|"; } found[e[1]]=1; } print substr(s, 1, length(s)-1); }' mapping_20/*.genmap.csv > mapping_20/no.double.entry.csv
