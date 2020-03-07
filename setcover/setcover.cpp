@@ -108,6 +108,9 @@ std::vector<Probe> readInSet(std::string filePath, size_t & totalGenomes, int pr
             genomeIds.insert(currGenome);
             kmerInGenome.erase(0, pos + pipes.length());
         }
+        size_t columnPos = kmerInGenome.find(",");
+        int currGenome = stoi(kmerInGenome.substr(0, columnPos));
+        genomeIds.insert(currGenome);
     }
     infile.clear();
     infile.seekg(0, std::ios::beg);
@@ -135,7 +138,11 @@ std::vector<Probe> readInSet(std::string filePath, size_t & totalGenomes, int pr
             // iterate pipe by pipe
             kmerInGenome.erase(0, pos + pipes.length());
         }
-        
+        columnPos = kmerInGenome.find(",");
+        int currGenome = stoi(kmerInGenome.substr(0, columnPos));
+        int currGenomePos = stoi(kmerInGenome.substr(columnPos+1, kmerInGenome.length()));
+        genomeAndPosition->emplace_back(currGenome, currGenomePos);
+
         genomeAndPos = kmerInGenome.substr(0, pos);
         genomicSets.emplace_back(lineCnt, genome, genomePos, genomePos+probeLen, genomeAndPosition);
         lineCnt++;
