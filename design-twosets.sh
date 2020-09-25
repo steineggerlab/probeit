@@ -1,22 +1,37 @@
 #!/bin/bash -ex
-export PATH=/Users/mad/Documents/workspace/probeit/setcover:/Users/mad/Documents/workspace/mmseqs2/build/src:/Users/mad/Documents/workspace/genmap-build/bin:$PATH
+export PATH=$(pwd)/setcover/:$PATH
 PARAMCNT=0
 PROBLEN1=40
 PROBLEN2=20
-ERRORINPROB=0
-COVERAGE=1 
+ERRORINPROB1=0
+ERRORINPROB2=1
+COVERAGE=1
+CLUSTER=1
+SEQID="0.97"
+SEQIDPROBE="0.90"
 while [[ $# -gt 0 ]]
 do
 key="$1"
 case $key in
-    -t|--taxid)
-    TAXID="$2"
+    -p|--positive)
+    INPUT="$2"
     ((PARAMCNT++))
     shift # past argument
     shift # past value
     ;;
-    -l|--len)
+    -n|--negative)
+    NEGATIVE="$2"
+    ((PARAMCNT++))
+    shift # past argument
+    shift # past value
+    ;;
+    --probe-len1)
     PROBLEN1="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    --probe-len2)
+    PROBLEN2="$2"
     shift # past argument
     shift # past value
     ;;
@@ -26,24 +41,33 @@ case $key in
     shift # past argument
     shift # past value
     ;;
-    -d|--db)
-    MMDB="$(greadlink -f $2)"
-    ((PARAMCNT++))
+    --seq-id-cluster)
+    SEQID="$2"
     shift # past argument
     shift # past value
     ;;
-    -e)
-    TAXATOIGNORE="$2"
+    --seq-id-probe)
+    SEQIDPROBE="$2"
     shift # past argument
     shift # past value
     ;;
-    -m)
-    ERRORINPROB="$2"
+    --probe-error1)
+    ERRORINPROB1="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    --probe-error2)
+    ERRORINPROB2="$2"
     shift # past argument
     shift # past value
     ;;
     -c)
     COVERAGE="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    --cluster)
+    CLUSTER="$2"
     shift # past argument
     shift # past value
     ;;
@@ -54,15 +78,20 @@ case $key in
 esac
 done
 if [[ "$PARAMCNT" -lt 3 ]]; then
-    echo "Usage: design.sh -t taxid -l prob_len -o output_folder"
+    echo "Usage: design.sh -p positive.fa -n negative.fa -o output_folder"
 
     echo "REQUIRED"
-    echo " -t|--taxid NCBI taxonomical identifier"
+    echo " -p|--positive sequence set that should be covered"
+    echo " -n|--negative sequence set that should be not contained"
     echo " -o|--output result output folder"
-    echo " -d|--db path to db"
     echo "OPTIONAL"
-    echo " -l|--len probe length (default 40)"
-    echo " -e exclude taxa from cross reaction check (default '')"
+    echo " --seq-id-cluster clustering identity treshold (default 0.97)"
+    echo " --seq-id-probe identity treshold to filter probes aligned to neg. set (default 0.90)"
+    echo " --cluster cluster sequences (default 1)"
+    echo " --probe-error1 error allowed in probe 1 (default 0)"
+    echo " --probe-error2 error allowed in probe 2 (default 1)"
+    echo " --probe-len1 length of first probe (default 40)"
+    echo " --probe-len2 length of second probe. Probe2 will be ignored if set to -1 (default 20)"
     echo " -m compute k-mer conservation with N mismatches (default 0)"
     echo " -c genome coverage by probes (default 1)"
     exit
@@ -70,25 +99,27 @@ fi
 
 set -- "${POSITIONAL[@]}" # restore positional parameters
 
+
+ABSINPUT=$(realpath $INPUT)
+ABSNEGATIVE=$(realpath $NEGATIVE)
+
+
 mkdir -p "$OUTPUT" && cd "$OUTPUT"
 mkdir -p input && cd input
+ln -sfv "$ABSINPUT" genomes.fa
 
-# download ref. seq
-if [ ! -f "download.done" ]; then
-  for TID in $(echo $TAXID|awk -F',' '{for(i = 1; i <= NF; i++){print $i}}'); do 
-    QUERY="txid${TID}[Organism:exp] and \"complete genome\"[title]"
-    echo "Query NCBI ${QUERY}"
-    # download genomes
-    esearch -db nuccore -query "${QUERY}" | efetch -format fasta >> genomes.fa
-  done
-  touch download.done
-fi
 cd ..
 
 # cluster the sequences to reduce highly abundant strains  
 mkdir -p cluster
-if [ ! -f "cluster/genomes.clu_rep_seq.fasta" ]; then
-  mmseqs easy-linclust input/genomes.fa cluster/genomes.clu cluster/tmp --kmer-per-seq 1000 --min-seq-id 0.97 --cov-mode 1 -c 0.95
+if [ $CLUSTER == "1" ]; then
+  if [ ! -f "cluster/genomes.clu_rep_seq.fasta" ]; then
+    mmseqs easy-linclust input/genomes.fa cluster/genomes.clu cluster/tmp --kmer-per-seq-scale 0.5 --kmer-per-seq 1000 --min-seq-id "$SEQID" --cov-mode 1 -c 0.95
+  fi
+else
+  cd cluster 
+  ln -sfv "$ABSINPUT" genomes.clu_rep_seq.fasta
+  cd ..
 fi
 # create a genome mapping file (genomeID numericalID)
 awk 'BEGIN{cnt=0}/^>/{gsub(">","",$1); print $1"\t"cnt; cnt++}' cluster/genomes.clu_rep_seq.fasta > id.lookup
@@ -97,8 +128,7 @@ awk 'BEGIN{cnt=0}/^>/{gsub(">","",$1); print $1"\t"cnt; cnt++}' cluster/genomes.
 mkdir -p mmseqs
 if [ ! -f "mmseqs/mmseqs.search" ]; then
   awk -v problen="${PROBLEN1}" '/^>/{header=$1;} !/^>/{ genomeLen=length($1); for(i = 0; i < genomeLen-problen; i++){ print header"_"(i+1); print substr($0, (i+1), problen); } }' "cluster/genomes.clu_rep_seq.fasta" > "mmseqs/probes.fa"
-  mmseqs filtertaxseqdb "${MMDB}" "mmseqs/filterdb"  --taxon-list $(echo "${TAXATOIGNORE}")
-  mmseqs easy-search "mmseqs/probes.fa" "mmseqs/filterdb" "mmseqs/mmseqs.search" "mmseqs/tmp" --spaced-kmer-mode 0 --mask 0 -c 0.9 --min-seq-id 0.9 --cov-mode 2 --alignment-mode 4 --search-type 3 --format-output query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,taxid,taxname,taxlineage
+  mmseqs easy-search "mmseqs/probes.fa" "${ABSNEGATIVE}" "mmseqs/mmseqs.search" "mmseqs/tmp" --spaced-kmer-mode 0 --mask 0 -c 0.9 --min-seq-id $SEQIDPROBE --cov-mode 2 --alignment-mode 4 --search-type 3 --format-output query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue
 fi
 
 # sed 's/\(.*\)_/\1      /'
@@ -106,10 +136,10 @@ fi
 # create bed file for clusters and substract the detected alignments  
 mkdir -p filter
 seqkit fx2tab "cluster/genomes.clu_rep_seq.fasta" -i -l -n |  awk '{print $1"\t"1"\t"$2}' > "filter/genomes.clu_rep_seq.bed"
-bedtools subtract -a "filter/genomes.clu_rep_seq.bed" -b <(awk -v problen="${PROBLEN1}" '{split($1, a, "."); split(a[2], b, "_"); gsub(/_[0-9]+$/,"", $1); print $1"\t"b[2]-1"\t"b[2]-1+problen}' "mmseqs/mmseqs.search") > "filter/crosstaxa.bed"
+bedtools subtract -a "filter/genomes.clu_rep_seq.bed" -b <(awk -v problen="${PROBLEN1}" '{n=split($1, b, "_");  gsub(/_[0-9]+$/,"", $1); print $1"\t"b[n]-1"\t"b[n]-1+problen}' "mmseqs/mmseqs.search") > "filter/crosstaxa.bed"
 
 # check primer3 
-awk -F'_' '/^>/{str=$1; for(i=2;i<NF;i++){str=str"_"$i} print str"\t"$NF} !/^>/{print}' "mmseqs/probes.fa" > filter/probes.fa
+awk -F'_' '/^>/{str=$1; for(i=2;i<NF;i++){str=str"_"$i} print str"\t"$NF} !/^>/{print}' "mmseqs/probes.fa" > "filter/probes.fa"
 
 primer3call=$(cat << 'EOF'
 from Bio.SeqIO.FastaIO import SimpleFastaParser
@@ -252,22 +282,29 @@ bedtools subtract -a filter/genomes.clu_rep_seq.bed -b filter/primer3_bed.bed > 
 bedtools subtract -a filter/crosstaxa.bed -b filter/primer3.neg.bed > filter/crosstaxa.primer3.bed
 
 # compute mappability
-mkdir -p mapping
-if [ ! -f "mapping/done" ]; then
-  genmap index -F <(awk '/^>/{print $1} !/^>/{print}' cluster/genomes.clu_rep_seq.fasta) -I index
-  genmap map --no-reverse-complement -E $ERRORINPROB -S filter/crosstaxa.primer3.bed --csv -K ${PROBLEN1} -t -b --frequency-large -I index -O mapping
-  touch mapping/done
+if [ ! -f "mapping_probe1/done" ]; then
+  mkdir -p mapping_probe1
+  genmap index -F <(awk '/^>/{print $1} !/^>/{print}' cluster/genomes.clu_rep_seq.fasta) -I index_probe1
+  genmap map --no-reverse-complement -E "${ERRORINPROB1}" -S filter/crosstaxa.primer3.bed --csv -K "${PROBLEN1}" -t -b --frequency-large -I index_probe1 -O mapping_probe1
+  touch mapping_probe1/done
 fi
 # remove duplicate k-mers and skips first line
-awk -F";" 'NR==1{next}{n=split($2, b, "|"); s=$1";"; delete found; for(i=1; i<=n; i++){ split(b[i], e, ","); if(!(e[1] in found)){ s=s""b[i]"|"; } found[e[1]]=1; } print substr(s, 1, length(s)-1); }' mapping/*.genmap.csv > mapping/no.double.entry.csv
-awk -F";" '{n=split($2, b, "|"); pg[$1]=1; prevK=0; for(i = 1; i<=n && prevK==0; i++){ if(b[i]!=$1 && b[i] in pg){ prevK=1 }} if(prevK == 0){ print} }' mapping/no.double.entry.csv > mapping/uniq.genmap.csv
+awk -F";" 'NR==1{next}{n=split($2, b, "|"); s=$1";"; delete found; for(i=1; i<=n; i++){ split(b[i], e, ","); if(!(e[1] in found)){ s=s""b[i]"|"; } found[e[1]]=1; } print substr(s, 1, length(s)-1); }' mapping_probe1/*.genmap.csv > mapping_probe1/no.double.entry.csv
+awk -F";" '{n=split($2, b, "|"); pg[$1]=1; prevK=0; for(i = 1; i<=n && prevK==0; i++){ if(b[i]!=$1 && b[i] in pg){ prevK=1 }} if(prevK == 0){ print} }' mapping_probe1/no.double.entry.csv > mapping_probe1/uniq.genmap.csv
 
 # setcover the k-mers  
-mkdir -p setcover
-if [ ! -f "setcover/result" ]; then
-  setcover mapping/uniq.genmap.csv $COVERAGE "$PROBLEN1" 0.9 > "setcover/result"
+mkdir -p setcover_probe1
+if [ ! -f "setcover_probe1/result" ]; then
+    setcover mapping_probe1/uniq.genmap.csv cluster/genomes.clu_rep_seq.fasta "${COVERAGE}" "${PROBLEN1}" 0.9 11 > "setcover_probe1/result"
 fi
 
+# extract probes
+awk -vproblen="${PROBLEN1}" 'FNR==NR{f[$2]=$1; next}  {split($0,a,";"); split(a[1],b,","); print f[b[1]]"\t"b[2]"\t"b[2]+problen"\t"a[2] }' "id.lookup" "setcover_probe1/result" > "setcover_probe1/result.bed"
+seqkit subseq --quiet --bed "setcover_probe1/result.bed" "cluster/genomes.clu_rep_seq.fasta" > "prob40.fa"
+# check if probe capute expected stuff
+while read -r i; do awk '{n=split($2, s, ""); cnt = 0; for(i=0; i<=n; i++){if(s[i]=="|") {cnt++}} print cnt+1; } ' <(echo "$i"); echo $(grep -c $(echo "$i"|awk '{print $3}' ) cluster/genomes.clu_rep_seq.fasta) ; done < <(seqkit fx2tab prob40.fa) | awk '{first=$1; getnextline; if($1!=first){print "ERROR"}}'
+
+if [ "$PROBLEN2" != "-1" ]; then
 buildFastaForShortProb=$(cat << 'EOF'
 BEGIN{
     cnt = 1;
@@ -326,28 +363,23 @@ END{
 EOF
 )
 
-mkdir -p input_20
-awk -F'\t' -vproblen=$PROBLEN1 -vwindow=200 "$buildFastaForShortProb" <(seqkit fx2tab cluster/genomes.clu_rep_seq.fasta) setcover/result > "input_20/seq.fa"
-genmap index -F input_20/seq.fa -I index_20
-awk 'BEGIN{cnt=0}/^>/{gsub(">","",$1); print $1"\t"cnt; cnt++}' "input_20/seq.fa" > "id_20.lookup"
+mkdir -p input_probe2
+awk -F'\t' -vproblen="{$PROBLEN1}" -vwindow=200 "$buildFastaForShortProb" <(seqkit fx2tab cluster/genomes.clu_rep_seq.fasta) setcover_probe1/result > "input_probe2/seq.fa"
+genmap index -F input_probe2/seq.fa -I index_probe2
+awk 'BEGIN{cnt=0}/^>/{gsub(">","",$1); print $1"\t"cnt; cnt++}' "input_probe2/seq.fa" > "id_probe2.lookup"
 
 # compute mappability
-mkdir -p mapping_20
-genmap map --no-reverse-complement -E 1 --csv -K $PROBLEN2 -t -b --frequency-large -I index_20 -O mapping_20
+mkdir -p mapping_probe2
+genmap map --no-reverse-complement -E "${ERRORINPROB2}" --csv -K "${PROBLEN2}" -t -b --frequency-large -I index_probe2 -O mapping_probe2
 # remove duplicate k-mers and skips first line
-awk -F";" 'NR==1{next}{n=split($2, b, "|"); s=$1";"; delete found; for(i=1; i<=n; i++){ split(b[i], e, ","); if(!(e[1] in found)){ s=s""b[i]"|"; } found[e[1]]=1; } print substr(s, 1, length(s)-1); }' mapping_20/*.genmap.csv > mapping_20/no.double.entry.csv
-awk -F";" '{n=split($2, b, "|"); pg[$1]=1; prevK=0; for(i = 1; i<=n && prevK==0; i++){ if(b[i]!=$1 && b[i] in pg){ prevK=1 }} if(prevK == 0){ print} }'  mapping_20/no.double.entry.csv > mapping_20/uniq.genmap.csv
-mkdir -p setcover_20
+awk -F";" 'NR==1{next}{n=split($2, b, "|"); s=$1";"; delete found; for(i=1; i<=n; i++){ split(b[i], e, ","); if(!(e[1] in found)){ s=s""b[i]"|"; } found[e[1]]=1; } print substr(s, 1, length(s)-1); }' mapping_probe2/*.genmap.csv > mapping_probe2/no.double.entry.csv
+awk -F";" '{n=split($2, b, "|"); pg[$1]=1; prevK=0; for(i = 1; i<=n && prevK==0; i++){ if(b[i]!=$1 && b[i] in pg){ prevK=1 }} if(prevK == 0){ print} }'  mapping_probe2/no.double.entry.csv > mapping_probe2/uniq.genmap.csv
+mkdir -p setcover_probe2
 
 # minimize 20-mers
-setcover mapping_20/uniq.genmap.csv 1 1 0.99 > "setcover_20/result"
+setcover mapping_probe2/uniq.genmap.csv input_probe2/seq.fa 1 1 0.99 20 > "setcover_probe2/result"
 
-# extract probes
-awk -vproblen="$PROBLEN1" 'FNR==NR{f[$2]=$1; next}  {split($0,a,";"); split(a[1],b,","); print f[b[1]]"\t"b[2]"\t"b[2]+problen"\t"a[2] }' "id.lookup" "setcover/result" > "setcover/result.bed"
-seqkit subseq --quiet --bed "setcover/result.bed" "cluster/genomes.clu_rep_seq.fasta" > "prob40.fa"
-# check if probe capute expected stuff
-while read i; do awk '{n=split($2, s, ""); cnt = 0; for(i=0; i<=n; i++){if(s[i]=="|") {cnt++}} print cnt+1; } ' <(echo $i); echo $(grep -c $(echo $i|awk '{print $3}' ) cluster/genomes.clu_rep_seq.fasta) ; done < <(seqkit fx2tab prob40.fa) | awk '{first=$1; getnextline; if($1!=first){print "ERROR"}}'
-
-awk -vproblen="$PROBLEN2" 'FNR==NR{f[$2]=$1; next} {split($0,a,";"); split(a[1],b,",");  print f[b[1]]"\t"b[2]"\t"b[2]+problen"\t"a[2] }' "id_20.lookup" "setcover_20/result" > "setcover_20/result.bed"
-seqkit subseq --quiet --bed "setcover_20/result.bed" "input_20/seq.fa" > "prob20.fa"
-while read i; do awk '{n=split($2, s, ""); cnt = 0; for(i=0; i<=n; i++){if(s[i]=="|") {cnt++}} print cnt+1; } ' <(echo $i); echo $(grep -c $(echo $i|awk '{print $3}' ) input_20/seq.fa) ; done < <(seqkit fx2tab prob20.fa) | awk '{first=$1; getnextline; if($1!=first){print "ERROR"}}'
+awk -vproblen="$PROBLEN2" 'FNR==NR{f[$2]=$1; next} {split($0,a,";"); split(a[1],b,",");  print f[b[1]]"\t"b[2]"\t"b[2]+problen"\t"a[2] }' "id_probe2.lookup" "setcover_probe2/result" > "setcover_probe2/result.bed"
+seqkit subseq --quiet --bed "setcover_probe2/result.bed" "input_probe2/seq.fa" > "prob2.fa"
+while read -r i; do awk '{n=split($2, s, ""); cnt = 0; for(i=0; i<=n; i++){if(s[i]=="|") {cnt++}} print cnt+1; } ' <(echo "$i"); echo $(grep -c $(echo "$i"|awk '{print $3}' ) input_probe2/seq.fa) ; done < <(seqkit fx2tab prob2.fa) | awk '{first=$1; getnextline; if($1!=first){print "ERROR"}}'
+fi
