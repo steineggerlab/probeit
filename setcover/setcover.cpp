@@ -281,7 +281,7 @@ int main(int argc, char ** argv){
     if(argc >= 6){
         distanceThreshhold = atoi(argv[6]);
     }
-    size_t totalGenomes;
+    size_t totalGenomes = 0;
     std::vector<Probe> probeSet = readInSet(std::string(argv[1]), totalGenomes, range);
     
     std::cerr << "SetCover Mincover=" << minCovered << std::endl;
