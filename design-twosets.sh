@@ -1,4 +1,4 @@
-#!/bin/bash -ex
+#!/bin/bash -e
 export PATH=$(pwd)/setcover/:$PATH
 PARAMCNT=0
 PROBLEN1=40
@@ -113,8 +113,9 @@ cd ..
 # cluster the sequences to reduce highly abundant strains  
 mkdir -p cluster
 if [ $CLUSTER == "1" ]; then
+  echo "cluster input sequences"
   if [ ! -f "cluster/genomes.clu_rep_seq.fasta" ]; then
-    mmseqs easy-linclust input/genomes.fa cluster/genomes.clu cluster/tmp --kmer-per-seq-scale 0.5 --kmer-per-seq 1000 --min-seq-id "$SEQID" --cov-mode 1 -c 0.95
+    mmseqs easy-linclust input/genomes.fa cluster/genomes.clu cluster/tmp -v 0 --kmer-per-seq-scale 0.5 --kmer-per-seq 1000 --min-seq-id "$SEQID" --cov-mode 1 -c 0.95
   fi
 else
   cd cluster 
@@ -127,8 +128,9 @@ awk 'BEGIN{cnt=0}/^>/{gsub(">","",$1); print $1"\t"cnt; cnt++}' cluster/genomes.
 # search probs against MMDB database
 mkdir -p mmseqs
 if [ ! -f "mmseqs/mmseqs.search" ]; then
+  echo "remove probes that aligns to negative set"
   awk -v problen="${PROBLEN1}" '/^>/{header=$1;} !/^>/{ genomeLen=length($1); for(i = 0; i < genomeLen-problen; i++){ print header"_"(i+1); print substr($0, (i+1), problen); } }' "cluster/genomes.clu_rep_seq.fasta" > "mmseqs/probes.fa"
-  mmseqs easy-search "mmseqs/probes.fa" "${ABSNEGATIVE}" "mmseqs/mmseqs.search" "mmseqs/tmp" --spaced-kmer-mode 0 --mask 0 -c 0.9 --min-seq-id $SEQIDPROBE --cov-mode 2 --alignment-mode 4 --search-type 3 --format-output query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue
+  mmseqs easy-search "mmseqs/probes.fa" "${ABSNEGATIVE}" "mmseqs/mmseqs.search" "mmseqs/tmp" -v 0 --spaced-kmer-mode 0 -k 13 --mask 0 -c 0.9 --min-seq-id $SEQIDPROBE --cov-mode 2 --alignment-mode 4 --search-type 3 --format-output query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue
 fi
 
 # sed 's/\(.*\)_/\1      /'
@@ -275,6 +277,7 @@ EOF
 )
 
 if [ ! -f "filter/primer3_bed.bed" ]; then
+  echo "filter probes based on primer3"
   python -c "$primer3call" --lig_probes_in=filter/probes.fa --outfile=filter/primer3 --save_cut_probes=True
 fi
 # combine two filters: cross tax. hits and primer3 
@@ -283,9 +286,10 @@ bedtools subtract -a filter/crosstaxa.bed -b filter/primer3.neg.bed > filter/cro
 
 # compute mappability
 if [ ! -f "mapping_probe1/done" ]; then
+  echo "compute mappability"
   mkdir -p mapping_probe1
-  genmap index -F <(awk '/^>/{print $1} !/^>/{print}' cluster/genomes.clu_rep_seq.fasta) -I index_probe1
-  genmap map --no-reverse-complement -E "${ERRORINPROB1}" -S filter/crosstaxa.primer3.bed --csv -K "${PROBLEN1}" -t -b --frequency-large -I index_probe1 -O mapping_probe1
+  genmap index -F <(awk '/^>/{print $1} !/^>/{print}' cluster/genomes.clu_rep_seq.fasta) -I index_probe1 > /dev/null
+  genmap map --no-reverse-complement -E "${ERRORINPROB1}" -S filter/crosstaxa.primer3.bed --csv -K "${PROBLEN1}" -t -b --frequency-large -I index_probe1 -O mapping_probe1 > /dev/null
   touch mapping_probe1/done
 fi
 # remove duplicate k-mers and skips first line
@@ -295,7 +299,8 @@ awk -F";" '{n=split($2, b, "|"); pg[$1]=1; prevK=0; for(i = 1; i<=n && prevK==0;
 # setcover the k-mers  
 mkdir -p setcover_probe1
 if [ ! -f "setcover_probe1/result" ]; then
-    setcover mapping_probe1/uniq.genmap.csv cluster/genomes.clu_rep_seq.fasta "${COVERAGE}" "${PROBLEN1}" 0.9 11 > "setcover_probe1/result"
+    echo "minimize probe set"
+    setcover -c "${COVERAGE}" -l "${PROBLEN1}" -p 0.9 -d 11 -i 1 mapping_probe1/uniq.genmap.csv cluster/genomes.clu_rep_seq.fasta > "setcover_probe1/result"
 fi
 
 # extract probes
@@ -365,19 +370,19 @@ EOF
 
 mkdir -p input_probe2
 awk -F'\t' -vproblen="{$PROBLEN1}" -vwindow=200 "$buildFastaForShortProb" <(seqkit fx2tab cluster/genomes.clu_rep_seq.fasta) setcover_probe1/result > "input_probe2/seq.fa"
-genmap index -F input_probe2/seq.fa -I index_probe2
+genmap index -F input_probe2/seq.fa -I index_probe2 > /dev/null
 awk 'BEGIN{cnt=0}/^>/{gsub(">","",$1); print $1"\t"cnt; cnt++}' "input_probe2/seq.fa" > "id_probe2.lookup"
 
 # compute mappability
 mkdir -p mapping_probe2
-genmap map --no-reverse-complement -E "${ERRORINPROB2}" --csv -K "${PROBLEN2}" -t -b --frequency-large -I index_probe2 -O mapping_probe2
+genmap map --no-reverse-complement -E "${ERRORINPROB2}" --csv -K "${PROBLEN2}" -t -b --frequency-large -I index_probe2 -O mapping_probe2 > /dev/null
 # remove duplicate k-mers and skips first line
 awk -F";" 'NR==1{next}{n=split($2, b, "|"); s=$1";"; delete found; for(i=1; i<=n; i++){ split(b[i], e, ","); if(!(e[1] in found)){ s=s""b[i]"|"; } found[e[1]]=1; } print substr(s, 1, length(s)-1); }' mapping_probe2/*.genmap.csv > mapping_probe2/no.double.entry.csv
 awk -F";" '{n=split($2, b, "|"); pg[$1]=1; prevK=0; for(i = 1; i<=n && prevK==0; i++){ if(b[i]!=$1 && b[i] in pg){ prevK=1 }} if(prevK == 0){ print} }'  mapping_probe2/no.double.entry.csv > mapping_probe2/uniq.genmap.csv
 mkdir -p setcover_probe2
 
 # minimize 20-mers
-setcover mapping_probe2/uniq.genmap.csv input_probe2/seq.fa 1 1 0.99 20 > "setcover_probe2/result"
+setcover -c 1 -l 1 -p 0.99 -d 20 -i 10 mapping_probe2/uniq.genmap.csv input_probe2/seq.fa > "setcover_probe2/result"
 
 awk -vproblen="$PROBLEN2" 'FNR==NR{f[$2]=$1; next} {split($0,a,";"); split(a[1],b,",");  print f[b[1]]"\t"b[2]"\t"b[2]+problen"\t"a[2] }' "id_probe2.lookup" "setcover_probe2/result" > "setcover_probe2/result.bed"
 seqkit subseq --quiet --bed "setcover_probe2/result.bed" "input_probe2/seq.fa" > "prob2.fa"

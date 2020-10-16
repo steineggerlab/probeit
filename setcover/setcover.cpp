@@ -191,9 +191,7 @@ std::vector<Probe> setCover(std::vector<Probe> & sets, std::vector<std::string> 
     return probes;
 }
 
-
-
-std::vector<Probe> readInSet(std::string filePath, size_t & totalGenomes, int probeLen){
+std::vector<Probe> readInSet(std::string &filePath, size_t & totalGenomes, int probeLen){
     std::set<int> genomeIds;
     std::fstream infile;
     infile.open(filePath, std::fstream::in);
@@ -263,31 +261,42 @@ int main(int argc, char ** argv){
     int range = 1;
     float percentCoverd = 1.0f;
     int distanceThreshhold = UINT_MAX;
+    int randIterations = 1;
     if(argc == 1){
-        std::cout << "Usage: setcover <genmapTSV> <fasta> [genomeMinCov probeSize precetCoverage distanceThreshhold]"<< std::endl;
+        std::cout << "Usage: setcover [options] <genmapTSV> <fasta>\n";
+        std::cout << "Options:\n";
+        std::cout << "  -c INT\teach sequence should be N times covered by a probe\n";
+        std::cout << "  -l INT\tlength of probe. Set if probes should not overlap else set 1\n";
+        std::cout << "  -p FLOAT\tearly stop if X% of the sequences are '-c N' times covered\n";
+        std::cout << "  -d INT\taccept probes only if the levenshtein distance to previously picked probes is < than -d\n";
+        std::cout << "  -i INT\tminimize probes randomly N iterations \n";
         exit(0);
     }
-    std::string fasta = std::string(argv[2]);
-    std::vector<std::string> seqs = readFasta(fasta);
-    if(argc >= 3){
-        minCovered = atoi(argv[3]);
+    for (int i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "-c") && (i < argc - 1)) {
+            minCovered = atoi(argv[++i]);
+        } else if (!strcmp(argv[i], "-l") && (i < argc - 1)) {
+            range = atoi(argv[++i]);
+        } else if (!strcmp(argv[i], "-p") && (i < argc - 1)) {
+            percentCoverd = atof(argv[++i]);
+        } else if (!strcmp(argv[i], "-d") && (i < argc - 1)) {
+            distanceThreshhold = atoi(argv[++i]);
+        } else if (!strcmp(argv[i], "-i") && (i < argc - 1)) {
+            randIterations = atoi(argv[++i]);
+        }
     }
-    if(argc >= 4){
-        range = atoi(argv[4]);
-    }
-    if(argc >= 5){
-        percentCoverd = atof(argv[5]);
-    }
-    if(argc >= 6){
-        distanceThreshhold = atoi(argv[6]);
-    }
+
+    std::string fastaFile = std::string(argv[argc-1]);
+    std::string genmapTSV = std::string(argv[argc-2]);
+    std::vector<std::string> seqs = readFasta(fastaFile);
+
     size_t totalGenomes = 0;
-    std::vector<Probe> probeSet = readInSet(std::string(argv[1]), totalGenomes, range);
+    std::vector<Probe> probeSet = readInSet(genmapTSV, totalGenomes, range);
     
     std::cerr << "SetCover Mincover=" << minCovered << std::endl;
     int coverProbCnt = INT_MAX;
     std::vector<Probe> result;
-    for(size_t i = 0; i < 10; i++){
+    for(size_t i = 0; i < randIterations; i++){
         std::random_shuffle ( probeSet.begin(), probeSet.end() );
         std::vector<Probe> cover = setCover(probeSet, seqs, totalGenomes, minCovered, percentCoverd, distanceThreshhold);
         if(cover.size() < coverProbCnt){
@@ -296,15 +305,12 @@ int main(int argc, char ** argv){
         }
     }
     std::sort(result.begin(), result.end(), Probe::comparByLine);
-    for(size_t i = 0; i< result.size(); i++){
-        std::cerr << result[i].line << std::endl;
-    }
 
     int cnt = 0;
     int coverLine = result.back().line;
     result.pop_back();
     std::fstream infile;
-    infile.open(argv[1], std::fstream::in);
+    infile.open(genmapTSV, std::fstream::in);
     std::string line;
     while (std::getline(infile, line)) {
         if(cnt == coverLine){
