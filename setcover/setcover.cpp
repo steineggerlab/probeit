@@ -1,5 +1,4 @@
 #include <string.h>
-#include "IITree.h"
 #include "kseq.h"
 #include <fstream>
 #include <iostream>
