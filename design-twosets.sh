@@ -369,7 +369,7 @@ EOF
 )
 
 mkdir -p input_probe2
-awk -F'\t' -vproblen="{$PROBLEN1}" -vwindow=200 "$buildFastaForShortProb" <(seqkit fx2tab cluster/genomes.clu_rep_seq.fasta) setcover_probe1/result > "input_probe2/seq.fa"
+awk -F'\t' -vproblen="${PROBLEN1}" -vwindow=200 "$buildFastaForShortProb" <(seqkit fx2tab cluster/genomes.clu_rep_seq.fasta) setcover_probe1/result > "input_probe2/seq.fa"
 genmap index -F input_probe2/seq.fa -I index_probe2 > /dev/null
 awk 'BEGIN{cnt=0}/^>/{gsub(">","",$1); print $1"\t"cnt; cnt++}' "input_probe2/seq.fa" > "id_probe2.lookup"
 
