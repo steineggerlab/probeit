@@ -9,8 +9,13 @@ import os
 import shutil
 import re
 import getopt
+# Create list of problematic sequences
+problem_seqs = ['A'*5, 'T'*5, 'C'*5, 'C'*5]
+five_reps = [Seq(each_seq) for each_seq in problem_seqs]
+
+
 # method for help message printing
-def printGuideMessage():
+def printUsage():
     print("REQUIRED")
     print(" -p|--positive sequence set that should be covered")
     print(" -n|--negative sequence set that should be not contained")
@@ -25,21 +30,28 @@ def printGuideMessage():
     print(" -m compute k-mer conservation with N mismatches (default 0)")
     print(" -c genome coverage by probes (default 1)")
     quit()
+
+
 # method for absoulte path
 def makeAbsPath(fileName, directory=''):
-    absolutePath = os.getcwd() + os.path.sep + fileName if (
-                directory == '') else os.getcwd() + os.path.sep + directory + os.path.sep + fileName
+    absolutePath = os.getcwd() + os.path.sep + fileName if (directory == '') else os.getcwd() + os.path.sep + directory + os.path.sep + fileName
     return absolutePath
+
+
 # method for making directory
 def makeDir(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
     return directory
+
+
 # method for file copying
 def copyFile(input, output):
     if not os.path.exists(output):
         shutil.copy(input, output)
         print(input + ' is copied to ' + output)
+
+
 # method for making lookup file
 def makeLookup(input, output):
     if os.path.exists(output):
@@ -51,6 +63,8 @@ def makeLookup(input, output):
                 header = title.split()[0].strip()
                 w.write(header + '\t' + str(cnt) + '\n')
                 cnt += 1
+
+
 # method for making no_double_entry file
 def makeNoDoubleEntryCSV(directory):
     absOutput = makeAbsPath(directory=directory, fileName='no.double.entry.csv')
@@ -78,6 +92,8 @@ def makeNoDoubleEntryCSV(directory):
                                 found.append(e[0])
                         w.write(s[:-1] + '\n')
     return absOutput
+
+
 # method for making uniq_genmap file
 def makeUniqGenmapCSV(directory, input):
     absOutput = makeAbsPath(directory=directory, fileName='uniq.genmap.csv')
@@ -100,8 +116,10 @@ def makeUniqGenmapCSV(directory, input):
                 if not prevK:
                     w.write(line)
     return absOutput
+
+
 # method for result_bed file
-def makeResultBed(directory: object, lookup: object, setcoverResult: object, output: object, problen: object) -> object:
+def makeResultBed(directory: object, lookup: object, setcoverResult: object, output: object, problen: object):
     absOutput = makeAbsPath(directory=directory, fileName=output)
     if os.path.exists(output):
         return absOutput
@@ -118,11 +136,15 @@ def makeResultBed(directory: object, lookup: object, setcoverResult: object, out
                 b = a[0].split(',')
                 w.write(f[b[0]] + '\t' + b[1] + '\t' + str(int(b[1]) + problen) + '\t' + a[1].strip() + '\n')
     return absOutput
+
+
 #
 def copyInputFasta(directory, input, output):
     absOutput = makeAbsPath(directory=directory, fileName=output)
     copyFile(input, absOutput)
     return absOutput
+
+
 # method for reducing redundancy using mmseqs cluster
 def reduceRedundancy(doCluster, sequenceIdentity, directory, input, output, lookup):
     outputFiles = directory + os.path.sep + output
@@ -130,14 +152,15 @@ def reduceRedundancy(doCluster, sequenceIdentity, directory, input, output, look
     absLookup = makeAbsPath(fileName=lookup)
     if doCluster:
         print("cluster input sequences")
+        clusterCommand = 'mmseqs easy-linclust {} {} cluster/tmp -v 0 --kmer-per-seq-scale 0.5 --kmer-per-seq 1000 --min-seq-id {} --cov-mode 1 -c 0.95'
         if not os.path.exists(outputFasta):
-            os.system(
-                'mmseqs easy-linclust {} {} cluster/tmp -v 0 --kmer-per-seq-scale 0.5 --kmer-per-seq 1000 --min-seq-id {} --cov-mode 1 -c 0.95'.format(
-                    input, outputFiles, sequenceIdentity))
+            os.system(clusterCommand.format(input, outputFiles, sequenceIdentity))
         else:
             copyFile(input, outputFasta)
     makeLookup(outputFasta, absLookup)
     return (outputFasta, absLookup)
+
+
 # method for making probes
 def makeInitialProbesMaskedProbes(directory, input, negative, output, maskedOutput, probeLen, seqIdProbe):
     absOutput = makeAbsPath(directory=directory, fileName=output)
@@ -152,30 +175,33 @@ def makeInitialProbesMaskedProbes(directory, input, negative, output, maskedOutp
                     w.write(seq[i:i + probeLen] + '\n')
     absMaskedOutput = makeAbsPath(directory=directory, fileName=maskedOutput)
     if not os.path.exists(absMaskedOutput):
-        os.system(
-            'mmseqs easy-search {} {} {} "mmseqs/tmp" -v 0 --spaced-kmer-mode 0 -k 13 --mask 0 -c 0.9 --min-seq-id {} --cov-mode 2 --alignment-mode 4 --search-type 3 --format-output query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue'.format(
-                input, negative, absMaskedOutput, seqIdProbe))
+        searchCommand = 'mmseqs easy-search {} {} {} "mmseqs/tmp" -v 0 --spaced-kmer-mode 0 -k 13 --mask 0 -c 0.9 --min-seq-id {} --cov-mode 2 --alignment-mode 4 --search-type 3 --format-output query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue'
+        os.system(searchCommand.format(input, negative, absMaskedOutput, seqIdProbe))
     return (absOutput, absMaskedOutput)
+
+
 # method for filter/genomes.clu_rep_seq.bed file
-def makeRangeFileForFasta(directory, input, maskResult, output, maskOutput, problen):
-    absOutput = makeAbsPath(directory=directory, fileName=(input.split(os.path.sep)[1].split('.fasta')[0] + output))
+def makeRangeFileForFasta(directory, input, maskResult, maskOutput, problen):
+    absOutput = makeAbsPath(directory=directory, fileName=(input.split(os.path.sep)[1].split('.fasta')[0] + '.bed'))
+    absTempFile = makeAbsPath(directory=directory, fileName='mmseqs.txt')
     with open(input) as f:
         with open(absOutput, 'w') as w:
             for title, seq in SimpleFastaParser(f):
                 header = title.split()[0].strip()
                 w.write(header + '\t1\t' + str(len(seq.strip())) + '\n')
-    absMaskOutput = makeAbsPath(directory=directory, fileName=maskOutput)
     with open(maskResult) as f:
-        with open('mmseqs/mmseqs.txt', 'w')as w:
+        with open(absTempFile, 'w')as w:
             for line in f:
                 c1 = line.split()[0].strip()
                 c1 = re.sub('_[0-9]+$', '', c1)
                 b = c1.split('_')
                 n = len(b)
                 w.write(c1 + '\t' + str(int(b[n - 1]) - 1 + problen) + '\n')
-    os.system('bedtools subtract -a {} -b mmseqs/mmseqs.txt > {}'.format(absOutput, absMaskOutput))
+    absMaskOutput = makeSubtractBed(directory=directory, input=absOutput, negativeInput=absTempFile, output=maskOutput)
     return (absOutput, absMaskOutput)
-# method for filter/probes.fa file
+
+
+#
 def makeFastaForThermoFilter(directory, input, output):
     absOutput = makeAbsPath(directory=directory, fileName=output)
     with open(input) as f:
@@ -185,51 +211,53 @@ def makeFastaForThermoFilter(directory, input, output):
                 w.write('_'.join(header[:-1]) + '\t' + header[-1] + '\n')
                 w.write(seq + '\n')
     return absOutput
-# method for cluster/genmap.clu_rep_seq.fasta file
-def computMappability1(fastaDirectory, input, indexFile, computingDirectory, selector, error, problen):
+
+
+#
+def makeIndexFastaForComputingMappability(fastaDirectory, computingDirectory, input, output):
     absDone = makeAbsPath(directory=computingDirectory, fileName='done')
+    absOutput = makeAbsPath(directory=fastaDirectory, fileName=output)
     if os.path.exists(absDone):
-        return(makeAbsPath(directory=computingDirectory,fileName='no.double.entry.csv'),makeAbsPath(directory=computingDirectory,fileName='uniq.genmap.csv'))
+        return absOutput
     print('compute mappability')
-    absIndexFile = makeAbsPath(directory=fastaDirectory, fileName=indexFile)
     with open(input) as f:
-        with open(absIndexFile, 'w') as w:
+        with open(absOutput, 'w') as w:
             for title, seq in SimpleFastaParser(f):
                 w.write(('>' + title).split()[0].strip() + '\n')
                 w.write(seq + '\n')
-    os.system("genmap index -F {} -I index_probe1 > /dev/null".format(absIndexFile))
-    os.system(
-        'genmap map --no-reverse-complement -E {} -S {} --csv -K {} -t -b --frequency-large -I index_probe1 -O {} > /dev/null'.format(
-            error, selector, problen, computingDirectory))
     with open(absDone, 'w') as w:
         w.write('')
-    noDoubleEntryCSV = makeNoDoubleEntryCSV(directory=computingDirectory)
-    uniqGenmapCSV = makeUniqGenmapCSV(directory=computingDirectory, input=noDoubleEntryCSV)
-    return (noDoubleEntryCSV,uniqGenmapCSV)
-#
-def computeMappability2(directory, input, error, kmer):
-    os.system('genmap index -F {} -I index_probe2 > /dev/null'.format(input))
-    os.system(
-        'genmap map --no-reverse-complement -E {} --csv -K {} -t -b --frequency-large -I index_probe2 -O {} > /dev/null'.format(
-            error, kmer, directory))
+    return absOutput
+
+
+# method for cluster/genmap.clu_rep_seq.fasta file
+def computeMappability(directory, input, indexFile, error, kmer,selector=''):
+    os.system('genmap index -F {} -I {} > /dev/null'.format(input,indexFile))
+    selectorOpt = '' if selector=='' else '-S '+selector
+    genmapCommand = 'genmap map --no-reverse-complement -E {} {} --csv -K {} -t -b --frequency-large -I {} -O {} > /dev/null'
+    os.system(genmapCommand.format(error, selectorOpt, kmer, indexFile, directory))
     noDoubleEntryCSV = makeNoDoubleEntryCSV(directory=directory)
     uniqGenmapCSV = makeUniqGenmapCSV(input=noDoubleEntryCSV, directory=directory)
-    return (noDoubleEntryCSV,uniqGenmapCSV)
+    return uniqGenmapCSV
+
+
 #
 def setcover(directory, inputCSV, inputFasta, output, coverage, length, proportion, distance, iteration):
     absOutput = makeAbsPath(directory=directory, fileName=output)
-    os.system(
-        '../setcover/setcover -c {} -l {} -p {} -d {} -i {} {} {} > "{}"'.format(coverage, length, proportion, distance,
-                                                                                 iteration, inputCSV, inputFasta,
-                                                                                 absOutput))
+    setcoverCommand = '../setcover/setcover -c {} -l {} -p {} -d {} -i {} {} {} > "{}"'
+    os.system(setcoverCommand.format(coverage,length,proportion,distance,iteration,inputCSV,inputFasta,absOutput))
     return absOutput
+
+
 #
 def makeFinalProbeFasta(inputBed, inputFasta, output):
     absOutput = makeAbsPath(fileName=output)
     os.system('seqkit subseq --quiet --bed "{}" "{}" > "{}"'.format(inputBed, inputFasta, output))
     return absOutput
+
+
 # method for input_probe2/seq.fa file
-def probe2_seq_fa_maker(problen, window, directory, inputFasta, inputSetcoverResult, output, lookup):
+def makeProbe2InputFasta(problen, window, directory, inputFasta, inputSetcoverResult, output, lookup):
     absOutput = makeAbsPath(directory=directory, fileName=output)
     absLookup = makeAbsPath(fileName=lookup)
     cnt = 1
@@ -290,78 +318,82 @@ def probe2_seq_fa_maker(problen, window, directory, inputFasta, inputSetcoverRes
             w.write(STR + '\n')
     makeLookup(absOutput, absLookup)
     return (absOutput, absLookup)
+
+
 #
-def minimzeFisrtProbeSet(directory, inputCSV, inputFasta, inputLookup, outputResult, outputBed, coverage, problen):
-    absOutputResult = makeAbsPath(directory=directory, fileName=outputResult)
+def minimzeProbeSet(directory,inputCSV,inputFasta,inputLookup,outputResult,outputBed,coverage,length,proportion,distance,iteration,probLen):
     absOutputBed = makeAbsPath(directory=directory, fileName=outputBed)
+    absOutputResult = makeAbsPath(directory=directory, fileName=outputResult)
     if os.path.exists(absOutputResult):
-        return (absOutputResult,absOutputBed)
+        return absOutputResult, absOutputBed
     print("minimize probe set")
-    minimizedResult = setcover(directory=directory, inputCSV=inputCSV, inputFasta=inputFasta,
-                               output=absOutputResult, coverage=coverage, length=problen, proportion=0.9, distance=11,
-                               iteration=1)
-    minimizedBed = makeResultBed(directory=directory, lookup=inputLookup, setcoverResult=absOutputResult, output=absOutputBed, problen=problen)
-    return (minimizedResult, minimizedBed)
-#
-def minimzeSecondProbeSet(directory, inputCSV, inputFasta, inputLookup, outputResult, outputBed, problen):
-    minimizedResult = setcover(directory=directory, inputCSV=inputCSV, inputFasta=inputFasta,
-                               output=outputResult, coverage=1, length=1, proportion=0.99, distance=20,
-                               iteration=10)
-    minimizedBed = makeResultBed(directory=directory, lookup=inputLookup,
-                                 setcoverResult=makeAbsPath(directory=directory, fileName=outputResult),
-                                 output=outputBed, problen=problen)
-    return (minimizedResult, minimizedBed)
-# Create list of problematic sequences
-problem_seqs = ["AAAAA", "TTTTT", "CCCCC", "GGGGG"]
-five_reps = [Seq(each_seq) for each_seq in problem_seqs]
+
+    minimizedResult = setcover(directory=directory,
+                               inputCSV=inputCSV,
+                               inputFasta=inputFasta,
+                               output=outputResult,
+                               coverage=coverage,
+                               length=length,
+                               proportion=proportion,
+                               distance=distance,
+                               iteration=iteration)
+
+    minimizedBed = makeResultBed(directory=directory,
+                                 lookup=inputLookup,
+                                 setcoverResult=absOutputResult,
+                                 output=outputBed,
+                                 problen=probLen)
+    return minimizedResult, minimizedBed
+
+
 # method for calculating gc ratio
 def gc_content(this_oligo):
     gcs = this_oligo.count('G') + this_oligo.count('C')
     return gcs / len(this_oligo)
+
+
 # method that return true if candidate aligo contains "AAAAA","TTTTT","CCCCC","GGGGG"
 def has_intrinsic_probs(candidate_oligo):
     for s in problem_seqs:
         if s in candidate_oligo:
             return True
     return False
-def filterThermoProperProbes(
-        # input data
+
+
+#
+def filterProbesByThermoProperty(
+        directory, inputBed,output,
+        # input
         lig_probes_in="", cap_probes_in="",
-        # ouput file
-        directory="", output="designed_probes",
         # option
         save_cut_probes=False,
         # cutoff values
-        min_GC=0.30, max_GC=0.70, homo_dimer_tm_cutoff=60, hairpin_tm_max=60, min_probe_tm=40,
+        minGC=0.30, maxGC=0.70, homo_dimer_tm_cutoff=60, hairpin_tm_max=60, min_probe_tm=40,
         # probe size
-        probe_size=40,
-        # For Negative Probes
-        positionInput="", negativeOutput="",
-        # For Masked Probes
-        maskInput="", maskOutput=""
+        probe_size=40
 ):
     absOutput = makeAbsPath(directory=directory, fileName=output)
-    filteredOutput = absOutput + '_bed.bed'
-    absNegativeOutput = makeAbsPath(directory=directory, fileName=negativeOutput)
-    absMaskOutput = makeAbsPath(directory=directory, fileName=maskOutput)
-    if os.path.exists(absNegativeOutput) :
-        return (filteredOutput, absNegativeOutput, absMaskOutput)
+    absPositiveOutput = absOutput + '_bed.bed'
+    absNegativeOutput = makeAbsPath(directory=directory, fileName=output+'.neg.bed')
+
+    if os.path.exists(absNegativeOutput):
+        return (absPositiveOutput, absNegativeOutput)
     print("filter probes based on primer3")
 
     # PRINTOUT CUT-OFF VALUES
     print("Minimum Tm: " + str(min_probe_tm))
-    print("Minimum GC percentage: " + str(min_GC))
-    print("Maximum GC percentage: " + str(max_GC))
+    print("Minimum GC percentage: " + str(minGC))
+    print("Maximum GC percentage: " + str(maxGC))
     print("Homodimer maximum Tm: " + str(homo_dimer_tm_cutoff))
     print("Hairpin maximum Tm: " + str(hairpin_tm_max))
     # TO MAKE DF FOR CAPTURE PROBES
     cp = []
-    if (cap_probes_in != ""):
+    if cap_probes_in != "":
         cap_probes_out = absOutput + "_cap.tsv"
-        with open(cap_probes_in) as fasta_file:
+        with open(cap_probes_in) as f:
             identifiers = []
             seqs = []
-            for title, sequence in SimpleFastaParser(fasta_file):
+            for title, sequence in SimpleFastaParser(f):
                 identifiers.append(title.split(None, 1)[0])  # First word is ID
                 seqs.append(sequence)
                 this_seq = str(reverse_complement(Seq(sequence)))
@@ -369,18 +401,19 @@ def filterThermoProperProbes(
         cap_probes = pd.DataFrame(list(zip(identifiers, seqs, cp)), columns=['id', 'genome_segment', 'cp'])
         print(str(len(cap_probes)) + " capture probes inputted")
     #  TO MAKE DF FOR LIGATION PROBES
-    with open(lig_probes_in) as fasta_file:
+    with open(lig_probes_in) as f:
         identifiers = []
         posStart = []
         posEnd = []
         seqs = []
         rc = []
+
         p1 = []
         p2 = []
-        for title, sequence in SimpleFastaParser(fasta_file):
+        for title, sequence in SimpleFastaParser(f):
             split_name = title.split('\t', 2)
             identifiers.append(split_name[0])
-            if (len(split_name) > 1):
+            if len(split_name) > 1:
                 this_posStart = int(split_name[1])
             else:
                 this_posStart = 0
@@ -429,7 +462,7 @@ def filterThermoProperProbes(
             cap_probes_calc
                 .query('cp_intrinsic_probs == False')
                 .query('cp_tm >= ' + str(min_probe_tm))
-                .query('cp_GC_perc >= ' + str(min_GC) + ' & cp_GC_perc <= ' + str(max_GC))
+                .query('cp_GC_perc >= ' + str(minGC) + ' & cp_GC_perc <= ' + str(maxGC))
                 .query('cp_homodimer_tm <= ' + str(homo_dimer_tm_cutoff))
                 .query('cp_hairpin_tm <= ' + str(hairpin_tm_max))
         )
@@ -445,8 +478,8 @@ def filterThermoProperProbes(
         lig_probes_calc
             .query('p1_intrinsic_probs == False & p2_intrinsic_probs == False')
             .query('p1_tm >= ' + str(min_probe_tm) + ' & p2_tm >= ' + str(min_probe_tm))
-            .query('p1_GC_perc >= ' + str(min_GC) + ' & p2_GC_perc >= ' + str(min_GC) + ' & p1_GC_perc <= ' + str(
-            max_GC) + ' & p2_GC_perc <= ' + str(max_GC))
+            .query('p1_GC_perc >= ' + str(minGC) + ' & p2_GC_perc >= ' + str(minGC) + ' & p1_GC_perc <= ' + str(
+            maxGC) + ' & p2_GC_perc <= ' + str(maxGC))
             .query(
             'p1_homodimer_tm <= ' + str(homo_dimer_tm_cutoff) + ' & p2_homodimer_tm <= ' + str(homo_dimer_tm_cutoff))
             .query('p1_hairpin_tm <= ' + str(hairpin_tm_max) + ' & p2_hairpin_tm <= ' + str(hairpin_tm_max))
@@ -455,41 +488,49 @@ def filterThermoProperProbes(
     print('Ligation probe sets that passed all filters: ' + str(len(lig_probes_filtered)))
     lig_probes_sorted = lig_probes_filtered.sort_values(by=sorder, ascending=ascending)
     lig_probes_filtered.rename(columns={'id': 'chrom'})[['chrom', 'chromStart', 'chromEnd']].to_csv(
-        absOutput + '_bed.bed', index=False, sep='\t')
+        absPositiveOutput, index=False, sep='\t')
     lig_probes_sorted.to_csv((absOutput + '_lig.tsv'), sep='\t')
     # OPTIONAL: save dataframe lig_probes_calc as tsv file
     if (save_cut_probes):
         lig_probes_calc.to_csv((absOutput + '_uncut.tsv'), sep='\t')
     print(out_statement)
-    os.system('bedtools subtract -a {} -b {} > {}'.format(positionInput, filteredOutput, absNegativeOutput))
-    os.system('bedtools subtract -a {} -b {} > {}'.format(maskInput, absNegativeOutput, absMaskOutput))
-    return (filteredOutput, absNegativeOutput, absMaskOutput)
+    absNegativeOutput = makeSubtractBed(directory=directory, input=inputBed, negativeInput=absPositiveOutput, output=output + '.neg.bed')
+    return absPositiveOutput, absNegativeOutput
+
+
+#
+def makeSubtractBed(directory, input, negativeInput, output):
+    absOutput = makeAbsPath(directory=directory, fileName=output)
+    os.system('bedtools subtract -a {} -b {} > {}'.format(input, negativeInput, absOutput))
+    return absOutput
+
+
 # MAIN
-def main(optlist):
+def main(pars):
     # INITIATION VARIABLES
     notGetP = True
     notGetN = True
     notGetO = True
-    problen1 = 40
-    problen2 = 20
+    probLen1 = 40
+    probLen2 = 20
     errorInProb1 = 0
     errorInProb2 = 1
     coverage = 1
     cluster = 1
     seqId = 0.97
     seqIdProbe = 0.90
-    input = ""
-    negative = ""
+    inputFasta = ""
+    negativeFasta = ""
     output = ""
     # ARGUMENT PARSING
-    for opt, value in optlist:
+    for opt, value in pars:
         try:
-            input = str(value) if opt in ('-p', '--positive') else input
+            inputFasta = str(value) if opt in ('-p', '--positive') else inputFasta
             notGetP = False if opt in ('-p', '--positive') else notGetP
-            negative = str(value) if opt in ('-n', '--negative') else negative
+            negativeFasta = str(value) if opt in ('-n', '--negative') else negativeFasta
             notGetN = False if opt in ('-n', '--negative') else notGetN
-            problen1 = int(value) if opt == '--probe-len1' else problen1
-            problen2 = int(value) if opt == '--probe-len2' else problen2
+            probLen1 = int(value) if opt == '--probe-len1' else probLen1
+            probLen2 = int(value) if opt == '--probe-len2' else probLen2
             output = str(value) if opt in ('-o', '--output') else output
             notGetO = False if opt in ('-o', '--output') else notGetO
             seqId = float(value) if opt == '--seq-id-cluster' else seqId
@@ -499,15 +540,16 @@ def main(optlist):
             coverage = int(value) if opt == '-c' else coverage
             cluster = int(value) if opt == '--cluster' else cluster
             if opt in ('-h', '--help'):
-                printGuideMessage()
+                printUsage()
         except:
-            printGuideMessage()
+            printUsage()
     # PRINT OUT ALERTS AND INFO WHEN AGUMENTS NOT PROPER
     if notGetP or notGetN or notGetO:
-        printGuideMessage()
+        printUsage()
     # MAKE WORKING DIRECTORIES
-    absInput = makeAbsPath(input)
-    absNegative = makeAbsPath(negative)
+    # absInputFasta
+    absInputFasta = makeAbsPath(inputFasta)
+    absNegativeFasta = makeAbsPath(negativeFasta)
     # MAKE WORKING DIRECTORY
     workDir = makeDir(output)
     # MOVE TO WORKING DIRECTORY
@@ -520,61 +562,126 @@ def main(optlist):
     mappingProbe1Dir = makeDir('mapping_probe1')
     setcoverProbe1Dir = makeDir('setcover_probe1')
     # COPY INPUT FASTA FILE
-    clonedInputFasta = copyInputFasta(directory=inputDir, input=absInput, output='genomes.fa')
+    clonedInputFasta = copyInputFasta(directory=inputDir, input=absInputFasta, output='genomes.fa')
     # REDUCE REDUNDANCY OF INPUT FASTA FILE
-    redundancyReducedFasta, lookup1 = reduceRedundancy(doCluster=cluster == 1, sequenceIdentity=seqId,
-                                                       directory=clusterDir, input=clonedInputFasta,
-                                                       output='genomes.clu', lookup='id.lookup')
+    redundancyReducedFasta, nameLookupFile1 = reduceRedundancy(doCluster=cluster == 1,
+                                                               sequenceIdentity=seqId,
+                                                               directory=clusterDir,
+                                                               input=clonedInputFasta,
+                                                               output='genomes.clu',
+                                                               lookup='id.lookup')#name.lookup.1
     # MAKE INITIAL PROBES FASTA AND MASK PROBES FASTA
-    initialProbesFasta, maskedProbes = makeInitialProbesMaskedProbes(directory=mmseqsDir, input=redundancyReducedFasta,
-                                                                     negative=absNegative, output='probes.fa',
-                                                                     maskedOutput='mmseqs.search', probeLen=problen1,
+    #                   mmseqs.search  #sesrchAgainstNegativeFasta
+    initialProbesFasta, maskedProbes = makeInitialProbesMaskedProbes(directory=mmseqsDir,
+                                                                     input=redundancyReducedFasta,
+                                                                     negative=absNegativeFasta,
+                                                                     output='probes.fa',
+                                                                     maskedOutput='mmseqs.search',
+                                                                     probeLen=probLen1,
                                                                      seqIdProbe=seqIdProbe)
     # WRITE MASK RESULT BED FILE
-    maskedRegionBed, crosstaxaBed = makeRangeFileForFasta(directory=filterDir, input=redundancyReducedFasta,
-                                                       maskResult=maskedProbes, output='.bed',
-                                                       maskOutput='crosstaxa.bed', problen=problen1)
+    redundancyReducedBed, crosstaxaBed = makeRangeFileForFasta(directory=filterDir,
+                                                               input=redundancyReducedFasta,
+                                                               maskResult=maskedProbes,
+                                                               maskOutput='crosstaxa.bed',
+                                                               problen=probLen1)
     # MAKE A PROBES FASTA FILE FOR THERMO FILTER
     thermoFilterInputFasta = makeFastaForThermoFilter(directory=filterDir, input=initialProbesFasta, output='probes.fa')
     # TO FILTER PROBES by THERMODYNAMIC FEATURES
-    filteredFileName = 'primer3'
-    filteredProbesBed, negativeProbesBed, thermoCrosstaxaBed = filterThermoProperProbes(
-            lig_probes_in=thermoFilterInputFasta, output=filteredFileName, directory=filterDir,
-            save_cut_probes=True, probe_size=problen1, positionInput=maskedRegionBed,
-            negativeOutput='{}.neg.bed'.format(filteredFileName), maskInput=crosstaxaBed,
-            maskOutput='crosstaxa.{}.bed'.format(filteredFileName))
+    positiveProbesBed, negativeProbesBed = filterProbesByThermoProperty(directory=filterDir,
+                                                                        output='primer3',
+                                                                        inputBed=redundancyReducedBed,
+                                                                        lig_probes_in=thermoFilterInputFasta,
+                                                                        save_cut_probes=True,
+                                                                        probe_size=probLen1)
+    thermoCrosstaxaBed = makeSubtractBed(directory=filterDir,
+                                         input=crosstaxaBed,
+                                         negativeInput=negativeProbesBed,
+                                         output='crosstaxa.{}.bed'.format('primer3'))
+    # function for combile negative and crosstaxa
     # TO COMPUTE MAPPABILITY
-    noDoubleEntryCSV1,uniqGenmapCSV1= computMappability1(fastaDirectory=clusterDir, computingDirectory=mappingProbe1Dir,
-                                                             input=redundancyReducedFasta, indexFile='genmap.clu_rep_seq.fasta',
-                                                             selector=thermoCrosstaxaBed, error=errorInProb1, problen=problen1)
+    indexFastaForComputingMappability = makeIndexFastaForComputingMappability(fastaDirectory=clusterDir,
+                                                                              computingDirectory=mappingProbe1Dir,
+                                                                              input=redundancyReducedFasta,
+                                                                              output='genmap.clu_rep_seq.fasta')
+    uniqGenmapCSV1 = computeMappability(directory=mappingProbe1Dir,
+                                        input=indexFastaForComputingMappability,
+                                        indexFile='index_probe1',
+                                        error=errorInProb1,
+                                        kmer=probLen1,
+                                        selector=thermoCrosstaxaBed)
     # MINIMIZE 1ST PROBE SET
-    minimizedProbeSetResult1,minimizedProbeSetBed1 = minimzeFisrtProbeSet(directory=setcoverProbe1Dir,inputCSV=uniqGenmapCSV1, inputFasta=redundancyReducedFasta,inputLookup=lookup1,outputResult='result',outputBed='result.bed',coverage=coverage, problen=problen1)
+    minimizedProbeSetResult1, minimizedProbeSetBed1 = minimzeProbeSet(directory=setcoverProbe1Dir,
+                                                                      inputCSV=uniqGenmapCSV1,
+                                                                      inputFasta=redundancyReducedFasta,
+                                                                      inputLookup=nameLookupFile1,
+                                                                      outputResult='result',
+                                                                      outputBed='result.bed',
+                                                                      coverage=coverage,
+                                                                      length=probLen1,
+                                                                      proportion=0.9,
+                                                                      distance=11,
+                                                                      iteration=1,
+                                                                      probLen=probLen1,)
     # FINAL OUTPUT FASTA 1
     # if not os.path.exists(makeAbsPath(fileName='prob40.fa')):
+    # probe1.fa
     makeFinalProbeFasta(inputBed=minimizedProbeSetBed1, inputFasta=redundancyReducedFasta,
-                            output=makeAbsPath(fileName='prob40.fa'))
+                        output=makeAbsPath(fileName='prob40.fa'))
     # TODO: DEBUGGING CODE DEBUG(finalProbeFasta1)
     # PROBE2
     inputProbe2Dir = makeDir('input_probe2')
     mappingProbe2Dir = makeDir('mapping_probe2')
     setcoverProbe2Dir = makeDir('setcover_probe2')
-    if problen2 != -1:
+    if probLen2 != -1:  # probLen2
         # TO MAKE A NEW FASTA FILE input_probe2/seq.fa WHICH CONTAINS PROBE2 CANDIDATES
-        probe2InputFasta, lookup2 = probe2_seq_fa_maker(problen=problen1, window=200, directory=inputProbe2Dir,
-                                                        inputFasta=redundancyReducedFasta,
-                                                        inputSetcoverResult=minimizedProbeSetResult1, output='seq.fa',
-                                                        lookup='id_probe2.lookup')
+        probe2InputFasta, nameLookupFile2 = makeProbe2InputFasta(problen=probLen1,
+                                                                 window=200,
+                                                                 directory=inputProbe2Dir,
+                                                                 inputFasta=redundancyReducedFasta,
+                                                                 inputSetcoverResult=minimizedProbeSetResult1, output='seq.fa',
+                                                                 lookup='id_probe2.lookup')#name.lookup.2
         # TO COMPUTE MAPPABILITY
-        noDoubleEntryCSV2,uniqGenmapCSV2 = computeMappability2(directory=mappingProbe2Dir, input=probe2InputFasta, error=errorInProb2, kmer=problen2)
+        uniqGenmapCSV2 = computeMappability(directory=mappingProbe2Dir,
+                                            input=probe2InputFasta,
+                                            indexFile='index_probe2',
+                                            error=errorInProb2,
+                                            kmer=probLen2)
         # MINIMIZED 2ND PROBE SET
-        minimizedProbeSetResult2,minimizedProbeSetBed2 = minimzeSecondProbeSet(directory=setcoverProbe2Dir, inputCSV=uniqGenmapCSV2, inputFasta=probe2InputFasta, inputLookup=lookup2, outputResult='result', outputBed='result.bed',problen=problen2)
+        minimizedProbeSetResult2, minimizedProbeSetBed2 = minimzeProbeSet(directory=setcoverProbe2Dir,
+                                                                                inputCSV=uniqGenmapCSV2,
+                                                                                inputFasta=probe2InputFasta,
+                                                                                inputLookup=nameLookupFile2,
+                                                                                outputResult='result',
+                                                                                outputBed='result.bed',
+                                                                                coverage = 1,
+                                                                                length = 1,
+                                                                                proportion = 0.99,
+                                                                                distance = 20,
+                                                                                iteration = 10,
+                                                                                probLen=probLen2)
         # FINAL OUTPUT FASTA 2
-        makeFinalProbeFasta(inputBed=minimizedProbeSetBed2, inputFasta=probe2InputFasta, output=makeAbsPath(fileName='prob2.fa'))
+        makeFinalProbeFasta(inputBed=minimizedProbeSetBed2,
+                            inputFasta=probe2InputFasta,
+                            output=makeAbsPath(fileName='prob2.fa'))
     # TODO: DEBUGGING CODE DEBUG(finalProbeFasta2)
+
+
 if __name__ == '__main__':
     # ARGUMENTS PROCESSING
     args = sys.argv[1:]
-    optlist, args = getopt.getopt(args, 'hp:n:o:c:',['positive=', 'negative=', 'probe-len1=', 'probe-len2=', 'output=', 'seq-id-cluster=','seq-id-probe=', 'probe-error1=', 'probe-error2=', 'help'])
+    optlist, args = getopt.getopt(args,
+                                  'hp:n:o:c:',
+                                  ['positive=',
+                                   'negative=',
+                                   'probe-len1=',
+                                   'probe-len2=',
+                                   'output=',
+                                   'seq-id-cluster=',
+                                   'seq-id-probe=',
+                                   'probe-error1=',
+                                   'probe-error2=',
+                                   'help'])
     # TO CALL MAIN METHOD
     main(optlist)
 
