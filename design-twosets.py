@@ -176,7 +176,7 @@ def makeInitialProbesMaskedProbes(directory, input, negative, output, maskedOutp
     absMaskedOutput = makeAbsPath(directory=directory, fileName=maskedOutput)
     if not os.path.exists(absMaskedOutput):
         searchCommand = 'mmseqs easy-search {} {} {} "mmseqs/tmp" -v 0 --spaced-kmer-mode 0 -k 13 --mask 0 -c 0.9 --min-seq-id {} --cov-mode 2 --alignment-mode 4 --search-type 3 --format-output query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue'
-        os.system(searchCommand.format(input, negative, absMaskedOutput, seqIdProbe))
+        os.system(searchCommand.format(absOutput, negative, absMaskedOutput, seqIdProbe))
     return (absOutput, absMaskedOutput)
 
 
@@ -193,10 +193,9 @@ def makeRangeFileForFasta(directory, input, maskResult, maskOutput, problen):
         with open(absTempFile, 'w')as w:
             for line in f:
                 c1 = line.split()[0].strip()
-                c1 = re.sub('_[0-9]+$', '', c1)
-                b = c1.split('_')
-                n = len(b)
-                w.write(c1 + '\t' + str(int(b[n - 1]) - 1 + problen) + '\n')
+                b = c1.split('_')[-1]
+                c1 = c1.split('_')[0]
+                w.write(c1 + '\t' + str(int(b) - 1) + '\t' + str(int(b) - 1 + problen) + '\n')
     absMaskOutput = makeSubtractBed(directory=directory, input=absOutput, negativeInput=absTempFile, output=maskOutput)
     return (absOutput, absMaskOutput)
 
@@ -684,4 +683,3 @@ if __name__ == '__main__':
                                    'help'])
     # TO CALL MAIN METHOD
     main(optlist)
-
