@@ -169,7 +169,7 @@ def reduceRedundancy(doCluster, seqIdentity, directory, inputFasta, output, look
     if doCluster:
         printAndLog("cluster input sequences")
         command = (
-            'mmseqs easy-linclust {} {} cluster/tmp -v 0 --kmer-per-seq-scale 0.5 --kmer-per-seq 1000 --min-seq-id {}' +
+            'mmseqs easy-linclust {} {} cluster/tmp -v 3 --kmer-per-seq-scale 0.5 --kmer-per-seq 1000 --min-seq-id {}' +
             ' --cov-mode 1 -c 0.95'
         )
         if not os.path.exists(outputFasta):
@@ -195,7 +195,7 @@ def makeInitialProbesMaskedProbes(directory, inputFasta, negative, output, maske
     absMaskedOutput = makeAbsPath(directory=directory, fileName=maskedOutput)
     if not os.path.exists(absMaskedOutput):
         command = (
-            'mmseqs easy-search {} {} {} mmseqs/tmp -v 0 --spaced-kmer-mode 0 -k 13 --mask 0 -c 0.9 --min-seq-id {}' +
+            'mmseqs easy-search {} {} {} mmseqs/tmp -v 3 --spaced-kmer-mode 0 -k 13 --mask 0 -c 0.9 --min-seq-id {}' +
             ' --cov-mode 2 --alignment-mode 4 --search-type 3 ' +
             '--format-output query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue'
         )
