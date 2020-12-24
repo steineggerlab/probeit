@@ -163,17 +163,17 @@ def copyInputFasta(directory, inputFasta, output):
 
 # method for reducing redundancy using mmseqs cluster
 def reduceRedundancy(doCluster, seqIdentity, directory, inputFasta, output, lookup):
-    outputFiles = directory + os.path.sep + output
-    outputFasta = outputFiles + '_rep_seq.fasta'
+    outputFileName = makeAbsPath(directory=directory, fileName=output)
+    outputFasta = outputFileName + '_rep_seq.fasta'
     absLookup = makeAbsPath(fileName=lookup)
     if doCluster:
         printAndLog("cluster input sequences")
         command = (
-            'mmseqs easy-linclust {} {} cluster/tmp -v 0 --kmer-per-seq-scale 0.5 --kmer-per-seq 1000 --min-seq-id {}' +
+            'mmseqs easy-linclust {} {} cluster/tmp -v 3 --kmer-per-seq-scale 0.5 --kmer-per-seq 1000 --min-seq-id {}' +
             ' --cov-mode 1 -c 0.95'
         )
         if not os.path.exists(outputFasta):
-            cmdAndLog(command.format(inputFasta, outputFiles, seqIdentity).split())
+            cmdAndLog(command.format(inputFasta, outputFileName, seqIdentity).split())
         else:
             copyFile(inputFasta, outputFasta)
     makeLookup(outputFasta, absLookup)
@@ -195,7 +195,7 @@ def makeInitialProbesMaskedProbes(directory, inputFasta, negative, output, maske
     absMaskedOutput = makeAbsPath(directory=directory, fileName=maskedOutput)
     if not os.path.exists(absMaskedOutput):
         command = (
-            'mmseqs easy-search {} {} {} mmseqs/tmp -v 0 --spaced-kmer-mode 0 -k 13 --mask 0 -c 0.9 --min-seq-id {}' +
+            'mmseqs easy-search {} {} {} mmseqs/tmp -v 3 --spaced-kmer-mode 0 -k 13 --mask 0 -c 0.9 --min-seq-id {}' +
             ' --cov-mode 2 --alignment-mode 4 --search-type 3 ' +
             '--format-output query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue'
         )
@@ -205,7 +205,7 @@ def makeInitialProbesMaskedProbes(directory, inputFasta, negative, output, maske
 
 # method for filter/genomes.clu_rep_seq.bed file
 def makeRangeFileForFasta(directory, inputFasta, maskResult, maskOutput, problen):
-    absOutput = makeAbsPath(directory=directory, fileName=inputFasta.split(os.path.sep)[1].split('.fasta')[0] + '.bed')
+    absOutput = makeAbsPath(directory=directory, fileName=inputFasta.split(os.path.sep)[-1].split('.fasta')[0] + '.bed')
     absTempFile = makeAbsPath(directory=directory, fileName='mmseqs.txt')
     with open(inputFasta) as f:
         with open(absOutput, 'w') as w:
@@ -561,9 +561,9 @@ def makeSubtractBed(directory, inputBed, negativeBed, output):
 # MAIN
 def main(pars):
     # INITIATION VARIABLES
-    notGetP = True
-    notGetN = True
-    notGetO = True
+    notGetPos = True
+    notGetNeg = True
+    notGetOut = True
     probLen1 = 40
     probLen2 = 20
     errorInProb1 = 0
@@ -579,13 +579,13 @@ def main(pars):
     for opt, value in pars:
         try:
             inputFasta = str(value) if opt in ('-p', '--positive') else inputFasta
-            notGetP = False if opt in ('-p', '--positive') else notGetP
+            notGetPos = False if opt in ('-p', '--positive') else notGetPos
             negativeFasta = str(value) if opt in ('-n', '--negative') else negativeFasta
-            notGetN = False if opt in ('-n', '--negative') else notGetN
+            notGetNeg = False if opt in ('-n', '--negative') else notGetNeg
             probLen1 = int(value) if opt == '--probe-len1' else probLen1
             probLen2 = int(value) if opt == '--probe-len2' else probLen2
             output = str(value) if opt in ('-o', '--output') else output
-            notGetO = False if opt in ('-o', '--output') else notGetO
+            notGetOut = False if opt in ('-o', '--output') else notGetOut
             seqId = float(value) if opt == '--seq-id-cluster' else seqId
             seqIdProbe = float(value) if opt == '--seq-id-probe' else seqIdProbe
             errorInProb1 = int(value) if opt == '--probe-error1' else errorInProb1
@@ -597,7 +597,7 @@ def main(pars):
         except:
             printUsage()
     # PRINT OUT ALERTS AND INFO WHEN AGUMENTS NOT PROPER
-    if notGetP or notGetN or notGetO:
+    if notGetPos or notGetNeg or notGetOut:
         printUsage()
     # MAKE WORKING DIRECTORIES
     # absInputFasta
