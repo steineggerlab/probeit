@@ -114,7 +114,7 @@ std::vector<Probe> setCover(std::vector<Probe> & sets, std::vector<std::string> 
     std::vector<bool> * isSet = new std::vector<bool>[seqs.size()];
     for(size_t i = 0; i < seqs.size(); i++){
         isSet[i].reserve(seqs[i].size());
-        std::fill(isSet[i].begin(), isSet[i].end(), 0);
+        std::fill(isSet[i].begin(), isSet[i].begin()+seqs[i].size(), 0);
     }
     char * covered = new char [totalGenomes];
     memset(covered, 0, sizeof(char) * totalGenomes);
