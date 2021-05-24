@@ -45,10 +45,7 @@ class ParaSeqs:
 
 
 class ProbeitUtils:
-    # def logUpdate(self, msg):
-    #     print(msg)
     def runCommand(self, command, verbose=False):
-        # self.logUpdate(command)
         if verbose:
             commandList = command.split()
             sp = subprocess.Popen(commandList, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -82,8 +79,6 @@ class ProbeitUtils:
     # TO CALL GENMAP MODULES
     # COMPUTE MAPPABILITY
     def comMappability(self, fasta, indexDir, error, kmer, outputDir, selectingOption=''):
-        # print("COMPUT MAPPABILITY")
-        # print(fasta, indexDir, error, kmer, outputDir)
         self.delDir(indexDir)
         command0 = " > /dev/null"
         command1 = "genmap index -F {} -I {}".format(fasta, indexDir)
@@ -122,15 +117,30 @@ class ProbeitUtils:
                     cnt += 1
         return lookup
 
-    def doBlastSearch(self, inputFasta, strGenomeFasta, resultTSV):
-        command1 = "makeblastdb -in {} -dbtype 'nucl'".format(inputFasta)
-        self.runCommand(command1)
-        command2 = (
-            'blastn -query {} -word_size 10 -db {} -outfmt "6 qseqid sseqid nident qseq" > {}'
-            .format(strGenomeFasta, inputFasta, resultTSV)
-        )
-        self.runCommand(command2)
-        return
+    def doBlastSearch(self, workDir, inputFasta, strGenomeFasta, resultTSV):
+        searchDir = workDir + 'search' + os.path.sep
+        tempDir = searchDir + 'temp' + os.path.sep
+        resultTSV = workDir + resultTSV
+        if not os.path.isdir(searchDir):
+            os.makedirs(searchDir)
+        searchdb = searchDir + 'searchDB'
+        strdb = searchDir + 'strainDB'
+        aln = searchDir + 'mmseqs.aln'
+        command1 = 'mmseqs createdb {} {}'
+        command2 = 'mmseqs createdb {} {}'
+        command3 = 'mmseqs search {} {} {} {} --search-type 3'
+        command4 = 'mmseqs convertalis {} {} {} {} --format-output target,query,tseq,tstart,tend --search-type 3'
+        self.runCommand(command1.format(inputFasta, searchdb), verbose=True)
+        self.runCommand(command2.format(strGenomeFasta, strdb), verbose=True)
+        self.runCommand(command3.format(searchdb, strdb, aln, tempDir), verbose=True)
+        self.runCommand(command4.format(searchdb, strdb, aln, resultTSV), verbose=True)
+        df = pd.read_csv(resultTSV, sep='\t', header=None)
+        df.columns=['substr', 'snp', 'strseq', 'start', 'end']
+        df['aln'] = df.apply(lambda x: x[2][int(x[3]-1):int(x[4])], axis=1)
+        df['len'] = df.aln.apply(lambda x: len(x)-1)
+        df = df[['substr', 'snp', 'len', 'aln']]
+        df.to_csv(resultTSV, header=False, index=False, sep='\t')
+        return resultTSV
 
     def clusterGenome(self, inputFasta, outputFasta, outputDir, seqIdentity):
         command = ' '.join(
@@ -140,7 +150,6 @@ class ProbeitUtils:
                 "--cov-mode 1 -c 0.95 --remove-tmp-files 0"
             ]
         )
-        # stdOut, stdErr = self.runCommand(command, verbose=True)
         return self.runCommand(command, verbose=True)
 
     def searchNegative(self, output, negative, maskOutput, outputDir, seqInProbe):
@@ -234,9 +243,6 @@ class Probeit:
     def __init__(self, args):
         self.args = args
 
-    def logUpdate(self, msg):
-        print(msg)
-
     def checkArgs(self):
         if self.args == [] or self.args[0] == '-h' or self.args[0] == '--help':
             self.printUsage()
@@ -276,12 +282,13 @@ class PosNegSet:
     utils = ProbeitUtils()
     probLen1 = 40
     probLen2 = 20
-    seqId = 0.97
-    seqIdProbe = 0.90
+    seqIdentity = 0.97 # for mmseqs linclust
+    seqIdProbe = 0.90 # for mmseqs easy-search
     error1 = 0
     error2 = 1
     coverage = 1
     needCluster = True
+    window = 200
 
     def __init__(self, args):
         self.args = getopt.getopt(args, self.shortParams, self.longParams)[0]
@@ -296,7 +303,7 @@ class PosNegSet:
                 self.probLen1 = int(value) if opt == '--probe-len1' else self.probLen1
                 self.probLen2 = int(value) if opt == '--probe-len2' else self.probLen2
                 self.workDir = str(value) if opt in ('-o', '--output') else self.workDir
-                self.seqId = float(value) if opt == '--seq-id-cluster' else self.seqId
+                self.seqIdentity = float(value) if opt == '--seq-id-cluster' else self.seqIdentity
                 self.seqIdProbe = float(value) if opt == '--seq-id-probe' else self.seqIdProbe
                 self.error1 = int(value) if opt == '--probe-error1' else self.error1
                 self.error2 = int(value) if opt == '--probe-error2' else self.error2
@@ -347,10 +354,15 @@ class PosNegSet:
                 os.makedirs(directory)
         return
 
+    def logUpdate(self, msg):
+        with open(self.log, 'a') as w:
+            w.write(msg + '\n')
+        print(msg)
+
     def copyFile(self, original, copy):
         if not os.path.exists(copy):
             shutil.copy(original, copy)
-            # self.logUpdate(inputFile + ' is copied to ' + output)
+            self.logUpdate('{} is copied to {}'.format(original, copy))
         return copy
 
     def makeLookup(self, inputFasta, output):
@@ -362,11 +374,6 @@ class PosNegSet:
         with open(output, 'w') as w:
             w.writelines(lookupLines)
         return output
-
-    def logUpdate(self, msg):
-        with open(self.log, 'a') as w:
-            w.write(msg + '\n')
-        print(msg)
 
     def thrmoFilter(
             self, directory, inputBed, ligInput, capInput="", doSaveUnfiltered=True,
@@ -494,7 +501,7 @@ class PosNegSet:
                 cap_probes_filtered.sort_values(by=['cp_hairpin_tm', 'cp_homodimer_tm'], ascending=[True, True])
             )
             cap_probes_sorted.to_csv(cap_probes_out, sep='\t')
-            # self.logUpdate('Capture probes that passed all filters: ' + str(len(cap_probes_filtered)))
+            self.logUpdate('Capture probes that passed all filters: ' + str(len(cap_probes_filtered)))
             outputStatement = outputStatement + "\nCapture probes output: " + cap_probes_out
         # TO FILTER LIGATION PROBES USING THERMODYNAMIC FEATURES AND SAVE FILTERED LIGATION PROBES AS TSV FILE
         ligProbsFiltered = (
@@ -530,7 +537,7 @@ class PosNegSet:
         if self.needCluster:
             self.logUpdate('[DEDUPLICATE POSITIVE FASTA]')
             if not os.path.exists(self.deDupGenome):
-                self.utils.clusterGenome(posGenome, clusterResult, self.dedupDir+'temp'+os.path.sep, self.seqId)
+                self.utils.clusterGenome(posGenome, clusterResult, self.dedupDir +'temp' + os.path.sep, self.seqIdentity)
                 self.utils.sortFasta(self.deDupGenome, self.dedupDir + 'sorted.fasta')
                 self.utils.renameFasta(self.dedupDir + 'sorted.fasta', self.deDupGenome)
             else:
@@ -650,20 +657,20 @@ class PosNegSet:
         #
         with open(probe2InputFasta, 'w') as w:  # seq.fa
             for key in probPos:
-                seqId = probPos[key][0]
+                seqIdx = probPos[key][0]
                 probeStart = probPos[key][1]
                 probeEnd = probPos[key][2]
-                inputSequence = seqs[seqId].strip()
+                inputSequence = seqs[seqIdx].strip()
                 seqLen = len(inputSequence)
-                start = probeStart - 200 if probeStart > 200 else 1
-                end = probeStart + self.probLen1 + 200 if (probeStart + self.probLen1 + 200 < seqLen) else seqLen
+                start = probeStart - self.window if probeStart > self.window else 1
+                end = probeStart + self.probLen1 + self.window if (probeStart + self.probLen1 + self.window < seqLen) else seqLen
                 maskMap = sum(
-                    [list(range(probPos[k][1]-1, probPos[k][2]-1)) for k in probPos if probPos[k][0] == seqId], []
+                    [list(range(probPos[k][1]-1, probPos[k][2]-1)) for k in probPos if probPos[k][0] == seqIdx], []
                 )
                 outputSequence = ''.join(
                     ['N' if pos in maskMap else inputSequence[pos] for pos in range(start - 1, end)]
                 )
-                outputHeader = ':'.join([seqName[seqId], str(probeStart - 1), str(probeEnd - 1)])
+                outputHeader = ':'.join([seqName[seqIdx], str(probeStart - 1), str(probeEnd - 1)])
                 outputHeader = '\t'.join([outputHeader, str(start), str(end), str(seqLen)])
                 w.write(outputHeader + '\n')
                 w.write(outputSequence + '\n')
@@ -671,8 +678,9 @@ class PosNegSet:
 
     def make2ndProbe(self):
         # COMPUTEMAPPABILITY
-        select = '-S ' + self.thermoProCoords
-        comMap2 = self.utils.comMappability(self.deDupGenome, self.indexDir2, self.error2, self.probLen2, self.mapDir2, select)
+        comMap2 = self.utils.comMappability(
+            self.deDupGenome, self.indexDir2, self.error2, self.probLen2, self.mapDir2,  '-S ' + self.thermoProCoords
+        )
         uniqComMap2 = self.utils.deDuplicateProbesCSV(comMap2, self.mapDir2 + 'uniq.genmap.csv')
         # MINIMIZE 1ST PROBE SET
         self.minimizedProbeSetResult2 = self.minimizingDir2 + 'result'
@@ -680,7 +688,8 @@ class PosNegSet:
         self.minimizedProbeSetResult2 = self.minimizingDir2 + 'result'
         if not os.path.exists(self.minimizedProbeSetResult2):
             self.logUpdate("minimize probe set")
-            msg, err = self.utils.setCover(self.coverage, self.probLen2, 0.99, 20, 10, uniqComMap2, self.deDupGenome)
+            # msg, err = self.utils.setCover(self.coverage, self.probLen2, 0.99, 20, 10, uniqComMap2, self.deDupGenome)
+            msg, err = self.utils.setCover(self.coverage, 1, 0.99, 20, 10, uniqComMap2, self.deDupGenome)
             with open(self.minimizedProbeSetResult2, 'w') as w:
                 w.write(msg)
             if not os.path.exists(minimizedProbeSetBed2):
@@ -712,8 +721,18 @@ class PosNegSet:
         return
 
     def printUsage(self):
-        print()
-        print()
+        print(" -p|--positive sequence set that should be covered")
+        print(" -n|--negative sequence set that should be not contained")
+        print(" -o|--output result output folder")
+        print("OPTIONAL")
+        print(" --seq-id-cluster clustering identity treshold (default 0.97)")
+        print(" --seq-id-probe identity treshold to filter probes aligned to neg. set (default 0.90)")
+        print(" --cluster cluster sequences (default 1)")
+        print(" --probe-error1 error allowed in probe 1 (default 0)")
+        print(" --probe-error2 error allowed in probe 2 (default 1)")
+        print(" --probe-len1 length of first probe (default 40)")
+        print(" -m compute k-mer conservation with N mismatches (default 0)")
+        print(" -c genome coverage by probes (default 1)")
         quit()
 
 
@@ -728,6 +747,20 @@ class SNP:
     posList = []
     snpList = []
     workDir = ''
+    window = 200
+
+    probLen1 = 40
+    probLen2 = 20
+
+    # 1, 1, 0.99, 20, 10
+
+    # seqIdentity = 0.97
+    # seqIdProbe = 0.90
+    # error1 = 0
+    # error2 = 1
+    # coverage = 1
+    # needCluster = True
+    # window = 200
 
     def __init__(self, args):
         self.args = getopt.getopt(args, self.shortParmas, self.longParams)[0]
@@ -745,8 +778,8 @@ class SNP:
             try:
                 self.refGenome = val if opt in ('-r', '--reference') else self.refGenome
                 self.refGenomeAnnot = val if opt in ('-a', '--annotation') else self.refGenomeAnnot
-                self.strGenome = val if opt in ('-s', '--strainstrain-fasta') else self.strGenome
-                self.workDir = val if opt in ('-o', '--putput') else self.workDir
+                self.strGenome = val if opt in ('-s', '--strain-fasta') else self.strGenome
+                self.workDir = val if opt in ('-o', '--output') else self.workDir
                 self.posList = self.getArgList(val, isInt=True) if opt in ('-p', '--positions') else self.posList
                 self.snpList = self.getArgList(val) if opt in ('-m', '--mutation-list') else self.snpList
             except Exception:
@@ -795,12 +828,12 @@ class SNP:
         os.makedirs(self.tempDir)
 
     def getStrKmerNearSNP(self, mutation, seqWithSNP):
-        blastInputFasta = '{}blast.fa'.format(self.workDir)
-        blastOutputTSV = '{}blast.tsv'.format(self.workDir)
-        with open(blastInputFasta, 'w') as w:
+        searchProbe = '{}blast.fa'.format(self.workDir)
+        blastOutput = '{}blast.tsv'.format(self.workDir)
+        with open(searchProbe, 'w') as w:
             w.write('>{}\n{}\n'.format(mutation, seqWithSNP))
-        self.utils.doBlastSearch(blastInputFasta, self.strGenome, blastOutputTSV)
-        return blastOutputTSV
+        blastOutput = self.utils.doBlastSearch(self.workDir, searchProbe, self.strGenome, 'blast.tsv')
+        return blastOutput
 
     def parseBlastResult(self, blastResult):
         found = -1
@@ -847,30 +880,30 @@ class SNP:
         except Exception:
             return False
 
-    def setProbesByPos(self, kmer=40):
+    def setProbesByPos(self):
         self.probesByPos = {pos: [] for pos in self.posList + [-1]}
         minPos = min(self.posList)
         maxPos = max(self.posList)
         refSeq = self.getReferenceSeq(self.refGenome)
         if not refSeq:
-            self.logUpdate('Failure to get reference sequence from reference genome.')
+            self.logUpdate('[ERR]Failure to get reference sequence from reference genome.')
             self.printUsage()
         for snp in self.snpList:
             self.logUpdate('')
-            self.logUpdate('[SNP {}]'.format(snp))
+            self.logUpdate('SNP {}'.format(snp))
             mutType, orf, mutation = self.parseMutation(snp)
             print(snp, mutType, orf, mutation)
             if mutType not in ['aa', 'nt']:
-                self.logUpdate('SNP {} has a wrong format.'.format(snp))
+                self.logUpdate('[ERR]SNP {} has a wrong format.'.format(snp))
                 continue
             if mutType == 'aa':
                 if self.refGenomeAnnot == '':
-                    self.logUpdate('For Amino Acid based SNPs reference annotation needed.')
+                    self.logUpdate('[ERR]For Amino Acid based SNPs reference annotation needed.')
                     continue
                 orfStartPos = self.getOrfStartPos(self.refGenomeAnnot, orf)
                 if orfStartPos == -1:
                     continue
-                    self.logUpdate('Failure to find snp {} in reference annotaion.'.format(snp))
+                    self.logUpdate('[ERR]Failure to find snp {} in reference annotaion.'.format(snp))
                 aa1, aa2, mutPos = mutation[0], mutation[-1], int(mutation[1:-1])
                 codonStartPos = orfStartPos + (mutPos - 1) * 3 - 1
                 codonEndPos = orfStartPos + mutPos * 3 - 1
@@ -878,9 +911,8 @@ class SNP:
                 if aa1 != Seq(refCodon).translate():
                     self.logUpdate('Failure to find SNP {} in reference genome'.format(snp))
                     continue
-                seqWithSNP = refSeq[codonStartPos - (maxPos-1): codonEndPos + (kmer - minPos)]
+                seqWithSNP = refSeq[codonStartPos - (maxPos-1): codonEndPos + (self.probLen1 - minPos)]
                 strainKmerNearSNP = self.getStrKmerNearSNP(mutation, seqWithSNP)
-
                 df = pd.read_csv(strainKmerNearSNP, sep='\t', header=None)
                 df.columns = ['subGenome', 'SNPbyAA', 'match', 'STsequence']
                 try:
@@ -898,7 +930,7 @@ class SNP:
                     )
                     df['WTsequence'] = seqWithSNP
                 except:
-                    self.logUpdate('Failure to find snp {} in the strain genome or reference genome'.format(snp))
+                    self.logUpdate('[ERR]Failure to find snp {} in the strain genome or reference genome'.format(snp))
                     continue
                 wtSequence, stSequence, ntSNP, locSnp, found = self.parseBlastResult(blastResult=df)
                 self.logUpdate('aa:{}:{} converted nt:{}'.format(orf, mutation, ntSNP))
@@ -907,9 +939,9 @@ class SNP:
                 nt1, nt2, snpPos = mutation[0], mutation[-1], int(mutation[1:-1])
                 refNT = refSeq[snpPos]
                 if nt1 != refNT:
-                    self.logUpdate('Failure to find SNP {} in reference genome'.format(snp))
+                    self.logUpdate('[ERR]Failure to find SNP {} in reference genome'.format(snp))
                     continue
-                seqWithSNP = refSeq[snpPos - (maxPos - 1):snpPos + 1 + (kmer - minPos)]
+                seqWithSNP = refSeq[snpPos - (maxPos - 1):snpPos + 1 + (self.probLen1 - minPos)]
                 blastOutput = self.getStrKmerNearSNP(mutation, seqWithSNP)
                 df = pd.read_csv(blastOutput, sep='\t', header=None)
                 df.columns = ['subGenome', 'SNPbyNT', 'match', 'STsequence']
@@ -920,15 +952,15 @@ class SNP:
                 wtSequence, stSequence, ntSNP, locSnp, found = self.parseBlastResult(blastResult=df)
                 mutSeqs = ParaSeqs(ntSNP, '', wtSequence, stSequence, mutLoc=locSnp)
             if found == 0:
-                self.logUpdate('Failure to find SNP {} in strain genome'.format(snp))
+                self.logUpdate('[ERR]Failure to find SNP {} in strain genome'.format(snp))
                 continue
             self.probesByPos[-1].append(mutSeqs)
             for pos in self.posList:
                 wtProbe, stProbe = mutSeqs.getProbsWithPos(pos)
-                paraSeq = ParaSeqs(mutSeqs.ntSnp, mutSeqs.aaSnp, wtProbe, stProbe, found=found, probLen=kmer)
+                paraSeq = ParaSeqs(mutSeqs.ntSnp, mutSeqs.aaSnp, wtProbe, stProbe, found=found, probLen=self.probLen1)
                 self.probesByPos[pos].append(paraSeq)
 
-    def make1stProbe(self, kmer=40):
+    def make1stProbe(self):
         probeLines = []
         # print(self.probesByPos)
         for pos in self.posList:
@@ -943,7 +975,7 @@ class SNP:
                     '>{}{};{}\n'.format(probs.ntSnp, '=' + probs.aaSnp if probs.aaSnp else '', pos))
                 probeLines.append('{}\n'.format(probs.stSeq))
             csvWriter.close()
-        with open('{}{}mer.fa'.format(self.workDir, kmer), 'w') as fastaWriter:
+        with open('{}{}mer.fa'.format(self.workDir, self.probLen1), 'w') as fastaWriter:
             fastaWriter.writelines(probeLines)
 
     def makeProbMaskCoords(self, inputDF, outputBed):
@@ -952,11 +984,11 @@ class SNP:
         return outputBed
 
     def makeWindowCoordBed(self, inputDF, outputBed):
-        inputDF[1] = inputDF[1].apply(lambda x: x - 200)
-        inputDF[2] = inputDF[2].apply(lambda x: x + 200)
+        inputDF[1] = inputDF[1].apply(lambda x: x - self.window)
+        inputDF[2] = inputDF[2].apply(lambda x: x + self.window)
         inputDF.to_csv(outputBed, sep='\t', header=False, index=False)
 
-    def make2ndWindow(self, kmer=20):
+    def make2ndWindow(self):
         # FILE NAMES
         snpNearprobes = '{}SNP.pattern.fasta'.format(self.workDir)
         snpMaskedBed = '{}SNP.masked.bed'.format(self.workDir)
@@ -976,7 +1008,7 @@ class SNP:
         )
         lookup = self.utils.makeLookup(self.probe2InputFasta, self.workDir + 'name.lookup')
         self.utils.delDir(self.indexDir)
-        mappedCSV = self.utils.comMappability(self.probe2InputFasta, self.indexDir, 1, kmer, self.workDir)
+        mappedCSV = self.utils.comMappability(self.probe2InputFasta, self.indexDir, 1, self.probLen2, self.workDir)
         dedupMappedCSV = self.utils.deDuplicateProbesCSV(mappedCSV, '{}uniq.genmap.csv'.format(self.workDir))
         stdOut, stdErr = self.utils.setCover(1, 1, 0.99, 20, 10, dedupMappedCSV, self.probe2InputFasta)
         setcoverResult = self.workDir + 'result'
@@ -985,12 +1017,12 @@ class SNP:
             w.write(stdOut)
         self.setcoverResultBed = self.utils.makeSetcoverResultBed(lookup, setcoverResult, self.workDir + 'result.bed')
 
-    def set2ndProbe(self, kmer=20):
-        tempSecondProbeFasta = '{}temp.{}mer.fasta'.format(self.workDir, kmer)
-        secondProbeFasta = '{}{}mer.fa'.format(self.workDir, kmer)
+    def set2ndProbe(self):
+        tempSecondProbeFasta = '{}temp.{}mer.fasta'.format(self.workDir, self.probLen2)
+        secondProbeFasta = '{}{}mer.fa'.format(self.workDir, self.probLen2)
         self.utils.getSubseqFasta(self.setcoverResultBed, self.probe2InputFasta, tempSecondProbeFasta)
         maskDF = pd.read_csv(self.lookupTSV, sep='\t')
-        maskDF['lookup'] = maskDF.apply(lambda x: '{}:{}-{}'.format(x[0], x[4] - 200, x[5] + 200), axis=1)
+        maskDF['lookup'] = maskDF.apply(lambda x: '{}:{}-{}'.format(x[0], x[4] - self.window, x[5] + self.window), axis=1)
         kmers = list(maskDF['patternName'])
         # PARSING TEMP 2ND FASTA
         w = open(secondProbeFasta, 'w')
@@ -1006,19 +1038,23 @@ class SNP:
         self.checkArgs()
         self.makeWorkDir()
         self.logUpdate('Your arguments: snp ' + self.utils.getUserArgs(self.args) + '\n')
+        self.logUpdate("MAKE 1ST PROBES")
         self.setProbesByPos()
-        self.logUpdate("")
         self.make1stProbe()
-        self.logUpdate("")
+        self.logUpdate("MAKE 2ND PROBES")
         self.make2ndWindow()
-        self.logUpdate("")
         self.set2ndProbe()
         self.logUpdate("DONE")
         return
 
     def printUsage(self):
-        print()
-        print()
+        print(" -r|--reference Reference Genome [FASTA FILE]")
+        print(" -s|--strain-fasta Strain Genome [FASTA FILE]")
+        print(" -o|--output Directory for Output Data [DIR NAME]")
+        print(" -p|--positions Positions for First Probes [Comma Separated INT ARRAY]")
+        print(" -m|--mutation-list SNPs Interest Strain has [Comma Separated SNP ARRAY]")
+        print("OPTIONAL")
+        print(" -a|--annotation Annotation File of Reference Genome [GFF FILE]")
         quit()
 
 
