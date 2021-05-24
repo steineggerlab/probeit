@@ -37,7 +37,7 @@ class ParaSeqs:
         isSameStSeq = self.stSeq == other.stSeq
         return isSameClass and isSameNtSNP and isSameWtSeq and isSameStSeq
 
-    def getProbsWithPos(self, pos):
+    def getProbesWithPos(self, pos):
         return (
             self.wtSeq[self.mutLoc - pos + 1:self.mutLoc - pos + self.probLen + 1],
             self.stSeq[self.mutLoc - pos + 1:self.mutLoc - pos + self.probLen + 1]
@@ -45,7 +45,8 @@ class ParaSeqs:
 
 
 class ProbeitUtils:
-    def runCommand(self, command, verbose=False):
+    @staticmethod
+    def runCommand(command, verbose=False):
         if verbose:
             commandList = command.split()
             sp = subprocess.Popen(commandList, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -54,70 +55,84 @@ class ProbeitUtils:
         else:
             os.system(command)
 
-    def delDir(self, waste):
+    @classmethod
+    def delDir(cls, waste):
         command = "rm -rf " + waste
-        self.runCommand(command)
+        cls.runCommand(command)
 
     # TO CALL SEQKIT MODULES
-    def sortFasta(self, fasta, sortedFasta):
+    @classmethod
+    def sortFasta(cls, fasta, sortedFasta):
         command = "seqkit sort {} > {} -w 0".format(fasta, sortedFasta)
-        self.runCommand(command)
+        cls.runCommand(command)
 
-    def renameFasta(self, oldFasta, newFasta):
+    @classmethod
+    def renameFasta(cls, oldFasta, newFasta):
         command = "seqkit rename {} > {} -w 0".format(oldFasta, newFasta)
-        self.runCommand(command)
+        cls.runCommand(command)
 
-    def getSubseqFasta(self, coordinateBed, oldFasta, newFasta):
+    @classmethod
+    def getSubseqFasta(cls, coordinateBed, oldFasta, newFasta):
         command = "seqkit subseq --quiet --bed {} {} > {}".format(coordinateBed, oldFasta, newFasta)
-        self.runCommand(command)
+        cls.runCommand(command)
 
-    def getPatternPosition(self, patternFasta, genomeFasta, positonsTSV):
+    @classmethod
+    def getPatternPosition(cls, patternFasta, genomeFasta, positonsTSV):
         command = "seqkit locate -f {} {} > {}".format(patternFasta, genomeFasta, positonsTSV)
-        self.runCommand(command)
+        cls.runCommand(command)
         return positonsTSV
 
     # TO CALL GENMAP MODULES
     # COMPUTE MAPPABILITY
-    def comMappability(self, fasta, indexDir, error, kmer, outputDir, selectingOption=''):
-        self.delDir(indexDir)
+    @classmethod
+    def computeMappability(cls, fasta, indexDir, error, kmer, outputDir, selectingOption=''):
+        cls.delDir(indexDir)
         command0 = " > /dev/null"
         command1 = "genmap index -F {} -I {}".format(fasta, indexDir)
-        self.runCommand(command1 + command0)
+        cls.runCommand(command1 + command0)
         command2 = (
             "genmap map --no-reverse-complement -E {} {} --csv -K {} -t -b --frequency-large -I {} -O {}"
             .format(error, selectingOption, kmer, indexDir, outputDir)
         )
-        self.runCommand(command2 + command0)
+        cls.runCommand(command2 + command0)
         return outputDir + '.'.join(fasta.split(os.path.sep)[-1].split('.')[:-1] + ['genmap', 'csv'])
 
     # TO CALL BEDTOOLS MODULES
-    def getSubtractedBed(self, positiveBed, negativeBed, outputBed):
+    @classmethod
+    def getSubtractedBed(cls, positiveBed, negativeBed, outputBed):
         print(positiveBed, negativeBed, outputBed)
         command = "bedtools subtract -a {} -b {} > {}".format(positiveBed, negativeBed, outputBed)
-        self.runCommand(command)
+        cls.runCommand(command)
         return outputBed
 
-    def getWindowFasta(self, genomeFasta, maskingBed, maskedGenomeFasta, windowBed, windowFasta):
+    @classmethod
+    def getWindowFasta(cls, genomeFasta, maskingBed, maskedGenomeFasta, windowBed, windowFasta):
         command1 = "bedtools maskfasta -fi {} -bed {} -fo {}".format(genomeFasta, maskingBed, maskedGenomeFasta)
-        self.runCommand(command1)
+        cls.runCommand(command1)
         inputDF = pd.read_csv(maskingBed, sep='\t', header=None)
         inputDF[1] = inputDF[1].apply(lambda x: x - 200)
         inputDF[2] = inputDF[2].apply(lambda x: x + 200)
         inputDF.to_csv(windowBed, sep='\t', header=False, index=False)
         command2 = "bedtools getfasta -fi {} -bed {} > {}".format(maskedGenomeFasta, windowBed, windowFasta)
-        self.runCommand(command2)
+        cls.runCommand(command2)
         return windowFasta
 
-    def makeLookup(self, windowFasta, lookup):
-        cnt = 0
+    @classmethod
+    def makeLookup(cls, windowFasta, lookup, needOnly1stCol=False):
+        if os.path.exists(lookup):
+            return lookup
         with open(windowFasta) as f:
-            with open(lookup, 'w') as w:
-                for h, s in SimpleFastaParser(f):
-                    w.write('{}\t{}\n'.format(h, cnt))
-                    cnt += 1
+            if needOnly1stCol:
+                headers = [title.split()[0].strip() for title, seq in SimpleFastaParser(f)]
+            else:
+                headers = [title.split()[0].strip() for title, seq in SimpleFastaParser(f)]
+            lookupLines = [headers[i] + '\t' + str(i) + '\n' for i in range(len(headers))]
+        with open(lookup, 'w') as w:
+            w.writelines(lookupLines)
         return lookup
 
-    def doBlastSearch(self, workDir, inputFasta, strGenomeFasta, resultTSV):
+    @classmethod
+    def doBlastSearch(cls, workDir, inputFasta, strGenomeFasta, resultTSV):
         searchDir = workDir + 'search' + os.path.sep
         tempDir = searchDir + 'temp' + os.path.sep
         resultTSV = workDir + resultTSV
@@ -130,19 +145,20 @@ class ProbeitUtils:
         command2 = 'mmseqs createdb {} {}'
         command3 = 'mmseqs search {} {} {} {} --search-type 3'
         command4 = 'mmseqs convertalis {} {} {} {} --format-output target,query,tseq,tstart,tend --search-type 3'
-        self.runCommand(command1.format(inputFasta, searchdb), verbose=True)
-        self.runCommand(command2.format(strGenomeFasta, strdb), verbose=True)
-        self.runCommand(command3.format(searchdb, strdb, aln, tempDir), verbose=True)
-        self.runCommand(command4.format(searchdb, strdb, aln, resultTSV), verbose=True)
+        cls.runCommand(command1.format(inputFasta, searchdb), verbose=True)
+        cls.runCommand(command2.format(strGenomeFasta, strdb), verbose=True)
+        cls.runCommand(command3.format(searchdb, strdb, aln, tempDir), verbose=True)
+        cls.runCommand(command4.format(searchdb, strdb, aln, resultTSV), verbose=True)
         df = pd.read_csv(resultTSV, sep='\t', header=None)
-        df.columns=['substr', 'snp', 'strseq', 'start', 'end']
+        df.columns = ['substr', 'snp', 'strseq', 'start', 'end']
         df['aln'] = df.apply(lambda x: x[2][int(x[3]-1):int(x[4])], axis=1)
         df['len'] = df.aln.apply(lambda x: len(x)-1)
         df = df[['substr', 'snp', 'len', 'aln']]
         df.to_csv(resultTSV, header=False, index=False, sep='\t')
         return resultTSV
 
-    def clusterGenome(self, inputFasta, outputFasta, outputDir, seqIdentity):
+    @classmethod
+    def clusterGenome(cls, inputFasta, outputFasta, outputDir, seqIdentity):
         command = ' '.join(
             [
                 "mmseqs easy-linclust", inputFasta, outputFasta, outputDir,
@@ -150,9 +166,10 @@ class ProbeitUtils:
                 "--cov-mode 1 -c 0.95 --remove-tmp-files 0"
             ]
         )
-        return self.runCommand(command, verbose=True)
+        return cls.runCommand(command, verbose=True)
 
-    def searchNegative(self, output, negative, maskOutput, outputDir, seqInProbe):
+    @classmethod
+    def searchNegative(cls, output, negative, maskOutput, outputDir, seqInProbe):
         command = ' '.join(
             [
                 "mmseqs easy-search", output, negative, maskOutput, outputDir+"tmp",
@@ -161,10 +178,11 @@ class ProbeitUtils:
                 "--format-output query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue"
             ]
         )
-        stdOut, stdErr = self.runCommand(command, verbose=True)
+        stdOut, stdErr = cls.runCommand(command, verbose=True)
         return stdOut, stdErr
 
-    def deDuplicateProbesCSV(self, inputCSV, outputCSV):
+    @classmethod
+    def deDuplicateProbesCSV(cls, inputCSV, outputCSV):
         def deduplicate(kmers):
             prevIndex = []
             newKmers = []
@@ -207,16 +225,18 @@ class ProbeitUtils:
         uniqGenmapDF.dropna().to_csv(outputCSV, header=False, index=False, sep=';')
         return outputCSV
 
-    def setCover(self, coverage, length, proportion, distance, iteration, deDuplicatedCSV, windowFasta):
+    @classmethod
+    def setCover(cls, coverage, length, proportion, distance, iteration, deDuplicatedCSV, windowFasta):
         command = (
             "./setcover/setcover -c {} -l {} -p {} -d {} -i {} {} {}"
             .format(coverage, length, proportion, distance, iteration, deDuplicatedCSV, windowFasta)
         )
-        stdOut, stdErr = self.runCommand(command, verbose=True)
+        stdOut, stdErr = cls.runCommand(command, verbose=True)
         print(stdOut, stdErr)
         return stdOut, stdErr
 
-    def makeSetcoverResultBed(self, lookup, setcoverResult, setcoverResultBed):
+    @classmethod
+    def makeSetcoverResultBed(cls, lookup, setcoverResult, setcoverResultBed):
         genomeAndIdx = dict()
         with open(lookup) as f1:
             for line in f1:
@@ -232,7 +252,8 @@ class ProbeitUtils:
                     w.write('\t'.join([genomeAndIdx[genome], pos, str(int(pos) + 20), matchedKmers]) + '\n')
         return setcoverResultBed
 
-    def getUserArgs(self, args):
+    @classmethod
+    def getUserArgs(cls, args):
         return ' '.join(['{} {}'.format(i[0], i[1]) if len(i) == 2 else i for i in args])
 
 
@@ -260,7 +281,8 @@ class Probeit:
             self.printUsage()
             return
 
-    def printUsage(self):
+    @staticmethod
+    def printUsage():
         print("PROBEIT")
         print('usage ./probeit.py <module> [<args>]')
         print("WORKFLOWS")
@@ -279,11 +301,10 @@ class PosNegSet:
     inputGenome = ''
     negGenome = ''
     workDir = ''
-    utils = ProbeitUtils()
     probLen1 = 40
     probLen2 = 20
-    seqIdentity = 0.97 # for mmseqs linclust
-    seqIdProbe = 0.90 # for mmseqs easy-search
+    seqIdentity = 0.97  # for mmseqs linclust
+    seqIdProbe = 0.90  # for mmseqs easy-search
     error1 = 0
     error2 = 1
     coverage = 1
@@ -313,7 +334,7 @@ class PosNegSet:
                 self.printUsage()
 
     def checkArgs(self):
-        print("Your arguments: {}".format('snp ' + self.utils.getUserArgs(self.args)))
+        print("Your arguments: {}".format('snp ' + ProbeitUtils.getUserArgs(self.args)))
         message = "{}You didn't input a proper argument for '{}' parameter or missed it. "
         isBadArguments = False
         if not self.inputGenome:
@@ -362,18 +383,8 @@ class PosNegSet:
     def copyFile(self, original, copy):
         if not os.path.exists(copy):
             shutil.copy(original, copy)
-            self.logUpdate('{} is copied to {}'.format(original, copy))
+            self.logUpdate('[info]{} is copied to {}'.format(original, copy))
         return copy
-
-    def makeLookup(self, inputFasta, output):
-        if os.path.exists(output):
-            return output
-        with open(inputFasta) as f:
-            headers = [title.split()[0].strip() for title, seq in SimpleFastaParser(f)]
-            lookupLines = [headers[i] + '\t' + str(i) + '\n' for i in range(len(headers))]
-        with open(output, 'w') as w:
-            w.writelines(lookupLines)
-        return output
 
     def thrmoFilter(
             self, directory, inputBed, ligInput, capInput="", doSaveUnfiltered=True,
@@ -507,7 +518,7 @@ class PosNegSet:
         ligProbsFiltered = (
             ligProbsAndThermos
             .query('p1_intrinsic_probs == False & p2_intrinsic_probs == False')
-            .query('p1_tm >= {' + str(minProbeTm) + '} & p2_tm >= {}'.format(minProbeTm, minProbeTm))
+            .query('p1_tm >= {} & p2_tm >= {}'.format(minProbeTm, minProbeTm))
             .query('p1_GC_perc >= {} & p2_GC_perc >= {}& p1_GC_perc <= {} & p2_GC_perc <= {}'.format(
                 minGC, minGC, maxGC, maxGC)
             )
@@ -525,29 +536,29 @@ class PosNegSet:
         if doSaveUnfiltered:
             ligProbsAndThermos.to_csv((absOutput + '_uncut.tsv'), sep='\t')  # primer3_uncut.tsv
         self.logUpdate(outputStatement)
-        return self.utils.getSubtractedBed(inputBed, absThermoProperOutput, directory + 'primer3.neg.bed')
+        return ProbeitUtils.getSubtractedBed(inputBed, absThermoProperOutput, directory + 'primer3.neg.bed')
 
     def filterInputData(self):
-        clusterResult = self.dedupDir + 'genomes.clu'
+        clustName = self.dedupDir + 'genomes.clu'
         # COPY POSITIVE INPUT FASTA
         posGenome = self.copyFile(original=self.inputGenome, copy=self.inputDir + 'genome.fa')
         print(posGenome)
         # CLUTER INPUT FASTA
-        self.deDupGenome = clusterResult + '_rep_seq.fasta'
+        self.deDupGenome = clustName + '_rep_seq.fasta'
         if self.needCluster:
-            self.logUpdate('[DEDUPLICATE POSITIVE FASTA]')
+            self.logUpdate('[info]deduplicate positive fasta')
             if not os.path.exists(self.deDupGenome):
-                self.utils.clusterGenome(posGenome, clusterResult, self.dedupDir +'temp' + os.path.sep, self.seqIdentity)
-                self.utils.sortFasta(self.deDupGenome, self.dedupDir + 'sorted.fasta')
-                self.utils.renameFasta(self.dedupDir + 'sorted.fasta', self.deDupGenome)
+                ProbeitUtils.clusterGenome(posGenome, clustName, self.dedupDir + 'temp' + os.path.sep, self.seqIdentity)
+                ProbeitUtils.sortFasta(self.deDupGenome, self.dedupDir + 'sorted.fasta')
+                ProbeitUtils.renameFasta(self.dedupDir + 'sorted.fasta', self.deDupGenome)
             else:
                 self.copyFile(posGenome, self.deDupGenome)
         # MAKE A LOOKUP
-        self.lookup1 = self.makeLookup(self.deDupGenome, self.workDir + 'id.lookup')
+        self.lookup1 = ProbeitUtils.makeLookup(self.deDupGenome, self.workDir + 'id.lookup', needOnly1stCol=True)
         # MAKE 40MER FROM POSITIVE FASTA
         posProbes = self.maskingDir + 'probes.fa'
-        self.logUpdate("remove probes that aligns to negative set")
-        self.logUpdate('[GET {}mer PROBES FROM POSITIVE GENOME]'.format(self.probLen1))
+        self.logUpdate("[info]remove probes that aligns to negative set")
+        self.logUpdate('[info]get {}mer probes from positive genome'.format(self.probLen1))
         f = open(self.deDupGenome)
         w = open(posProbes, 'w')
         for title, seq in SimpleFastaParser(f):
@@ -559,12 +570,12 @@ class PosNegSet:
         f.close()
         w.close()
         # MAKE 40MER BED FROM NEGATIVE FASTA
-        self.logUpdate('[REMOVE PROBES FOUND IN NEGATIVE GENOME]')
+        self.logUpdate('[info]remove probes found in negative genome')
         negProbesCoords = self.maskingDir + 'mmseqs.search'
         if not os.path.exists(negProbesCoords):
-            self.utils.searchNegative(posProbes, self.negGenome, negProbesCoords, self.maskingDir, self.seqIdProbe)
+            ProbeitUtils.searchNegative(posProbes, self.negGenome, negProbesCoords, self.maskingDir, self.seqIdProbe)
         # MAKE DEDUPLICATE GENOME POSITIONS
-        deDupGenomeCoords = clusterResult + '_rep_seq.bed'
+        deDupGenomeCoords = clustName + '_rep_seq.bed'
         with open(self.deDupGenome) as f:
             with open(deDupGenomeCoords, 'w') as w:
                 for title, seq in SimpleFastaParser(f):
@@ -579,8 +590,10 @@ class PosNegSet:
                     b = c1.split('_')[-1]
                     c1 = c1.split('_')[0]
                     w.write(c1 + '\t' + str(int(b) - 1) + '\t' + str(int(b) - 1 + self.probLen1) + '\n')
-        negRemCoords = self.utils.getSubtractedBed(deDupGenomeCoords, simpleNegProbesCoords, self.thermoFilteringDir + 'crosstaxa.bed')
-        self.logUpdate('[FILTER PROBES WITH THERMODYNAMIC FEATURES]')
+        negRemCoords = ProbeitUtils.getSubtractedBed(
+            deDupGenomeCoords, simpleNegProbesCoords, self.thermoFilteringDir + 'crosstaxa.bed'
+        )
+        self.logUpdate('[info]filter probes with thermodynamic features')
         probesForTheromFilter = self.thermoFilteringDir + 'probes.fa'
         with open(posProbes) as f:
             with open(probesForTheromFilter, 'w') as w:
@@ -590,10 +603,12 @@ class PosNegSet:
                     w.write(seq + '\n')
         # TO FILTER PROBES by THERMODYNAMIC FEATURES
         thermoImpCoords = self.thrmoFilter(self.thermoFilteringDir, deDupGenomeCoords, probesForTheromFilter)
-        self.thermoProCoords = self.utils.getSubtractedBed(negRemCoords, thermoImpCoords, self.thermoFilteringDir + 'crosstaxa.primer3.bed')
+        self.thermoProCoords = ProbeitUtils.getSubtractedBed(
+            negRemCoords, thermoImpCoords, self.thermoFilteringDir + 'crosstaxa.primer3.bed'
+        )
         self.mapGenome1 = self.dedupDir + 'seq.fasta'
         if not os.path.exists(self.mapGenome1):
-            self.logUpdate('compute mappability')
+            self.logUpdate('[info]compute mappability')
             with open(self.deDupGenome) as f:
                 with open(self.mapGenome1, 'w') as w:
                     for title, seq in SimpleFastaParser(f):
@@ -602,17 +617,18 @@ class PosNegSet:
 
     def make1stProbe(self):
         # COMPUTEMAPPABILITY
-        select = '-S ' + self.thermoProCoords
-        self.logUpdate('[COMPUTE MAPPABILITY]')
-        comMap1 = self.utils.comMappability(self.mapGenome1, self.indexDir1, self.error1, self.probLen1, self.mapDir1, select)
-        self.logUpdate('[DEDUPLICATE GENMAP RESULT]')
-        uniqComMap1 = self.utils.deDuplicateProbesCSV(comMap1, self.mapDir1 + 'uniq.genmap.csv')
+        self.logUpdate('[info]compute mappability')
+        comMap1 = ProbeitUtils.computeMappability(
+            self.mapGenome1, self.indexDir1, self.error1, self.probLen1, self.mapDir1, '-S ' + self.thermoProCoords
+        )
+        self.logUpdate('[info]deduplicate genmap result')
+        uniqComMap1 = ProbeitUtils.deDuplicateProbesCSV(comMap1, self.mapDir1 + 'uniq.genmap.csv')
         # MINIMIZE 1ST PROBE SET
         self.minimizedProbeSetResult1 = self.minimizingDir1 + 'result'
         minimizedProbeSetBed1 = self.minimizingDir1 + 'result.bed'
         if not os.path.exists(self.minimizedProbeSetResult1):
-            self.logUpdate("[minimize probe set]")
-            msg, err = self.utils.setCover(self.coverage, self.probLen1, 0.9, 11, 1, uniqComMap1, self.deDupGenome)
+            self.logUpdate("[info]minimize probe set")
+            msg, err = ProbeitUtils.setCover(self.coverage, self.probLen1, 0.9, 11, 1, uniqComMap1, self.deDupGenome)
             print(msg)
             with open(self.minimizedProbeSetResult1, 'w') as w:
                 w.write(msg)
@@ -630,7 +646,7 @@ class PosNegSet:
                             idx = line.split(';')[0].split(',')[0]
                             pos = line.split(';')[0].split(',')[1]
                             w.write('\t'.join([genomeAndIdx[idx], pos, str(int(pos)+self.probLen1), kmers])+'\n')
-        self.utils.getSubseqFasta(minimizedProbeSetBed1, self.deDupGenome, self.workDir + 'probe1.fa')
+        ProbeitUtils.getSubseqFasta(minimizedProbeSetBed1, self.deDupGenome, self.workDir + 'probe1.fa')
 
     def make2ndWindow(self):
         probe2InputFasta = self.inputDir2 + 'seq.fa'
@@ -645,51 +661,48 @@ class PosNegSet:
                 seqIdx += 1
         #
         with open(self.minimizedProbeSetResult1) as f2:  # 1st setcover result
-            probPos = dict()
+            probes = dict()
             probIdx = 1
             matchedKmers = sum([line.split(';')[1].split('|') for line in f2.readlines()], [])
             for kmer in matchedKmers:
                 genome = int(kmer.split(',')[0])
                 probeStart = int(kmer.split(',')[1]) + 1
                 probeEnd = probeStart + self.probLen1
-                probPos[probIdx] = [genome, probeStart, probeEnd]
+                probes[probIdx] = [genome, probeStart, probeEnd]
                 probIdx += 1
         #
         with open(probe2InputFasta, 'w') as w:  # seq.fa
-            for key in probPos:
-                seqIdx = probPos[key][0]
-                probeStart = probPos[key][1]
-                probeEnd = probPos[key][2]
-                inputSequence = seqs[seqIdx].strip()
-                seqLen = len(inputSequence)
+            for key in probes:
+                seqIdx = probes[key][0]
+                probeStart = probes[key][1]
+                probeEnd = probes[key][2]
+                inputSeq = seqs[seqIdx].strip()
+                seqLen = len(inputSeq)
                 start = probeStart - self.window if probeStart > self.window else 1
-                end = probeStart + self.probLen1 + self.window if (probeStart + self.probLen1 + self.window < seqLen) else seqLen
-                maskMap = sum(
-                    [list(range(probPos[k][1]-1, probPos[k][2]-1)) for k in probPos if probPos[k][0] == seqIdx], []
-                )
-                outputSequence = ''.join(
-                    ['N' if pos in maskMap else inputSequence[pos] for pos in range(start - 1, end)]
-                )
+                end = probeStart + self.probLen1 + self.window
+                end = end if end < seqLen else seqLen
+                maskMap = [list(range(probes[k][1] - 1, probes[k][2] - 1)) for k in probes if probes[k][0] == seqIdx]
+                maskMap = sum(maskMap, [])
+                outputSeq = ''.join(['N' if pos in maskMap else inputSeq[pos] for pos in range(start - 1, end)])
                 outputHeader = ':'.join([seqName[seqIdx], str(probeStart - 1), str(probeEnd - 1)])
                 outputHeader = '\t'.join([outputHeader, str(start), str(end), str(seqLen)])
                 w.write(outputHeader + '\n')
-                w.write(outputSequence + '\n')
-        self.lookup2 = self.makeLookup(probe2InputFasta, self.workDir + 'name.lookup.2')
+                w.write(outputSeq + '\n')
+        self.lookup2 = ProbeitUtils.makeLookup(probe2InputFasta, self.workDir + 'name.lookup.2', needOnly1stCol=True)
 
     def make2ndProbe(self):
         # COMPUTEMAPPABILITY
-        comMap2 = self.utils.comMappability(
+        comMap2 = ProbeitUtils.computeMappability(
             self.deDupGenome, self.indexDir2, self.error2, self.probLen2, self.mapDir2,  '-S ' + self.thermoProCoords
         )
-        uniqComMap2 = self.utils.deDuplicateProbesCSV(comMap2, self.mapDir2 + 'uniq.genmap.csv')
+        uniqComMap2 = ProbeitUtils.deDuplicateProbesCSV(comMap2, self.mapDir2 + 'uniq.genmap.csv')
         # MINIMIZE 1ST PROBE SET
         self.minimizedProbeSetResult2 = self.minimizingDir2 + 'result'
         minimizedProbeSetBed2 = self.minimizingDir2 + 'result.bed'
         self.minimizedProbeSetResult2 = self.minimizingDir2 + 'result'
         if not os.path.exists(self.minimizedProbeSetResult2):
-            self.logUpdate("minimize probe set")
-            # msg, err = self.utils.setCover(self.coverage, self.probLen2, 0.99, 20, 10, uniqComMap2, self.deDupGenome)
-            msg, err = self.utils.setCover(self.coverage, 1, 0.99, 20, 10, uniqComMap2, self.deDupGenome)
+            self.logUpdate("[info]minimize probe set")
+            msg, err = ProbeitUtils.setCover(self.coverage, 1, 0.99, 20, 10, uniqComMap2, self.deDupGenome)
             with open(self.minimizedProbeSetResult2, 'w') as w:
                 w.write(msg)
             if not os.path.exists(minimizedProbeSetBed2):
@@ -706,7 +719,7 @@ class PosNegSet:
                             idx = line.split(';')[0].split(',')[0]
                             pos = line.split(';')[0].split(',')[1]
                             w.write('\t'.join([genomeAndIdx[idx], pos, str(int(pos)+self.probLen2), kmers])+'\n')
-        self.utils.getSubseqFasta(minimizedProbeSetBed2, self.deDupGenome, self.workDir + 'probe2.fa')
+        ProbeitUtils.getSubseqFasta(minimizedProbeSetBed2, self.deDupGenome, self.workDir + 'probe2.fa')
         return
 
     def excute(self):
@@ -739,8 +752,11 @@ class PosNegSet:
 class SNP:
     args = []
     shortParmas = 'hr:a:s:p:m:o:'
-    longParams = ['reference=', 'annotation=', 'strain-fasta=', 'positions=', 'mutation-list=', 'output=', 'help']
-    utils = ProbeitUtils()
+    longParams = [
+        'reference=', 'annotation=', 'strain-fasta=', 'positions=', 'mutation-list=', 'output=', 'help',
+        'setcover-numofcover=', 'setcover-earlystop=', 'setcover-simscore=', 'setcover-numofrepeat='
+    ]
+    # utils = ProbeitUtils()
     refGenome = ''
     refGenomeAnnot = ''
     strGenome = ''
@@ -748,20 +764,12 @@ class SNP:
     snpList = []
     workDir = ''
     window = 200
-
     probLen1 = 40
     probLen2 = 20
-
-    # 1, 1, 0.99, 20, 10
-
-    # seqIdentity = 0.97
-    # seqIdProbe = 0.90
-    # error1 = 0
-    # error2 = 1
-    # coverage = 1
-    # needCluster = True
-    # window = 200
-
+    setcoverNumOfCover = 1
+    setcoverEarlyStop = 0.99
+    setcoverSimScore = 20
+    setcoverNumOfRepeat = 10
     def __init__(self, args):
         self.args = getopt.getopt(args, self.shortParmas, self.longParams)[0]
 
@@ -782,13 +790,17 @@ class SNP:
                 self.workDir = val if opt in ('-o', '--output') else self.workDir
                 self.posList = self.getArgList(val, isInt=True) if opt in ('-p', '--positions') else self.posList
                 self.snpList = self.getArgList(val) if opt in ('-m', '--mutation-list') else self.snpList
+                self.setcoverNumOfCover = val if opt in ('--setcover-numofcover ') else self.self.setcoverNumOfCover
+                self.setcoverEarlyStop = val if opt in ('--setcover-earlystop') else self.setcoverEarlyStop
+                self.setcoverSimScore = val if opt in ('--setcover-simscore') else self.setcoverSimScore
+                self.setcoverNumOfRepeat = val if opt in ('--setcover-numofrepeat') else self.setcoverNumOfRepeat
             except Exception:
-                print("Your arguments: snp {}".format(self.utils.getUserArgs(self.args)))
+                print("Your arguments: snp {}".format(ProbeitUtils.getUserArgs(self.args)))
                 self.printUsage()
         return
 
     def checkArgs(self):
-        print("Your arguments: {}".format('snp ' + self.utils.getUserArgs(self.args)))
+        print("Your arguments: {}".format('snp ' + ProbeitUtils.getUserArgs(self.args)))
         message = "{}You didn't input a proper argument for '{}' parameter or missed it. "
         isBadArguments = False
         if not self.refGenome:
@@ -822,7 +834,7 @@ class SNP:
         self.log = self.workDir + 'log.txt'
         self.indexDir = self.workDir + 'index'
         print(os.path.exists(self.workDir))
-        self.utils.delDir(self.workDir)
+        ProbeitUtils.delDir(self.workDir)
         print(os.path.exists(self.workDir))
         os.makedirs(self.workDir)
         os.makedirs(self.tempDir)
@@ -832,7 +844,7 @@ class SNP:
         blastOutput = '{}blast.tsv'.format(self.workDir)
         with open(searchProbe, 'w') as w:
             w.write('>{}\n{}\n'.format(mutation, seqWithSNP))
-        blastOutput = self.utils.doBlastSearch(self.workDir, searchProbe, self.strGenome, 'blast.tsv')
+        blastOutput = ProbeitUtils.doBlastSearch(self.workDir, searchProbe, self.strGenome, 'blast.tsv')
         return blastOutput
 
     def parseBlastResult(self, blastResult):
@@ -956,7 +968,7 @@ class SNP:
                 continue
             self.probesByPos[-1].append(mutSeqs)
             for pos in self.posList:
-                wtProbe, stProbe = mutSeqs.getProbsWithPos(pos)
+                wtProbe, stProbe = mutSeqs.getProbesWithPos(pos)
                 paraSeq = ParaSeqs(mutSeqs.ntSnp, mutSeqs.aaSnp, wtProbe, stProbe, found=found, probLen=self.probLen1)
                 self.probesByPos[pos].append(paraSeq)
 
@@ -994,35 +1006,39 @@ class SNP:
         snpMaskedBed = '{}SNP.masked.bed'.format(self.workDir)
         # USING PROBEs AND STRAIN GENOME MAKE PROBEs MASK TSV
         with open(snpNearprobes, 'w') as w:
-            w.writelines(['>{}{}\n{}\n'.format(p.ntSnp, '=' + p.aaSnp if p.aaSnp else '', p.stSeq) for p in self.probesByPos[-1]])
-        self.lookupTSV = self.utils.getPatternPosition(snpNearprobes, self.strGenome, '{}lookup.tsv'.format(self.workDir))
+            w.writelines(
+                ['>{}{}\n{}\n'.format(p.ntSnp, '=' + p.aaSnp if p.aaSnp else '', p.stSeq) for p in self.probesByPos[-1]]
+            )
+        self.lookupTSV = ProbeitUtils.getPatternPosition(snpNearprobes, self.strGenome, '{}lookup.tsv'.format(self.workDir))
         snpMaskedBed = self.makeProbMaskCoords(
             pd.read_csv(self.lookupTSV, sep='\t')[['seqID', 'start', 'end']], snpMaskedBed
         )
         # MAKE PROBEs MAKSED FASTA
-        self.probe2InputFasta = self.utils.getWindowFasta(
-            self.strGenome, snpMaskedBed,
-            '{}SNP.masked.fasta'.format(self.workDir),
-            '{}window.bed'.format(self.workDir),
-            '{}2nd.input.fasta'.format(self.workDir)
+        self.probe2Window = ProbeitUtils.getWindowFasta(
+            self.strGenome, snpMaskedBed, self.workDir + 'SNP.masked.fasta',
+            self.workDir + 'window.bed', self.workDir + '2nd.input.fasta'
         )
-        lookup = self.utils.makeLookup(self.probe2InputFasta, self.workDir + 'name.lookup')
-        self.utils.delDir(self.indexDir)
-        mappedCSV = self.utils.comMappability(self.probe2InputFasta, self.indexDir, 1, self.probLen2, self.workDir)
-        dedupMappedCSV = self.utils.deDuplicateProbesCSV(mappedCSV, '{}uniq.genmap.csv'.format(self.workDir))
-        stdOut, stdErr = self.utils.setCover(1, 1, 0.99, 20, 10, dedupMappedCSV, self.probe2InputFasta)
+        lookup = ProbeitUtils.makeLookup(self.probe2Window, self.workDir + 'name.lookup')
+        ProbeitUtils.delDir(self.indexDir)
+        mappedCSV = ProbeitUtils.computeMappability(self.probe2Window, self.indexDir, 1, self.probLen2, self.workDir)
+        dedupMappedCSV = ProbeitUtils.deDuplicateProbesCSV(mappedCSV, '{}uniq.genmap.csv'.format(self.workDir))
+
+
+        stdOut, stdErr = ProbeitUtils.setCover(self.setcoverNumOfCover, 1, self.setcoverProportion, self.setcoverSimScore, self.setcoverNumOfRepeat, dedupMappedCSV, self.probe2Window)
         setcoverResult = self.workDir + 'result'
         self.logUpdate(stdOut)
         with open(setcoverResult, 'w') as w:
             w.write(stdOut)
-        self.setcoverResultBed = self.utils.makeSetcoverResultBed(lookup, setcoverResult, self.workDir + 'result.bed')
+        self.setcoverResultBed = ProbeitUtils.makeSetcoverResultBed(lookup, setcoverResult, self.workDir + 'result.bed')
 
     def set2ndProbe(self):
         tempSecondProbeFasta = '{}temp.{}mer.fasta'.format(self.workDir, self.probLen2)
         secondProbeFasta = '{}{}mer.fa'.format(self.workDir, self.probLen2)
-        self.utils.getSubseqFasta(self.setcoverResultBed, self.probe2InputFasta, tempSecondProbeFasta)
+        ProbeitUtils.getSubseqFasta(self.setcoverResultBed, self.probe2Window, tempSecondProbeFasta)
         maskDF = pd.read_csv(self.lookupTSV, sep='\t')
-        maskDF['lookup'] = maskDF.apply(lambda x: '{}:{}-{}'.format(x[0], x[4] - self.window, x[5] + self.window), axis=1)
+        maskDF['lookup'] = maskDF.apply(
+            lambda x: '{}:{}-{}'.format(x[0], x[4] - self.window, x[5] + self.window), axis=1
+        )
         kmers = list(maskDF['patternName'])
         # PARSING TEMP 2ND FASTA
         w = open(secondProbeFasta, 'w')
@@ -1037,17 +1053,18 @@ class SNP:
         self.getPars()
         self.checkArgs()
         self.makeWorkDir()
-        self.logUpdate('Your arguments: snp ' + self.utils.getUserArgs(self.args) + '\n')
-        self.logUpdate("MAKE 1ST PROBES")
+        self.logUpdate('Your arguments: snp ' + ProbeitUtils.getUserArgs(self.args) + '\n')
+        self.logUpdate("[info]make 1st probes")
         self.setProbesByPos()
         self.make1stProbe()
-        self.logUpdate("MAKE 2ND PROBES")
+        self.logUpdate("[info]make 2nd probes")
         self.make2ndWindow()
         self.set2ndProbe()
-        self.logUpdate("DONE")
+        self.logUpdate("[info]done")
         return
 
-    def printUsage(self):
+    @staticmethod
+    def printUsage():
         print(" -r|--reference Reference Genome [FASTA FILE]")
         print(" -s|--strain-fasta Strain Genome [FASTA FILE]")
         print(" -o|--output Directory for Output Data [DIR NAME]")
@@ -1055,8 +1072,11 @@ class SNP:
         print(" -m|--mutation-list SNPs Interest Strain has [Comma Separated SNP ARRAY]")
         print("OPTIONAL")
         print(" -a|--annotation Annotation File of Reference Genome [GFF FILE]")
+        print('--setcover-numofcover The number of times each sequence should be covered during setcover [INT]<1>')
+        print('--setcover-earlystop minimum ratio of covered sequences to earlystop during setcover [FLOAT]<0.99>')
+        print('--setcover-simscore maximum levenshtein score during setcover [INT]<20>')
+        print('--setcover-numofrepeat minimize probes randomly N iterations during setcover [INT]<10>')
         quit()
-
 
 def main(args):
     probeit = Probeit(args)
