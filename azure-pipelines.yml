@@ -11,26 +11,26 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   steps:
-  - script: |
-    echo hello from Linux
-    python probeit.py --help
-    python probeit.py posnegset --help
-    python probeit.py snp --help
+      - script: |
+            echo hello from Linux
+            python probeit.py --help
+            python probeit.py posnegset --help
+            python probeit.py snp --help
 - job: macOS
   pool:
     vmImage: 'macOS-latest'
   steps:
-  - script: |
-    echo hello from macOS
-    python probeit.py --help
-    python probeit.py posnegset --help
-    python probeit.py snp --help
+      - script: |
+            echo hello from macOS
+            python probeit.py --help
+            python probeit.py posnegset --help
+            python probeit.py snp --help
 - job: Windows
   pool:
     vmImage: 'windows-latest'
   steps:
-  - script: |
-    echo hello from Windows
-    python probeit.py --help
-    python probeit.py posnegset --help
-    python probeit.py snp --help
+      - script: |
+            echo hello from Windows
+            python probeit.py --help
+            python probeit.py posnegset --help
+            python probeit.py snp --help
