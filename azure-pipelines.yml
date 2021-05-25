@@ -11,11 +11,12 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   steps:
+      - script: echo "##vso[task.prependpath]$CONDA/bin"
+        displayName: Add conda to PATH
       - script: |
             echo hello from Linux
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython
             conda activate probeit
-            pip install Bio
             python probeit.py --help
             python probeit.py posnegset --help
             python probeit.py snp --help
@@ -23,11 +24,17 @@ jobs:
   pool:
     vmImage: 'macOS-latest'
   steps:
+      - script: echo "##vso[task.prependpath]$CONDA/bin"
+        displayName: Add conda to PATH
+
+        # On Hosted macOS, the agent user doesn't have ownership of Miniconda's installation directory/
+        # We need to take ownership if we want to update conda or install packages globally
+      - script: sudo chown -R $USER $CONDA
+        displayName: Take ownership of conda installation
       - script: |
             echo hello from macOS
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython
             conda activate probeit
-            pip install Bio
             python probeit.py --help
             python probeit.py posnegset --help
             python probeit.py snp --help
@@ -35,11 +42,12 @@ jobs:
   pool:
     vmImage: 'windows-latest'
   steps:
+      - powershell: Write-Host "##vso[task.prependpath]$env:CONDA\Scripts"
+        displayName: Add conda to PATH
       - script: |
             echo hello from Windows
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython
             conda activate probeit
-            pip install Bio
             python probeit.py --help
             python probeit.py posnegset --help
             python probeit.py snp --help
