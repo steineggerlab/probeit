@@ -6,14 +6,31 @@
 trigger:
 - master
 
-pool:
-  vmImage: ubuntu-latest
-
-steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
-
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+jobs:
+- job: Linux
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - script: |
+    echo hello from Linux
+    python probeit.py --help
+    python probeit.py posnegset --help
+    python probeit.py snp --help
+- job: macOS
+  pool:
+    vmImage: 'macOS-latest'
+  steps:
+  - script: |
+    echo hello from macOS
+    python probeit.py --help
+    python probeit.py posnegset --help
+    python probeit.py snp --help
+- job: Windows
+  pool:
+    vmImage: 'windows-latest'
+  steps:
+  - script: |
+    echo hello from Windows
+    python probeit.py --help
+    python probeit.py posnegset --help
+    python probeit.py snp --help
