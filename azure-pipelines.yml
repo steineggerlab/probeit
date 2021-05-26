@@ -38,16 +38,16 @@ jobs:
             python probeit.py --help
             python probeit.py posnegset --help
             python probeit.py snp --help
-- job: Windows
-  pool:
-    vmImage: 'windows-latest'
-  steps:
-      - powershell: Write-Host "##vso[task.prependpath]$env:CONDA\Scripts"
-        displayName: Add conda to PATH
-      - script: |
-            echo hello from Windows
-            conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython
-            conda activate probeit
-            python probeit.py --help
-            python probeit.py posnegset --help
-            python probeit.py snp --help
+#- job: Windows
+#  pool:
+#    vmImage: 'windows-latest'
+#  steps:
+#      - powershell: Write-Host "##vso[task.prependpath]$env:CONDA\Scripts"
+#        displayName: Add conda to PATH
+#      - script: |
+#            echo hello from Windows
+#            conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython
+#            conda activate probeit
+#            python probeit.py --help
+#            python probeit.py posnegset --help
+#            python probeit.py snp --help
