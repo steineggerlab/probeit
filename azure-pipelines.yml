@@ -8,6 +8,7 @@ trigger:
 
 jobs:
 - job: Linux
+  timeoutInMinutes: 0
   pool:
     vmImage: 'ubuntu-latest'
   steps:
@@ -21,6 +22,7 @@ jobs:
             python probeit.py posnegset --help
             python probeit.py snp --help
 - job: macOS
+  timeoutInMinutes: 0
   pool:
     vmImage: 'macOS-latest'
   steps:
