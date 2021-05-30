@@ -16,8 +16,22 @@ jobs:
         displayName: Add conda to PATH
       - script: |
             echo hello from Linux
-            conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython
-            conda activate probeit
+#            conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython
+#            conda activate probeit
+            conda install conda-forge
+            conda install anaconda
+            conda install bioconda
+            conda install pandas
+            conda install entrez-direct
+#            conda install fire
+            conda install primer3-py
+            conda install bedtools
+            conda install mmseqs2
+            conda install seqkit
+            conda install genmap
+            conda install primer3
+            conda install biopython
+            echo installation finished
             python probeit.py --help
             python probeit.py posnegset --help
             python probeit.py snp --help
@@ -35,8 +49,22 @@ jobs:
         displayName: Take ownership of conda installation
       - script: |
             echo hello from macOS
-            conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython
-            conda activate probeit
+#            conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython
+#            conda activate probeit
+            conda install conda-forge
+            conda install anaconda
+            conda install bioconda
+            conda install pandas
+            conda install entrez-direct
+#            conda install fire
+            conda install primer3-py
+            conda install bedtools
+            conda install mmseqs2
+            conda install seqkit
+            conda install genmap
+            conda install primer3
+            conda install biopython
+            echo installation finished
             python probeit.py --help
             python probeit.py posnegset --help
             python probeit.py snp --help
