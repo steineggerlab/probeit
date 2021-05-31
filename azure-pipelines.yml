@@ -18,6 +18,7 @@ jobs:
             echo hello from Linux
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
             conda activate probeit
+            conda info --envs
             python probeit.py --help
             python probeit.py posnegset --help
             python probeit.py snp --help
@@ -37,6 +38,7 @@ jobs:
             echo hello from macOS
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
             conda activate probeit
+            conda info --envs
             python probeit.py --help
             python probeit.py posnegset --help
             python probeit.py snp --help
