@@ -845,7 +845,8 @@ class SNP:
                 self.setcoverSimScore = int(val) if opt in '--setcover-simscore' else self.setcoverSimScore
                 self.setcoverRepeats = int(val) if opt in '--setcover-repeats' else self.setcoverRepeats
 
-            except Exception:
+            except Exception as e:
+            print(e)
                 print("Your arguments: snp {}".format(ProbeitUtils.getUserArgs(self.args)))
                 self.printUsage()
         return
