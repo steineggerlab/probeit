@@ -126,7 +126,7 @@ class ProbeitUtils:
         else:
             headers = [title.strip() for title, seq in SimpleFastaParser(f)]
         lookupLines = [headers[i] + '\t' + str(i) + '\n' for i in range(len(headers))]
-        with open(lookup, 'w') as w:f
+        with open(lookup, 'w') as w:
             w.writelines(lookupLines)
         return lookup
 
