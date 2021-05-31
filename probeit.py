@@ -121,15 +121,12 @@ class ProbeitUtils:
     def makeLookup(cls, windowFasta, lookup, needOnly1stCol=False):
         if os.path.exists(lookup):
             return lookup
-#        print(windowFasta)
-#        with open(windowFasta) as f:
-#            print(f.readlines()[0:3])
-            if needOnly1stCol:
-                headers = [title.split()[0].strip() for title, seq in SimpleFastaParser(f)]
-            else:
-                headers = [title.strip() for title, seq in SimpleFastaParser(f)]
-            lookupLines = [headers[i] + '\t' + str(i) + '\n' for i in range(len(headers))]
-        with open(lookup, 'w') as w:
+        if needOnly1stCol:
+            headers = [title.split()[0].strip() for title, seq in SimpleFastaParser(f)]
+        else:
+            headers = [title.strip() for title, seq in SimpleFastaParser(f)]
+        lookupLines = [headers[i] + '\t' + str(i) + '\n' for i in range(len(headers))]
+        with open(lookup, 'w') as w:f
             w.writelines(lookupLines)
         return lookup
 
@@ -151,6 +148,7 @@ class ProbeitUtils:
         cls.runCommand(command2.format(strGenomeFasta, strdb), verbose=True)
         cls.runCommand(command3.format(searchdb, strdb, aln, tempDir), verbose=True)
         cls.runCommand(command4.format(searchdb, strdb, aln, resultTSV), verbose=True)
+        print(command4.format(searchdb, strdb, aln, resultTSV))
         df = pd.read_csv(resultTSV, sep='\t', header=None)
         df.columns = ['substr', 'snp', 'strseq', 'start', 'end']
         df['aln'] = df.apply(lambda x: x[2][int(x[3]-1):int(x[4])], axis=1)
