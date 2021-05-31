@@ -121,6 +121,7 @@ class ProbeitUtils:
     def makeLookup(cls, windowFasta, lookup, needOnly1stCol=False):
         if os.path.exists(lookup):
             return lookup
+        print(windowFasta)
         with open(windowFasta) as f:
             if needOnly1stCol:
                 headers = [title.split()[0].strip() for title, seq in SimpleFastaParser(f)]
@@ -354,6 +355,8 @@ class PosNegSet:
                 print(e)
                 print("Your arguments: snp {}".format(ProbeitUtils.getUserArgs(self.args)))
                 self.printUsage()
+            finally:
+                print(1)
 
     def checkArgs(self):
         print("Your arguments: {}".format('snp ' + ProbeitUtils.getUserArgs(self.args)))
