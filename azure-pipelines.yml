@@ -16,17 +16,15 @@ jobs:
         displayName: Add conda to PATH
       - script: |
             echo hello from Linux
-
-            conda install pandas
-            conda install entrez-direct
-            conda install primer3-py
-            conda install bedtools
-            conda install mmseqs2
-            conda install seqkit
-            conda install genmap
-            conda install primer3
-            conda install biopython
-
+            conda install pandas -y
+            conda install entrez-direct -y
+            conda install primer3-py -y
+            conda install bedtools -y
+            conda install mmseqs2 -y
+            conda install seqkit -y
+            conda install genmap -y
+            conda install primer3 -y
+            conda install biopython -y
             echo <run probeit>
             python probeit.py --help
             python probeit.py posnegset --help
@@ -47,15 +45,15 @@ jobs:
         displayName: Take ownership of conda installation
       - script: |
             echo hello from macOS
-            conda install pandas
-            conda install entrez-direct
-            conda install primer3-py
-            conda install bedtools
-            conda install mmseqs2
-            conda install seqkit
-            conda install genmap
-            conda install primer3
-            conda install biopython
+            conda install pandas -y
+            conda install entrez-direct -y
+            conda install primer3-py -y
+            conda install bedtools -y
+            conda install mmseqs2 -y
+            conda install seqkit -y
+            conda install genmap -y
+            conda install primer3 -y
+            conda install biopython -y
             echo <run probeit>
             python probeit.py --help
             python probeit.py posnegset --help
