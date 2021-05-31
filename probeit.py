@@ -346,10 +346,10 @@ class PosNegSet:
                 self.setcoverCoverage2 = int(val) if opt == '--setcover-coverage2' else self.setcoverCoverage2
                 self.setcoverEarlyStop1 = float(val) if opt in '--setcover-earlystop1' else self.setcoverEarlyStop1
                 self.setcoverSimScore1 = int(val) if opt in '--setcover-simscore1' else self.setcoverSimScore1
-                self.setcoverRepeats1 = int(val) if opt in '--setcover-repeats1' else self.setcoverNumOfRepeat1
+                self.setcoverRepeats1 = int(val) if opt in '--setcover-repeats1' else self.setcoverRepeats1
                 self.setcoverEarlyStop2 = float(val) if opt in '--setcover-earlystop2' else self.setcoverEarlyStop2
                 self.setcoverSimScore2 = int(val) if opt in '--setcover-simscore2' else self.setcoverSimScore2
-                self.setcoverRepeats2 = int(val) if opt in '--setcover-repeats2' else self.setcoverNumOfRepeat2
+                self.setcoverRepeats2 = int(val) if opt in '--setcover-repeats2' else self.setcoverRepeats2
             except Exception as e:
                 print(e)
                 print("Your arguments: snp {}".format(ProbeitUtils.getUserArgs(self.args)))
@@ -805,7 +805,6 @@ class SNP:
         'reference=', 'annotation=', 'strain=', 'positions=', 'mutations=', 'output=', '--probe-error=', 'help'
     ]
     setcoverParams = ['setcover-coverage=', 'setcover-earlystop=', 'setcover-simscore=', 'setcover-repeats=']
-    #                  minimizing
     refGenome = ''
     refGenomeAnnot = ''
     strGenome = ''
@@ -845,7 +844,7 @@ class SNP:
                 self.snpList = self.getArgList(val) if opt in ('-m', '--mutations') else self.snpList
                 self.probeError = int(val) if opt == '--probe-error' else self.probeError
 
-                self.setcoverCoverage = int(val) if opt in '--setcover-coverage' else self.self.setcoverCoverage
+                self.setcoverCoverage = int(val) if opt in '--setcover-coverage' else self.setcoverCoverage
                 self.setcoverEarlyStop = float(val) if opt in '--setcover-earlystop' else self.setcoverEarlyStop
                 self.setcoverSimScore = int(val) if opt in '--setcover-simscore' else self.setcoverSimScore
                 self.setcoverRepeats = int(val) if opt in '--setcover-repeats' else self.setcoverRepeats
