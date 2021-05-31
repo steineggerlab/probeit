@@ -15,14 +15,13 @@ jobs:
       - script: echo "##vso[task.prependpath]$CONDA/bin"
         displayName: Add conda to PATH
       - script: |
-            echo hello from Linux
-            echo hello from Linux
-            echo <create env>
+            echo # hello from Linux
+            echo # create env
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
-            echo <activate env>
+            echo # activate env
             conda activate probeit
             conda info —envs
-            echo <run probeit>
+            echo # run probeit
             python probeit.py --help
             python probeit.py posnegset --help
             python probeit.py snp --help
@@ -41,14 +40,13 @@ jobs:
       - script: sudo chown -R $USER $CONDA
         displayName: Take ownership of conda installation
       - script: |
-            echo hello from macOS
-            echo hello from Linux
-            echo <create env>
+            echo # hello from macOS
+            echo # create env
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
-            echo <activate env>
+            echo # activate env
             conda activate probeit
             conda info —envs
-            echo <run probeit>
+            echo # run probeit
             python probeit.py --help
             python probeit.py posnegset --help
             python probeit.py snp --help
