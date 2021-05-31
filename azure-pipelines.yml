@@ -16,6 +16,44 @@ jobs:
         displayName: Add conda to PATH
       - script: |
             echo hello from Linux
+            
+            echo installation conda-forge
+            conda install conda-forge
+            
+            echo installation anaconda
+            conda install anaconda
+            
+            echo installation bioconda
+            conda install bioconda
+            
+            echo installation pandas
+            conda install pandas
+            
+            echo installation entrez-direct
+            conda install entrez-direct
+            
+            echo installation primer3-py
+            conda install primer3-py
+            
+            echo installation bedtools
+            conda install bedtools
+            
+            echo installation mmseqs2
+            conda install mmseqs2
+            
+            echo installation seqkit
+            conda install seqkit
+            
+            echo installation genmap
+            conda install genmap
+            
+            echo installation primer3
+            conda install primer3
+            
+            echo installation biopython
+            conda install biopython
+            
+            echo installation finished
             python probeit.py --help
             python probeit.py posnegset --help
             python probeit.py snp --help
@@ -33,19 +71,45 @@ jobs:
         displayName: Take ownership of conda installation
       - script: |
             echo hello from macOS
+            
+            echo installation conda-forge
+            conda install conda-forge
+            
+            echo installation anaconda
+            conda install anaconda
+            
+            echo installation bioconda
+            conda install bioconda
+            
+            echo installation pandas
+            conda install pandas
+            
+            echo installation entrez-direct
+            conda install entrez-direct
+            
+            echo installation primer3-py
+            conda install primer3-py
+            
+            echo installation bedtools
+            conda install bedtools
+            
+            echo installation mmseqs2
+            conda install mmseqs2
+            
+            echo installation seqkit
+            conda install seqkit
+            
+            echo installation genmap
+            conda install genmap
+            
+            echo installation primer3
+            conda install primer3
+            
+            echo installation biopython
+            conda install biopython
+            
+            echo installation finished
             python probeit.py --help
             python probeit.py posnegset --help
             python probeit.py snp --help
-#- job: Windows
-#  pool:
-#    vmImage: 'windows-latest'
-#  steps:
-#      - powershell: Write-Host "##vso[task.prependpath]$env:CONDA\Scripts"
-#        displayName: Add conda to PATH
-#      - script: |
-#            echo hello from Windows
-#            conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython
-#            conda activate probeit
-#            python probeit.py --help
-#            python probeit.py posnegset --help
-#            python probeit.py snp --help
+
