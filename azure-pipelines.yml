@@ -21,6 +21,7 @@ jobs:
             echo  activate env
             source activate probeit
             conda info —envs
+            mmseqs -h
             echo  run probeit help
             python probeit.py --help
             python probeit.py posnegset --help
@@ -51,6 +52,7 @@ jobs:
             echo  activate env
             source activate probeit
             conda info —envs
+            mmseqs -h
             echo  run probeit help
             python probeit.py --help
             python probeit.py posnegset --help
