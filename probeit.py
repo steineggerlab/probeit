@@ -350,7 +350,9 @@ class PosNegSet:
                 self.setcoverEarlyStop2 = float(val) if opt in '--setcover-earlystop2' else self.setcoverEarlyStop2
                 self.setcoverSimScore2 = int(val) if opt in '--setcover-simscore2' else self.setcoverSimScore2
                 self.setcoverRepeats2 = int(val) if opt in '--setcover-repeats2' else self.setcoverNumOfRepeat2
-            except Exception:
+            except Exception as e:
+                print(e)
+                print("Your arguments: snp {}".format(ProbeitUtils.getUserArgs(self.args)))
                 self.printUsage()
 
     def checkArgs(self):
@@ -759,10 +761,10 @@ class PosNegSet:
         return
 
     def excute(self):
-        print('!!!!')
+#        print('!!!!')
         self.getPars()
         self.checkArgs()
-        print('!!!!')
+#        print('!!!!')
         self.makeWorkDir()
         self.logUpdate(' '.join(['{} {}'.format(i[0], i[1]).strip() for i in self.args]))
         self.filterInputData()
@@ -1118,10 +1120,10 @@ class SNP:
             w.write(s + '\n')
 
     def excute(self):
-        print('!!!!')
+#        print('!!!!')
         self.getPars()
         self.checkArgs()
-        print('!!!!')
+#        print('!!!!')
         self.makeWorkDir()
         self.logUpdate('[INFO]Your arguments: snp ' + ProbeitUtils.getUserArgs(self.args) + '\n')
         self.logUpdate("[INFO]make 1st probes")
