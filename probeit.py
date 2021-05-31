@@ -123,10 +123,11 @@ class ProbeitUtils:
             return lookup
         print(windowFasta)
         with open(windowFasta) as f:
+            print(f.readlines()[0:3])
             if needOnly1stCol:
                 headers = [title.split()[0].strip() for title, seq in SimpleFastaParser(f)]
             else:
-                headers = [title.split()[0].strip() for title, seq in SimpleFastaParser(f)]
+                headers = [title.strip() for title, seq in SimpleFastaParser(f)]
             lookupLines = [headers[i] + '\t' + str(i) + '\n' for i in range(len(headers))]
         with open(lookup, 'w') as w:
             w.writelines(lookupLines)
@@ -353,10 +354,8 @@ class PosNegSet:
                 self.setcoverRepeats2 = int(val) if opt in '--setcover-repeats2' else self.setcoverRepeats2
             except Exception as e:
                 print(e)
-                print("Your arguments: snp {}".format(ProbeitUtils.getUserArgs(self.args)))
+                print("Your arguments: posnegset {}".format(ProbeitUtils.getUserArgs(self.args)))
                 self.printUsage()
-            finally:
-                print(1)
 
     def checkArgs(self):
         print("Your arguments: {}".format('snp ' + ProbeitUtils.getUserArgs(self.args)))
@@ -838,24 +837,36 @@ class SNP:
         for opt, val in self.args:
             if opt in ('-h', '--help'):
                 self.printUsage()
-            try:
-                self.refGenome = val if opt in ('-r', '--reference') else self.refGenome
-                self.refGenomeAnnot = val if opt in ('-a', '--annotation') else self.refGenomeAnnot
-                self.strGenome = val if opt in ('-s', '--strain') else self.strGenome
-                self.workDir = val if opt in ('-o', '--output') else self.workDir
-                self.posList = self.getArgList(val, isInt=True) if opt in ('-p', '--positions') else self.posList
-                self.snpList = self.getArgList(val) if opt in ('-m', '--mutations') else self.snpList
-                self.probeError = int(val) if opt == '--probe-error' else self.probeError
-
-                self.setcoverCoverage = int(val) if opt in '--setcover-coverage' else self.setcoverCoverage
-                self.setcoverEarlyStop = float(val) if opt in '--setcover-earlystop' else self.setcoverEarlyStop
-                self.setcoverSimScore = int(val) if opt in '--setcover-simscore' else self.setcoverSimScore
-                self.setcoverRepeats = int(val) if opt in '--setcover-repeats' else self.setcoverRepeats
-
-            except Exception as e:
-                print(e)
-                print("Your arguments: snp {}".format(ProbeitUtils.getUserArgs(self.args)))
-                self.printUsage()
+            self.refGenome = val if opt in ('-r', '--reference') else self.refGenome
+            self.refGenomeAnnot = val if opt in ('-a', '--annotation') else self.refGenomeAnnot
+            self.strGenome = val if opt in ('-s', '--strain') else self.strGenome
+            self.workDir = val if opt in ('-o', '--output') else self.workDir
+            self.posList = self.getArgList(val, isInt=True) if opt in ('-p', '--positions') else self.posList
+            self.snpList = self.getArgList(val) if opt in ('-m', '--mutations') else self.snpList
+            self.probeError = int(val) if opt == '--probe-error' else self.probeError
+            
+            self.setcoverCoverage = int(val) if opt in '--setcover-coverage' else self.setcoverCoverage
+            self.setcoverEarlyStop = float(val) if opt in '--setcover-earlystop' else self.setcoverEarlyStop
+            self.setcoverSimScore = int(val) if opt in '--setcover-simscore' else self.setcoverSimScore
+            self.setcoverRepeats = int(val) if opt in '--setcover-repeats' else self.setcoverRepeats
+#            try:
+#                self.refGenome = val if opt in ('-r', '--reference') else self.refGenome
+#                self.refGenomeAnnot = val if opt in ('-a', '--annotation') else self.refGenomeAnnot
+#                self.strGenome = val if opt in ('-s', '--strain') else self.strGenome
+#                self.workDir = val if opt in ('-o', '--output') else self.workDir
+#                self.posList = self.getArgList(val, isInt=True) if opt in ('-p', '--positions') else self.posList
+#                self.snpList = self.getArgList(val) if opt in ('-m', '--mutations') else self.snpList
+#                self.probeError = int(val) if opt == '--probe-error' else self.probeError
+#
+#                self.setcoverCoverage = int(val) if opt in '--setcover-coverage' else self.setcoverCoverage
+#                self.setcoverEarlyStop = float(val) if opt in '--setcover-earlystop' else self.setcoverEarlyStop
+#                self.setcoverSimScore = int(val) if opt in '--setcover-simscore' else self.setcoverSimScore
+#                self.setcoverRepeats = int(val) if opt in '--setcover-repeats' else self.setcoverRepeats
+#
+#            except Exception as e:
+#                print(e)
+#                print("Your arguments: snp {}".format(ProbeitUtils.getUserArgs(self.args)))
+#                self.printUsage()
         return
 
     def checkArgs(self):
