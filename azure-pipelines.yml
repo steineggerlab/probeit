@@ -18,9 +18,8 @@ jobs:
             echo hello from Linux
             echo <create env>
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
-            echo <init bash shell>
-            cat /etc/shells
-            conda init bash
+            echo <init zsh shell>
+            conda init zsh
             echo <activate env>
             conda activate probeit
             conda info --envs
@@ -46,9 +45,8 @@ jobs:
             echo hello from macOS
             echo <create env>
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
-            echo <init bash shell>
-            cat /etc/shells
-            conda init bash
+            echo <init zsh shell>
+            conda init zsh
             echo <activate env>
             conda activate probeit
             conda info --envs
