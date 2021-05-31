@@ -275,6 +275,7 @@ class Probeit:
             self.subWork.excute()
             return
         elif self.args[0] == 'snp':
+            print('CURRENT: ', os.getcwd())
             self.subWork = SNP(self.args[1:])
             self.subWork.excute()
             return
@@ -758,8 +759,10 @@ class PosNegSet:
         return
 
     def excute(self):
+        print('!!!!)
         self.getPars()
         self.checkArgs()
+        print('!!!!)
         self.makeWorkDir()
         self.logUpdate(' '.join(['{} {}'.format(i[0], i[1]).strip() for i in self.args]))
         self.filterInputData()
@@ -1115,8 +1118,10 @@ class SNP:
             w.write(s + '\n')
 
     def excute(self):
+        print('!!!!)
         self.getPars()
         self.checkArgs()
+        print('!!!!)
         self.makeWorkDir()
         self.logUpdate('[INFO]Your arguments: snp ' + ProbeitUtils.getUserArgs(self.args) + '\n')
         self.logUpdate("[INFO]make 1st probes")
