@@ -26,9 +26,9 @@ jobs:
             python probeit.py posnegset --help
             python probeit.py snp --help
             echo  run probeit posnegset
-            python probeit.py posnegset -p sample/positive.fasta -n sample/negative.fasta -o posnegset
+            python probeit.py posnegset -p sample/positive.fasta -n sample/negative.fasta -o posnegset1
             echo  run probeit snp
-            python probeit.py snp -r ref.fasta -a sample/ref.gff -s sample/str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C,nt:A21716G" -o snp
+            python probeit.py snp -r ref.fasta -a sample/ref.gff -s sample/str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C,nt:A21716G" -o snp1
             pwd
             ls
 - job: macOS
@@ -55,9 +55,9 @@ jobs:
             python probeit.py posnegset --help
             python probeit.py snp --help
             echo  run probeit posnegset
-            python probeit.py posnegset -p sample/positive.fasta -n sample/negative.fasta -o posnegset 
+            python probeit.py posnegset -p sample/positive.fasta -n sample/negative.fasta -o posnegset2
             echo  run probeit snp
-            python probeit.py snp -r ref.fasta -a sample/ref.gff -s sample/str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C,nt:A21716G" -o snp
+            python probeit.py snp -r ref.fasta -a sample/ref.gff -s sample/str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C,nt:A21716G" -o snp2
             pwd
             ls
 
