@@ -1009,6 +1009,8 @@ class SNP:
                         lambda x: '{}{}{}'.format(x[5][x[6]], codonStartPos + x[6], x[4][x[6]]), axis=1
                     )
                     df['WTsequence'] = seqWithSNP
+                    if df == None or len(df)==0:
+                        raise Exception
                 except:
                     self.logUpdate('[ERROR]Failure to find snp {} in the strain genome or reference genome'.format(snp))
                     continue
@@ -1031,9 +1033,12 @@ class SNP:
                     df['locSNP'] = maxPos - 1
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
                     df = df[df.STsequence.apply(lambda x: x[maxPos - 1]) == nt2]
+                    if df == None or len(df)==0:
+                        raise Exception
                 except:
                     self.logUpdate('[ERROR]Failure to find snp {} in the strain genome or reference genome'.format(snp))
                     continue
+                print(df)
                 wtSequence, stSequence, ntSNP, locSnp, found = self.parseBlastResult(blastResult=df)
                 mutSeqs = ParaSeqs(ntSNP, '', wtSequence, stSequence, mutLoc=locSnp)
             
