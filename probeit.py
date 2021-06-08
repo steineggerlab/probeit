@@ -1020,12 +1020,6 @@ class SNP:
                         lambda x: '{}{}{}'.format(x[5][x[6]], codonStartPos + x[6], x[4][x[6]]), axis=1
                     )
                     df['WTsequence'] = seqWithSNP
-                    print('try catch final')
-                    print(df)
-                    print(df==None)
-                    print(len(df)==0)
-                    if df == None or len(df)==0:
-                        raise Exception
                 except:
                     self.logUpdate('[ERROR]Failure to find snp {} in the strain genome or reference genome'.format(snp))
                     continue
