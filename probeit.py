@@ -140,9 +140,9 @@ class ProbeitUtils:
         searchDir = workDir + 'search' + os.path.sep
         tempDir = searchDir + 'temp' + os.path.sep
         resultTSV = workDir + resultTSV
-        ProbeitUtils.delDir(resultTSV)
-#        if os.path.isfile(resultTSV):
-#            os.remove(resultTSV)
+#        ProbeitUtils.delDir(resultTSV)
+        if os.path.isfile(resultTSV):
+            os.remove(resultTSV)
         ProbeitUtils.delDir(tempDir)
 #        if os.path.isdir(tempDir):
 #            os.makedirs(tempDir)
@@ -997,10 +997,12 @@ class SNP:
                     self.logUpdate('[ERROR]Failure to find SNP {} in reference genome'.format(snp))
                     continue
                 seqWithSNP = refSeq[codonStartPos - (maxPos-1): codonEndPos + (self.probLen1 - minPos)]
+                
                 strainKmerNearSNP = self.getStrKmerNearSNP(mutation, seqWithSNP) #blast.fa
                 df = pd.read_csv(strainKmerNearSNP, sep='\t', header=None)
                 df.columns = ['subGenome', 'SNPbyAA', 'match', 'STsequence']
                 print(df)
+                print(seqWithSNP, df.STsequence)
                 try:
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
                     print(df)
