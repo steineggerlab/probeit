@@ -79,6 +79,8 @@ class ProbeitUtils:
     @classmethod
     def getPatternPosition(cls, patternFasta, genomeFasta, positonsTSV):
         command = "seqkit locate -f {} {} > {}".format(patternFasta, genomeFasta, positonsTSV)
+        print(command)
+        os.system('head {}'.format(positonsTSV))
         cls.runCommand(command)
         return positonsTSV
 
