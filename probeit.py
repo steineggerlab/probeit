@@ -1006,6 +1006,7 @@ class SNP:
                     print(df)
                     df = df[df.STcodon.apply(lambda x: self.checkCodon(x))]
                     print(df)
+                    print(df.STcodon, aa1,  aa2)
                     df = df[df.STcodon.apply(lambda x: Seq(x).translate() == aa2)]
                     print(df)
                     df['WTcodon'] = refCodon
@@ -1046,6 +1047,7 @@ class SNP:
                     print(df)
                     df = df[df.STsequence.apply(lambda x: x[maxPos - 1]) == nt2]
                     print(df)
+                    print(len(df), df==None)
                     if df == None or len(df)==0:
                         raise Exception
                 except:
