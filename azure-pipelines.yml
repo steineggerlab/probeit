@@ -33,7 +33,7 @@ jobs:
             python probeit.py snp -r sample/ref.fasta -a sample/ref.gff -s sample/str.fasta  -p "10,11,19,20,21,22" -m "aa:orf1ab:L4715F,aa:S:Q52R,aa:S:E484K,aa:S:Q677H,aa:S:F888L,aa:E:L21F,aa:M:I82T" -o snp1
             cd snp1
             ls
-            head lookup.tsv
+            head blast.tsv
 - job: macOS
   timeoutInMinutes: 120
   pool:
@@ -65,5 +65,5 @@ jobs:
             python probeit.py snp -r sample/ref.fasta -a sample/ref.gff -s sample/str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C,nt:A21716G" -o snp2
             cd snp2
             ls
-            head lookup.tsv
+            head blast.tsv
 

@@ -1001,7 +1001,7 @@ class SNP:
                 print(df)
                 try:
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
-                    print(dff)
+                    print(df)
                     df['STcodon'] = df.STsequence.apply(lambda x: x[maxPos - 1:maxPos + 2])
                     print(df)
                     df = df[df.STcodon.apply(lambda x: self.checkCodon(x))]
