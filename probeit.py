@@ -152,11 +152,15 @@ class ProbeitUtils:
         command3 = 'mmseqs search {} {} {} {} --search-type 3 -k 12'
         command4 = 'mmseqs convertalis {} {} {} {} --format-output target,query,tseq,tstart,tend --search-type 3'
         print("blast search start")
-        print(cls.runCommand(command1.format(inputFasta, searchdb), verbose=True)[-1])
-        print(cls.runCommand(command2.format(strGenomeFasta, strdb), verbose=True)[-1])
-        print(cls.runCommand(command3.format(searchdb, strdb, aln, tempDir), verbose=True)[-1])
-        print(cls.runCommand(command4.format(searchdb, strdb, aln, resultTSV), verbose=True)[-1])
-        print(command4.format(searchdb, strdb, aln, resultTSV))
+        out, err = cls.runCommand(command1.format(inputFasta, searchdb), verbose=True)
+        print(out, err)
+        out, err = cls.runCommand(command2.format(strGenomeFasta, strdb), verbose=True)
+        print(out, err)
+        out, err =  cls.runCommand(command3.format(searchdb, strdb, aln, tempDir), verbose=True)
+        print(out, err)
+        out, err = cls.runCommand(command4.format(searchdb, strdb, aln, resultTSV), verbose=True)
+        print(out, err)
+#        print(command4.format(searchdb, strdb, aln, resultTSV))
         df = pd.read_csv(resultTSV, sep='\t', header=None)
         df.columns = ['substr', 'snp', 'strseq', 'start', 'end']
         df['aln'] = df.apply(lambda x: x[2][int(x[3]-1):int(x[4])], axis=1)
@@ -997,7 +1001,7 @@ class SNP:
                 strainKmerNearSNP = self.getStrKmerNearSNP(mutation, seqWithSNP) #blast.fa
                 df = pd.read_csv(strainKmerNearSNP, sep='\t', header=None)
                 df.columns = ['subGenome', 'SNPbyAA', 'match', 'STsequence']
-                print(df.STsequence, seqWithSNP)
+#                print(df.STsequence, seqWithSNP)
                 try:
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
 #                    print(df)
@@ -1005,7 +1009,7 @@ class SNP:
 #                    print(df)
                     df = df[df.STcodon.apply(lambda x: self.checkCodon(x))]
 #                    print(df)
-                    print(df.STcodon, df.STcodon.apply(lambda x: Seq(x).translate()), aa1,  aa2, df.STcodon.apply(lambda x: Seq(x).translate() == aa2))
+#                    print(df.STcodon, df.STcodon.apply(lambda x: Seq(x).translate()), aa1,  aa2, df.STcodon.apply(lambda x: Seq(x).translate() == aa2))
                     df = df[df.STcodon.apply(lambda x: Seq(x).translate() == aa2)]
 #                    print(df)
                     df['WTcodon'] = refCodon
