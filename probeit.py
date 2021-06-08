@@ -78,6 +78,9 @@ class ProbeitUtils:
 
     @classmethod
     def getPatternPosition(cls, patternFasta, genomeFasta, positonsTSV):
+        print("Issues in seqkit")
+        print(os.path.isfile(patternFasta))
+        print(os.path.isfile(genomeFasta))
         command = "seqkit locate -f {} {} > {}".format(patternFasta, genomeFasta, positonsTSV)
         print(command)
         os.system('head {}'.format(positonsTSV))
@@ -148,15 +151,10 @@ class ProbeitUtils:
         command3 = 'mmseqs search {} {} {} {} --search-type 3 -k 12'
         command4 = 'mmseqs convertalis {} {} {} {} --format-output target,query,tseq,tstart,tend --search-type 3'
         print("blast search start")
-        print(1)
         print(cls.runCommand(command1.format(inputFasta, searchdb), verbose=True)[1])
-        print(2)
         print(cls.runCommand(command2.format(strGenomeFasta, strdb), verbose=True)[1])
-        print(3)
         print(cls.runCommand(command3.format(searchdb, strdb, aln, tempDir), verbose=True)[1])
-        print(4)
         print(cls.runCommand(command4.format(searchdb, strdb, aln, resultTSV), verbose=True)[1])
-        print(5)
         print(command4.format(searchdb, strdb, aln, resultTSV))
         df = pd.read_csv(resultTSV, sep='\t', header=None)
         df.columns = ['substr', 'snp', 'strseq', 'start', 'end']
