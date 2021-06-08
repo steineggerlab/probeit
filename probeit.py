@@ -906,6 +906,9 @@ class SNP:
         with open(searchProbe, 'w') as w:
             w.write('>{}\n{}\n'.format(mutation, seqWithSNP))
         print("issue: doblastsearch")
+        with open(searchProbe) as f:
+            for i in f:
+                print(i)
         blastOutput = ProbeitUtils.doBlastSearch(self.workDir, searchProbe, self.strGenome, 'blast.tsv')
         return blastOutput
 
@@ -995,24 +998,18 @@ class SNP:
                 strainKmerNearSNP = self.getStrKmerNearSNP(mutation, seqWithSNP) #blast.fa
                 df = pd.read_csv(strainKmerNearSNP, sep='\t', header=None)
                 df.columns = ['subGenome', 'SNPbyAA', 'match', 'STsequence']
+                print(df)
                 try:
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
-                    print(df)
                     df['STcodon'] = df.STsequence.apply(lambda x: x[maxPos - 1:maxPos + 2])
-                    print(df)
                     df = df[df.STcodon.apply(lambda x: self.checkCodon(x))]
                     df = df[df.STcodon.apply(lambda x: Seq(x).translate() == aa2)]
                     print(df)
                     df['WTcodon'] = refCodon
-                    print(df)
                     df['diffNT'] = df.apply(lambda x: [i for i in range(len(x[4])) if x[4][i] != x[5][i]], axis=1)
-                    print(df)
                     df['diffNT'] = df.diffNT.apply(lambda x: x[0] if len(x) == 1 else -1)
-                    print(df)
                     df = df[df['diffNT'].apply(lambda x: x in (0, 1, 2))]
-                    print(df)
                     df['locSNP'] = df['diffNT'].apply(lambda x: x + maxPos - 1)
-                    print(df)
                     df['SNPbyNT'] = df.apply(
                         lambda x: '{}{}{}'.format(x[5][x[6]], codonStartPos + x[6], x[4][x[6]]), axis=1
                     )
@@ -1036,15 +1033,13 @@ class SNP:
                     continue
                 seqWithSNP = refSeq[snpPos - (maxPos - 1):snpPos + 1 + (self.probLen1 - minPos)]
                 blastOutput = self.getStrKmerNearSNP(mutation, seqWithSNP)
+                df = pd.read_csv(blastOutput, sep='\t', header=None)
+                print(df)
                 try:
-                    df = pd.read_csv(blastOutput, sep='\t', header=None)
-                    print(df)
                     df.columns = ['subGenome', 'SNPbyNT', 'match', 'STsequence']
-                    print(df)
                     df['WTsequence'] = seqWithSNP
                     print(df)
                     df['locSNP'] = maxPos - 1
-                    print(df)
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
                     print(df)
                     df = df[df.STsequence.apply(lambda x: x[maxPos - 1]) == nt2]
