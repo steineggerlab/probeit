@@ -121,10 +121,11 @@ class ProbeitUtils:
     def makeLookup(cls, windowFasta, lookup, needOnly1stCol=False):
         if os.path.exists(lookup):
             return lookup
-        if needOnly1stCol:
-            headers = [title.split()[0].strip() for title, seq in SimpleFastaParser(f)]
-        else:
-            headers = [title.strip() for title, seq in SimpleFastaParser(f)]
+        with open(windowFasta) as f:
+            if needOnly1stCol:
+                headers = [title.split()[0].strip() for title, seq in SimpleFastaParser(f)]
+            else:
+                headers = [title.strip() for title, seq in SimpleFastaParser(f)]
         lookupLines = [headers[i] + '\t' + str(i) + '\n' for i in range(len(headers))]
         with open(lookup, 'w') as w:
             w.writelines(lookupLines)
