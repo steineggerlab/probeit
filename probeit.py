@@ -1001,21 +1001,29 @@ class SNP:
                 print(df)
                 try:
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
+                    print(1)
                     df['STcodon'] = df.STsequence.apply(lambda x: x[maxPos - 1:maxPos + 2])
+                    print(2)
                     df = df[df.STcodon.apply(lambda x: self.checkCodon(x))]
+                    print(3)
                     df = df[df.STcodon.apply(lambda x: Seq(x).translate() == aa2)]
                     print(df)
                     df['WTcodon'] = refCodon
+                    print(4)
                     df['diffNT'] = df.apply(lambda x: [i for i in range(len(x[4])) if x[4][i] != x[5][i]], axis=1)
+                    print(5)
                     df['diffNT'] = df.diffNT.apply(lambda x: x[0] if len(x) == 1 else -1)
+                    print(6)
                     df = df[df['diffNT'].apply(lambda x: x in (0, 1, 2))]
+                    print(7)
                     df['locSNP'] = df['diffNT'].apply(lambda x: x + maxPos - 1)
+                    print(8)
                     df['SNPbyNT'] = df.apply(
                         lambda x: '{}{}{}'.format(x[5][x[6]], codonStartPos + x[6], x[4][x[6]]), axis=1
                     )
-                    print(df)
+                    print(9)
                     df['WTsequence'] = seqWithSNP
-                    print(df)
+                    print(10)
                     if df == None or len(df)==0:
                         raise Exception
                 except:
@@ -1034,16 +1042,16 @@ class SNP:
                 seqWithSNP = refSeq[snpPos - (maxPos - 1):snpPos + 1 + (self.probLen1 - minPos)]
                 blastOutput = self.getStrKmerNearSNP(mutation, seqWithSNP)
                 df = pd.read_csv(blastOutput, sep='\t', header=None)
+                df.columns = ['subGenome', 'SNPbyNT', 'match', 'STsequence']
                 print(df)
                 try:
-                    df.columns = ['subGenome', 'SNPbyNT', 'match', 'STsequence']
                     df['WTsequence'] = seqWithSNP
-                    print(df)
+                    print(0)
                     df['locSNP'] = maxPos - 1
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
-                    print(df)
+                    print(1)
                     df = df[df.STsequence.apply(lambda x: x[maxPos - 1]) == nt2]
-                    print(df)
+                    print(2)
                     if df == None or len(df)==0:
                         raise Exception
                 except:
