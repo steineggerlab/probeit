@@ -973,17 +973,14 @@ class SNP:
             self.logUpdate('[INFO]SNP {}'.format(snp))
             mutType, orf, mutation = self.parseMutation(snp)
             print(snp, mutType, orf, mutation)
-            print(1)
             if mutType not in ['aa', 'nt']:
                 self.logUpdate('[ERROR]SNP {} has a wrong format.'.format(snp))
                 continue
             if mutType == 'aa':
-                print(2)
                 if self.refGenomeAnnot == '':
                     self.logUpdate('[ERROR]For Amino Acid based SNPs reference annotation needed.')
                     continue
                 orfStartPos = self.getOrfStartPos(self.refGenomeAnnot, orf)
-                print(3)
                 if orfStartPos == -1:
                     self.logUpdate('[ERROR]Failure to find snp {} in reference annotaion.'.format(snp))
                     continue
@@ -991,7 +988,6 @@ class SNP:
                 codonStartPos = orfStartPos + (mutPos - 1) * 3 - 1
                 codonEndPos = orfStartPos + mutPos * 3 - 1
                 refCodon = refSeq[codonStartPos: codonEndPos]
-                print(4)
                 if aa1 != Seq(refCodon).translate():
                     self.logUpdate('[ERROR]Failure to find SNP {} in reference genome'.format(snp))
                     continue
@@ -999,21 +995,30 @@ class SNP:
                 strainKmerNearSNP = self.getStrKmerNearSNP(mutation, seqWithSNP) #blast.fa
                 df = pd.read_csv(strainKmerNearSNP, sep='\t', header=None)
                 df.columns = ['subGenome', 'SNPbyAA', 'match', 'STsequence']
-                print(5)
                 try:
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
+                    print(df)
                     df['STcodon'] = df.STsequence.apply(lambda x: x[maxPos - 1:maxPos + 2])
+                    print(df)
                     df = df[df.STcodon.apply(lambda x: self.checkCodon(x))]
                     df = df[df.STcodon.apply(lambda x: Seq(x).translate() == aa2)]
+                    print(df)
                     df['WTcodon'] = refCodon
+                    print(df)
                     df['diffNT'] = df.apply(lambda x: [i for i in range(len(x[4])) if x[4][i] != x[5][i]], axis=1)
+                    print(df)
                     df['diffNT'] = df.diffNT.apply(lambda x: x[0] if len(x) == 1 else -1)
+                    print(df)
                     df = df[df['diffNT'].apply(lambda x: x in (0, 1, 2))]
+                    print(df)
                     df['locSNP'] = df['diffNT'].apply(lambda x: x + maxPos - 1)
+                    print(df)
                     df['SNPbyNT'] = df.apply(
                         lambda x: '{}{}{}'.format(x[5][x[6]], codonStartPos + x[6], x[4][x[6]]), axis=1
                     )
+                    print(df)
                     df['WTsequence'] = seqWithSNP
+                    print(df)
                     if df == None or len(df)==0:
                         raise Exception
                 except:
@@ -1026,20 +1031,24 @@ class SNP:
             else:
                 nt1, nt2, snpPos = mutation[0], mutation[-1], int(mutation[1:-1])
                 refNT = refSeq[snpPos]
-                print(6)
                 if nt1 != refNT:
                     self.logUpdate('[ERROR]Failure to find SNP {} in reference genome'.format(snp))
                     continue
                 seqWithSNP = refSeq[snpPos - (maxPos - 1):snpPos + 1 + (self.probLen1 - minPos)]
                 blastOutput = self.getStrKmerNearSNP(mutation, seqWithSNP)
-                print(7)
                 try:
                     df = pd.read_csv(blastOutput, sep='\t', header=None)
+                    print(df)
                     df.columns = ['subGenome', 'SNPbyNT', 'match', 'STsequence']
+                    print(df)
                     df['WTsequence'] = seqWithSNP
+                    print(df)
                     df['locSNP'] = maxPos - 1
+                    print(df)
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
+                    print(df)
                     df = df[df.STsequence.apply(lambda x: x[maxPos - 1]) == nt2]
+                    print(df)
                     if df == None or len(df)==0:
                         raise Exception
                 except:
@@ -1048,7 +1057,6 @@ class SNP:
                 print(df)
                 wtSequence, stSequence, ntSNP, locSnp, found = self.parseBlastResult(blastResult=df)
                 mutSeqs = ParaSeqs(ntSNP, '', wtSequence, stSequence, mutLoc=locSnp)
-            print(8)
             if found == 0:
                 self.logUpdate('[ERROR]Failure to find SNP {} in strain genome'.format(snp))
                 continue
