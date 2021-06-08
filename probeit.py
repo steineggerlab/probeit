@@ -79,7 +79,7 @@ class ProbeitUtils:
     @classmethod
     def getPatternPosition(cls, patternFasta, genomeFasta, positonsTSV):
         command = "seqkit locate -f {} {} > {}".format(patternFasta, genomeFasta, positonsTSV)
-        cls.runCommand(command)
+        print(cls.runCommand(command, verbose=True))
         return positonsTSV
 
     # TO CALL GENMAP MODULES
@@ -1090,9 +1090,6 @@ class SNP:
                 ['>{}{}\n{}\n'.format(p.ntSnp, '=' + p.aaSnp if p.aaSnp else '', p.stSeq) for p in self.probesByPos[-1]]
             )
         self.lookupTSV = ProbeitUtils.getPatternPosition(snpNearprobes, self.strGenome, self.workDir + 'lookup.tsv')
-        
-        print(pd.read_csv(self.lookupTSV, sep='\t')[['seqID', 'start', 'end']], snpMaskedBed)
-        
         snpMaskedBed = self.makeProbMaskCoords(
             pd.read_csv(self.lookupTSV, sep='\t')[['seqID', 'start', 'end']], snpMaskedBed
         )
