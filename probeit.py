@@ -84,16 +84,6 @@ class ProbeitUtils:
         command = "seqkit locate -f {} {} > {}".format(patternFasta, genomeFasta, positonsTSV)
         print(command)
         cls.runCommand(command)
-        print('-')
-        with open(patternFasta) as f1:
-            print(f1.readlines()[:10])
-        print('-')
-        with open(genomeFasta) as f2:
-            print(f2.readlines()[:10])
-        print('-')
-        with open(positonsTSV) as f3:
-            print(f3.readlines()[:10])
-        print('-')
         return positonsTSV
 
     # TO CALL GENMAP MODULES
@@ -1094,6 +1084,8 @@ class SNP:
         snpNearprobes = '{}SNP.pattern.fasta'.format(self.workDir)
         snpMaskedBed = '{}SNP.masked.bed'.format(self.workDir)
         # USING PROBEs AND STRAIN GENOME MAKE PROBEs MASK TSV
+        print('issue')
+        print(self.probesByPos[-1])
         with open(snpNearprobes, 'w') as w:
             w.writelines(
                 ['>{}{}\n{}\n'.format(p.ntSnp, '=' + p.aaSnp if p.aaSnp else '', p.stSeq) for p in self.probesByPos[-1]]
