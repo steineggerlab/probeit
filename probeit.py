@@ -143,7 +143,7 @@ class ProbeitUtils:
         aln = searchDir + 'mmseqs.aln'
         command1 = 'mmseqs createdb {} {}'
         command2 = 'mmseqs createdb {} {}'
-        command3 = 'mmseqs search {} {} {} {} --search-type 3'
+        command3 = 'mmseqs search {} {} {} {} --search-type 3 -k 12'
         command4 = 'mmseqs convertalis {} {} {} {} --format-output target,query,tseq,tstart,tend --search-type 3'
         print("blast search start")
         print(1)
