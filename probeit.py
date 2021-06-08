@@ -141,7 +141,7 @@ class ProbeitUtils:
         tempDir = searchDir + 'temp' + os.path.sep
         resultTSV = workDir + resultTSV
         if os.path.isdir(searchDir):
-            os.rmdir(searchDir)
+            ProbeitUtils.delDir(searchDir)
         os.makedirs(searchDir)
             
         searchdb = searchDir + 'searchDB'
