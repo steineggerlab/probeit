@@ -1012,6 +1012,7 @@ class SNP:
                 except:
                     self.logUpdate('[ERROR]Failure to find snp {} in the strain genome or reference genome'.format(snp))
                     continue
+                print(df)
                 wtSequence, stSequence, ntSNP, locSnp, found = self.parseBlastResult(blastResult=df)
                 self.logUpdate('[INFO]aa:{}:{} converted nt:{}'.format(orf, mutation, ntSNP))
                 mutSeqs = ParaSeqs(ntSNP, '{}:{}'.format(orf, mutation), wtSequence, stSequence, mutLoc=locSnp)
