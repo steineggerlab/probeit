@@ -1009,12 +1009,9 @@ class SNP:
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
                     print(df)
                     df['STcodon'] = df.STsequence.apply(lambda x: x[maxPos - 1:maxPos + 2])
-#                    print(df)
                     df = df[df.STcodon.apply(lambda x: self.checkCodon(x))]
-#                    print(df)
                     print(df.STcodon, df.STcodon.apply(lambda x: Seq(x).translate()), aa1,  aa2, df.STcodon.apply(lambda x: Seq(x).translate() == aa2))
                     df = df[df.STcodon.apply(lambda x: Seq(x).translate() == aa2)]
-#                    print(df)
                     df['WTcodon'] = refCodon
                     df['diffNT'] = df.apply(lambda x: [i for i in range(len(x[4])) if x[4][i] != x[5][i]], axis=1)
                     df['diffNT'] = df.diffNT.apply(lambda x: x[0] if len(x) == 1 else -1)
@@ -1022,9 +1019,8 @@ class SNP:
                     df['SNPbyNT'] = df.apply(
                         lambda x: '{}{}{}'.format(x[5][x[6]], codonStartPos + x[6], x[4][x[6]]), axis=1
                     )
-                    print(9)
                     df['WTsequence'] = seqWithSNP
-                    print(10)
+                    print(df)
                     if df == None or len(df)==0:
                         raise Exception
                 except:
