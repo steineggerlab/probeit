@@ -1057,7 +1057,7 @@ class SNP:
             probCSV = '{}pos{}.csv'.format(self.workDir, pos)
             csvWriter = open(probCSV, 'w')
             csvWriter.write('WT sequence,ST sequence,found,ntSNP,aaSNP\n')
-
+            
             for probs in self.probesByPos[pos]:
                 csvWriter.write(
                     '{},{},{},{},{}\n'.format(probs.wtSeq, probs.stSeq, probs.found, probs.ntSnp, probs.aaSnp))
