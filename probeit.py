@@ -143,7 +143,6 @@ class ProbeitUtils:
         if os.path.isdir(searchDir):
             ProbeitUtils.delDir(searchDir)
         os.makedirs(searchDir)
-            
         searchdb = searchDir + 'searchDB'
         strdb = searchDir + 'strainDB'
         aln = searchDir + 'mmseqs.aln'
@@ -160,7 +159,6 @@ class ProbeitUtils:
 #        print(out, err)
         out, err = cls.runCommand(command4.format(searchdb, strdb, aln, resultTSV), verbose=True)
 #        print(out, err)
-#        print(command4.format(searchdb, strdb, aln, resultTSV))
         df = pd.read_csv(resultTSV, sep='\t', header=None)
         df.columns = ['substr', 'snp', 'strseq', 'start', 'end']
         df['aln'] = df.apply(lambda x: x[2][int(x[3]-1):int(x[4])], axis=1)
@@ -168,6 +166,9 @@ class ProbeitUtils:
         df = df[['substr', 'snp', 'len', 'aln']]
         df.to_csv(resultTSV, header=False, index=False, sep='\t')
         print("doblast result")
+        with open(inputFasta) as f:
+            for i in f:
+                print(i)
         print(df)
         return resultTSV
 
