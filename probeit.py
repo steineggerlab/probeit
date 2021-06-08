@@ -167,8 +167,7 @@ class ProbeitUtils:
         df.to_csv(resultTSV, header=False, index=False, sep='\t')
         print("doblast result")
         with open(inputFasta) as f:
-            for i in f:
-                print(i)
+            print(f.readlines()[1])
         print(df)
         return resultTSV
 
@@ -1004,15 +1003,16 @@ class SNP:
                 strainKmerNearSNP = self.getStrKmerNearSNP(mutation, seqWithSNP) #blast.fa
                 df = pd.read_csv(strainKmerNearSNP, sep='\t', header=None)
                 df.columns = ['subGenome', 'SNPbyAA', 'match', 'STsequence']
+                print("try catch")
 #                print(df.STsequence, seqWithSNP)
                 try:
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
-#                    print(df)
+                    print(df)
                     df['STcodon'] = df.STsequence.apply(lambda x: x[maxPos - 1:maxPos + 2])
 #                    print(df)
                     df = df[df.STcodon.apply(lambda x: self.checkCodon(x))]
 #                    print(df)
-#                    print(df.STcodon, df.STcodon.apply(lambda x: Seq(x).translate()), aa1,  aa2, df.STcodon.apply(lambda x: Seq(x).translate() == aa2))
+                    print(df.STcodon, df.STcodon.apply(lambda x: Seq(x).translate()), aa1,  aa2, df.STcodon.apply(lambda x: Seq(x).translate() == aa2))
                     df = df[df.STcodon.apply(lambda x: Seq(x).translate() == aa2)]
 #                    print(df)
                     df['WTcodon'] = refCodon
