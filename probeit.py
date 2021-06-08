@@ -153,13 +153,13 @@ class ProbeitUtils:
         command4 = 'mmseqs convertalis {} {} {} {} --format-output target,query,tseq,tstart,tend --search-type 3'
         print("blast search start")
         out, err = cls.runCommand(command1.format(inputFasta, searchdb), verbose=True)
-        print(out, err)
+#        print(out, err)
         out, err = cls.runCommand(command2.format(strGenomeFasta, strdb), verbose=True)
-        print(out, err)
+#        print(out, err)
         out, err =  cls.runCommand(command3.format(searchdb, strdb, aln, tempDir), verbose=True)
-        print(out, err)
+#        print(out, err)
         out, err = cls.runCommand(command4.format(searchdb, strdb, aln, resultTSV), verbose=True)
-        print(out, err)
+#        print(out, err)
 #        print(command4.format(searchdb, strdb, aln, resultTSV))
         df = pd.read_csv(resultTSV, sep='\t', header=None)
         df.columns = ['substr', 'snp', 'strseq', 'start', 'end']
@@ -167,6 +167,8 @@ class ProbeitUtils:
         df['len'] = df.aln.apply(lambda x: len(x)-1)
         df = df[['substr', 'snp', 'len', 'aln']]
         df.to_csv(resultTSV, header=False, index=False, sep='\t')
+        print("doblast result")
+        print(df)
         return resultTSV
 
     @classmethod
