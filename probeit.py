@@ -85,6 +85,10 @@ class ProbeitUtils:
         print(command)
         cls.runCommand(command)
         print('-')
+        os.system('head {}'.format(patternFasta))
+        print('-')
+        os.system('head {}'.format(genomeFasta))
+        print('-')
         os.system('head {}'.format(positonsTSV))
         print('-')
         return positonsTSV
