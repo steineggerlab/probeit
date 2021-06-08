@@ -143,7 +143,7 @@ class ProbeitUtils:
         if os.path.isfile(resultTSV):
             os.remove(resultTSV)
         if os.path.isdir(tempDir):
-            os.rmdir(tempdir)
+            os.rmdir(tempDir)
         if not os.path.isdir(searchDir):
             os.makedirs(searchDir)
         searchdb = searchDir + 'searchDB'
