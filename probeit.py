@@ -145,10 +145,16 @@ class ProbeitUtils:
         command2 = 'mmseqs createdb {} {}'
         command3 = 'mmseqs search {} {} {} {} --search-type 3'
         command4 = 'mmseqs convertalis {} {} {} {} --format-output target,query,tseq,tstart,tend --search-type 3'
-        cls.runCommand(command1.format(inputFasta, searchdb), verbose=True)
-        cls.runCommand(command2.format(strGenomeFasta, strdb), verbose=True)
-        cls.runCommand(command3.format(searchdb, strdb, aln, tempDir), verbose=True)
-        cls.runCommand(command4.format(searchdb, strdb, aln, resultTSV), verbose=True)
+        print("blast search start")
+        print(1)
+        print(cls.runCommand(command1.format(inputFasta, searchdb), verbose=True))
+        print(2)
+        print(cls.runCommand(command2.format(strGenomeFasta, strdb), verbose=True))
+        print(3)
+        print(cls.runCommand(command3.format(searchdb, strdb, aln, tempDir), verbose=True))
+        print(4)
+        print(cls.runCommand(command4.format(searchdb, strdb, aln, resultTSV), verbose=True))
+        prnt(5)
         print(command4.format(searchdb, strdb, aln, resultTSV))
         df = pd.read_csv(resultTSV, sep='\t', header=None)
         df.columns = ['substr', 'snp', 'strseq', 'start', 'end']
@@ -900,6 +906,7 @@ class SNP:
         searchProbe = '{}blast.fa'.format(self.workDir)
         with open(searchProbe, 'w') as w:
             w.write('>{}\n{}\n'.format(mutation, seqWithSNP))
+        print("issue: doblastsearch")
         blastOutput = ProbeitUtils.doBlastSearch(self.workDir, searchProbe, self.strGenome, 'blast.tsv')
         return blastOutput
 
@@ -985,7 +992,7 @@ class SNP:
                     self.logUpdate('[ERROR]Failure to find SNP {} in reference genome'.format(snp))
                     continue
                 seqWithSNP = refSeq[codonStartPos - (maxPos-1): codonEndPos + (self.probLen1 - minPos)]
-                strainKmerNearSNP = self.getStrKmerNearSNP(mutation, seqWithSNP)
+                strainKmerNearSNP = self.getStrKmerNearSNP(mutation, seqWithSNP) #blast.fa
                 df = pd.read_csv(strainKmerNearSNP, sep='\t', header=None)
                 df.columns = ['subGenome', 'SNPbyAA', 'match', 'STsequence']
                 try:
