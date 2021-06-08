@@ -1023,14 +1023,19 @@ class SNP:
                     continue
                 seqWithSNP = refSeq[snpPos - (maxPos - 1):snpPos + 1 + (self.probLen1 - minPos)]
                 blastOutput = self.getStrKmerNearSNP(mutation, seqWithSNP)
-                df = pd.read_csv(blastOutput, sep='\t', header=None)
-                df.columns = ['subGenome', 'SNPbyNT', 'match', 'STsequence']
-                df['WTsequence'] = seqWithSNP
-                df['locSNP'] = maxPos - 1
-                df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
-                df = df[df.STsequence.apply(lambda x: x[maxPos - 1]) == nt2]
+                try:
+                    df = pd.read_csv(blastOutput, sep='\t', header=None)
+                    df.columns = ['subGenome', 'SNPbyNT', 'match', 'STsequence']
+                    df['WTsequence'] = seqWithSNP
+                    df['locSNP'] = maxPos - 1
+                    df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
+                    df = df[df.STsequence.apply(lambda x: x[maxPos - 1]) == nt2]
+                except:
+                    self.logUpdate('[ERROR]Failure to find snp {} in the strain genome or reference genome'.format(snp))
+                    continue
                 wtSequence, stSequence, ntSNP, locSnp, found = self.parseBlastResult(blastResult=df)
                 mutSeqs = ParaSeqs(ntSNP, '', wtSequence, stSequence, mutLoc=locSnp)
+            
             if found == 0:
                 self.logUpdate('[ERROR]Failure to find SNP {} in strain genome'.format(snp))
                 continue
