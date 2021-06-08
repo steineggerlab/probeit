@@ -1001,17 +1001,17 @@ class SNP:
                 strainKmerNearSNP = self.getStrKmerNearSNP(mutation, seqWithSNP) #blast.fa
                 df = pd.read_csv(strainKmerNearSNP, sep='\t', header=None)
                 df.columns = ['subGenome', 'SNPbyAA', 'match', 'STsequence']
-                print(df)
+                print(df.STsequence, seqWithSNP)
                 try:
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
-                    print(df)
+#                    print(df)
                     df['STcodon'] = df.STsequence.apply(lambda x: x[maxPos - 1:maxPos + 2])
-                    print(df)
+#                    print(df)
                     df = df[df.STcodon.apply(lambda x: self.checkCodon(x))]
-                    print(df)
+#                    print(df)
                     print(df.STcodon, aa1,  aa2)
                     df = df[df.STcodon.apply(lambda x: Seq(x).translate() == aa2)]
-                    print(df)
+#                    print(df)
                     df['WTcodon'] = refCodon
                     df['diffNT'] = df.apply(lambda x: [i for i in range(len(x[4])) if x[4][i] != x[5][i]], axis=1)
                     df['diffNT'] = df.diffNT.apply(lambda x: x[0] if len(x) == 1 else -1)
