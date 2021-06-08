@@ -83,8 +83,8 @@ class ProbeitUtils:
         print(os.path.isfile(genomeFasta))
         command = "seqkit locate -f {} {} > {}".format(patternFasta, genomeFasta, positonsTSV)
         print(command)
-        os.system('head {}'.format(positonsTSV))
         cls.runCommand(command)
+        os.system('head {}'.format(positonsTSV))
         return positonsTSV
 
     # TO CALL GENMAP MODULES
