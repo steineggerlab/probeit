@@ -140,6 +140,8 @@ class ProbeitUtils:
         searchDir = workDir + 'search' + os.path.sep
         tempDir = searchDir + 'temp' + os.path.sep
         resultTSV = workDir + resultTSV
+        os.remove(resultTSV)
+        os.rmdir(tempdir)
         if not os.path.isdir(searchDir):
             os.makedirs(searchDir)
         searchdb = searchDir + 'searchDB'
@@ -905,10 +907,6 @@ class SNP:
         searchProbe = '{}blast.fa'.format(self.workDir)
         with open(searchProbe, 'w') as w:
             w.write('>{}\n{}\n'.format(mutation, seqWithSNP))
-        print("issue: doblastsearch")
-        with open(searchProbe) as f:
-            for i in f:
-                print(i)
         blastOutput = ProbeitUtils.doBlastSearch(self.workDir, searchProbe, self.strGenome, 'blast.tsv')
         return blastOutput
 
