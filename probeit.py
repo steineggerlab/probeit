@@ -1036,20 +1036,11 @@ class SNP:
                 blastOutput = self.getStrKmerNearSNP(mutation, seqWithSNP)
                 df = pd.read_csv(blastOutput, sep='\t', header=None)
                 df.columns = ['subGenome', 'SNPbyNT', 'match', 'STsequence']
-                print(df)
                 try:
                     df['WTsequence'] = seqWithSNP
-                    print(df)
                     df['locSNP'] = maxPos - 1
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
-                    print(
-                    df.STsequence.apply(lambda x: ( x[maxPos - 1], nt2) )
-                    )
                     df = df[df.STsequence.apply(lambda x: x[maxPos - 1]) == nt2]
-                    print(df)
-                    print(len(df), df==None)
-                    if df == None or len(df)==0:
-                        raise Exception
                 except:
                     self.logUpdate('[ERROR]Failure to find snp {} in the strain genome or reference genome'.format(snp))
                     continue
