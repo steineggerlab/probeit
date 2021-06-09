@@ -1042,7 +1042,9 @@ class SNP:
                     print(df)
                     df['locSNP'] = maxPos - 1
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
-                    print(df.STsequence.apply(lambda x: (x[maxPos - 1]), nt2)))
+                    print(
+                    df.STsequence.apply(lambda x: ( x[maxPos - 1], nt2) )
+                    )
                     df = df[df.STsequence.apply(lambda x: x[maxPos - 1]) == nt2]
                     print(df)
                     print(len(df), df==None)
