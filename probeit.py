@@ -168,6 +168,7 @@ class ProbeitUtils:
             ]
         )
         stdout, stderr = cls.runCommand(command, verbose=True)
+        print(os.path.isfile(outputFasta + '_rep_seq.fasta'))
         print(stdout, stderr)
         return stdout, stderr
 
