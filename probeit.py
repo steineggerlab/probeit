@@ -78,11 +78,7 @@ class ProbeitUtils:
 
     @classmethod
     def getPatternPosition(cls, patternFasta, genomeFasta, positonsTSV):
-        print("Issues in seqkit")
-        print(os.path.isfile(patternFasta))
-        print(os.path.isfile(genomeFasta))
         command = "seqkit locate -f {} {} > {}".format(patternFasta, genomeFasta, positonsTSV)
-        print(command)
         cls.runCommand(command)
         return positonsTSV
 
@@ -104,7 +100,6 @@ class ProbeitUtils:
     # TO CALL BEDTOOLS MODULES
     @classmethod
     def getSubtractedBed(cls, positiveBed, negativeBed, outputBed):
-        print(positiveBed, negativeBed, outputBed)
         command = "bedtools subtract -a {} -b {} > {}".format(positiveBed, negativeBed, outputBed)
         cls.runCommand(command)
         return outputBed
@@ -150,26 +145,17 @@ class ProbeitUtils:
         command2 = 'mmseqs createdb {} {}'
         command3 = 'mmseqs search {} {} {} {} --search-type 3 -k 12'
         command4 = 'mmseqs convertalis {} {} {} {} --format-output target,query,tseq,tstart,tend --search-type 3'
-        print("blast search start")
-        out, err = cls.runCommand(command1.format(inputFasta, searchdb), verbose=True)
-#        print(out, err)
-        out, err = cls.runCommand(command2.format(strGenomeFasta, strdb), verbose=True)
-#        print(out, err)
-        out, err =  cls.runCommand(command3.format(searchdb, strdb, aln, tempDir), verbose=True)
-#        print(out, err)
-        out, err = cls.runCommand(command4.format(searchdb, strdb, aln, resultTSV), verbose=True)
-#        print(out, err)
+        out1, err1 = cls.runCommand(command1.format(inputFasta, searchdb), verbose=True)
+        out2, err2 = cls.runCommand(command2.format(strGenomeFasta, strdb), verbose=True)
+        out3, err3 =  cls.runCommand(command3.format(searchdb, strdb, aln, tempDir), verbose=True)
+        out4, err4 = cls.runCommand(command4.format(searchdb, strdb, aln, resultTSV), verbose=True)
         df = pd.read_csv(resultTSV, sep='\t', header=None)
         df.columns = ['substr', 'snp', 'strseq', 'start', 'end']
         df['aln'] = df.apply(lambda x: x[2][int(x[3]-1):int(x[4])], axis=1)
         df['len'] = df.aln.apply(lambda x: len(x)-1)
         df = df[['substr', 'snp', 'len', 'aln']]
         df.to_csv(resultTSV, header=False, index=False, sep='\t')
-        print("doblast result")
-        with open(inputFasta) as f:
-            print(f.readlines()[1])
-        print(df)
-        return resultTSV
+        return resultTSV, out1 + err1 + out2 + err2 + out3 + err3 + out4 + err4
 
     @classmethod
     def clusterGenome(cls, inputFasta, outputFasta, outputDir, seqIdentity):
@@ -184,6 +170,7 @@ class ProbeitUtils:
 
     @classmethod
     def searchNegative(cls, output, negative, maskOutput, outputDir, seqInProbe):
+        print('mmseqs search', output, negative, maskOutput)
         command = ' '.join(
             [
                 "mmseqs easy-search", output, negative, maskOutput, outputDir+"tmp",
@@ -193,6 +180,8 @@ class ProbeitUtils:
             ]
         )
         stdOut, stdErr = cls.runCommand(command, verbose=True)
+        print(stdout)
+        print(stderr)
         return stdOut, stdErr
 
     @classmethod
@@ -247,7 +236,6 @@ class ProbeitUtils:
             .format(coverage, length, proportion, distance, iteration, deDuplicatedCSV, windowFasta)
         )
         stdOut, stdErr = cls.runCommand(command, verbose=True)
-        print(stdOut, stdErr)
         return stdOut, stdErr
 
     @classmethod
@@ -903,9 +891,7 @@ class SNP:
         self.tempDir = self.workDir + 'temp' + os.path.sep
         self.log = self.workDir + 'log.txt'
         self.indexDir = self.workDir + 'index'
-        print(os.path.exists(self.workDir))
         ProbeitUtils.delDir(self.workDir)
-        print(os.path.exists(self.workDir))
         os.makedirs(self.workDir)
         os.makedirs(self.tempDir)
 
@@ -913,7 +899,8 @@ class SNP:
         searchProbe = '{}blast.fa'.format(self.workDir)
         with open(searchProbe, 'w') as w:
             w.write('>{}\n{}\n'.format(mutation, seqWithSNP))
-        blastOutput = ProbeitUtils.doBlastSearch(self.workDir, searchProbe, self.strGenome, 'blast.tsv')
+        blastOutput, msg = ProbeitUtils.doBlastSearch(self.workDir, searchProbe, self.strGenome, 'blast.tsv')
+        self.logUpdate(msg)
         return blastOutput
 
     @staticmethod
@@ -971,7 +958,6 @@ class SNP:
         minPos = min(self.posList)
         maxPos = max(self.posList)
         refSeq = self.getReferenceSeq(self.refGenome)
-        print(0)
         if not refSeq:
             self.logUpdate('[ERROR]Failure to get reference sequence from reference genome.')
             self.printUsage()
@@ -979,7 +965,6 @@ class SNP:
             self.logUpdate('')
             self.logUpdate('[INFO]SNP {}'.format(snp))
             mutType, orf, mutation = self.parseMutation(snp)
-            print(snp, mutType, orf, mutation)
             if mutType not in ['aa', 'nt']:
                 self.logUpdate('[ERROR]SNP {} has a wrong format.'.format(snp))
                 continue
@@ -999,18 +984,13 @@ class SNP:
                     self.logUpdate('[ERROR]Failure to find SNP {} in reference genome'.format(snp))
                     continue
                 seqWithSNP = refSeq[codonStartPos - (maxPos-1): codonEndPos + (self.probLen1 - minPos)]
-                print(snp, orf, orfStartPos, (codonStartPos - (maxPos-1), codonEndPos + (self.probLen1 - minPos)), seqWithSNP)
                 strainKmerNearSNP = self.getStrKmerNearSNP(mutation, seqWithSNP) #blast.fa
                 df = pd.read_csv(strainKmerNearSNP, sep='\t', header=None)
                 df.columns = ['subGenome', 'SNPbyAA', 'match', 'STsequence']
-                print("try catch")
-#                print(df.STsequence, seqWithSNP)
                 try:
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
-                    print(df)
                     df['STcodon'] = df.STsequence.apply(lambda x: x[maxPos - 1:maxPos + 2])
                     df = df[df.STcodon.apply(lambda x: self.checkCodon(x))]
-                    print(df.STcodon, df.STcodon.apply(lambda x: Seq(x).translate()), aa1,  aa2, df.STcodon.apply(lambda x: Seq(x).translate() == aa2))
                     df = df[df.STcodon.apply(lambda x: Seq(x).translate() == aa2)]
                     df['WTcodon'] = refCodon
                     df['diffNT'] = df.apply(lambda x: [i for i in range(len(x[4])) if x[4][i] != x[5][i]], axis=1)
@@ -1044,7 +1024,6 @@ class SNP:
                 except:
                     self.logUpdate('[ERROR]Failure to find snp {} in the strain genome or reference genome'.format(snp))
                     continue
-                print(df)
                 wtSequence, stSequence, ntSNP, locSnp, found = self.parseBlastResult(blastResult=df)
                 mutSeqs = ParaSeqs(ntSNP, '', wtSequence, stSequence, mutLoc=locSnp)
             if found == 0:
@@ -1058,7 +1037,6 @@ class SNP:
 
     def make1stProbe(self):
         probeLines = []
-        # print(self.probesByPos)
         for pos in self.posList:
             probCSV = '{}pos{}.csv'.format(self.workDir, pos)
             csvWriter = open(probCSV, 'w')
@@ -1090,16 +1068,11 @@ class SNP:
         snpNearprobes = '{}SNP.pattern.fasta'.format(self.workDir)
         snpMaskedBed = '{}SNP.masked.bed'.format(self.workDir)
         # USING PROBEs AND STRAIN GENOME MAKE PROBEs MASK TSV
-        print('issue')
-        print(self.probesByPos[-1])
-        print(['>{}{}\n{}\n'.format(p.ntSnp, '=' + p.aaSnp if p.aaSnp else '', p.stSeq) for p in self.probesByPos[-1]])
         with open(snpNearprobes, 'w') as w:
             w.writelines(
                 ['>{}{}\n{}\n'.format(p.ntSnp, '=' + p.aaSnp if p.aaSnp else '', p.stSeq) for p in self.probesByPos[-1]]
             )
         self.lookupTSV = ProbeitUtils.getPatternPosition(snpNearprobes, self.strGenome, self.workDir + 'lookup.tsv')
-#        print("issue")
-#        print(pd.read_csv(self.lookupTSV, sep='\t')[['seqID', 'start', 'end']], snpMaskedBed)
         snpMaskedBed = self.makeProbMaskCoords(
             pd.read_csv(self.lookupTSV, sep='\t')[['seqID', 'start', 'end']], snpMaskedBed
         )
@@ -1148,10 +1121,8 @@ class SNP:
             w.write(s + '\n')
 
     def excute(self):
-#        print('!!!!')
         self.getPars()
         self.checkArgs()
-#        print('!!!!')
         self.makeWorkDir()
         self.logUpdate('[INFO]Your arguments: snp ' + ProbeitUtils.getUserArgs(self.args) + '\n')
         self.logUpdate("[INFO]make 1st probes")
