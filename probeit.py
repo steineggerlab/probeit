@@ -159,6 +159,7 @@ class ProbeitUtils:
 
     @classmethod
     def clusterGenome(cls, inputFasta, outputFasta, outputDir, seqIdentity):
+        print('mmseqs clsuter', inputFasta, outputFasta)
         command = ' '.join(
             [
                 "mmseqs easy-linclust", inputFasta, outputFasta, outputDir,
@@ -166,11 +167,13 @@ class ProbeitUtils:
                 "--cov-mode 1 -c 0.95 --remove-tmp-files 0"
             ]
         )
-        return cls.runCommand(command, verbose=True)
+        stdout, stderr = cls.runCommand(command, verbose=True)
+        print(stdout, stderr)
+        return stdout, stderr
 
     @classmethod
     def searchNegative(cls, output, negative, maskOutput, outputDir, seqInProbe):
-        print('mmseqs search', output, negative, maskOutput)
+#        print('mmseqs search', output, negative, maskOutput)
         command = ' '.join(
             [
                 "mmseqs easy-search", output, negative, maskOutput, outputDir+"tmp",
