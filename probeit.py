@@ -168,7 +168,11 @@ class ProbeitUtils:
             ]
         )
         stdout, stderr = cls.runCommand(command, verbose=True)
-        print(os.path.isfile(outputFasta + '_rep_seq.fasta'))
+#        print(os.path.isfile(outputFasta + '_rep_seq.fasta'))
+        print("file with issu {}_rep_seq.fasta'".format(outputFasta))
+        with open(outputFasta + '_rep_seq.fasta') as f:
+            for i in f:
+            print(i)
         print(stdout, stderr)
         return stdout, stderr
 
