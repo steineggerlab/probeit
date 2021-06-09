@@ -1099,11 +1099,14 @@ class SNP:
         # USING PROBEs AND STRAIN GENOME MAKE PROBEs MASK TSV
         print('issue')
         print(self.probesByPos[-1])
+        print(['>{}{}\n{}\n'.format(p.ntSnp, '=' + p.aaSnp if p.aaSnp else '', p.stSeq) for p in self.probesByPos[-1]])
         with open(snpNearprobes, 'w') as w:
             w.writelines(
                 ['>{}{}\n{}\n'.format(p.ntSnp, '=' + p.aaSnp if p.aaSnp else '', p.stSeq) for p in self.probesByPos[-1]]
             )
         self.lookupTSV = ProbeitUtils.getPatternPosition(snpNearprobes, self.strGenome, self.workDir + 'lookup.tsv')
+#        print("issue")
+#        print(pd.read_csv(self.lookupTSV, sep='\t')[['seqID', 'start', 'end']], snpMaskedBed)
         snpMaskedBed = self.makeProbMaskCoords(
             pd.read_csv(self.lookupTSV, sep='\t')[['seqID', 'start', 'end']], snpMaskedBed
         )
