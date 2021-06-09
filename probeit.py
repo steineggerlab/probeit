@@ -159,6 +159,9 @@ class ProbeitUtils:
 
     @classmethod
     def clusterGenome(cls, inputFasta, outputFasta, outputDir, seqIdentity):
+        with open(inputFasta) as f:
+            for i in f:
+               print(i)
         print('mmseqs clsuter', inputFasta, outputFasta)
         command = ' '.join(
             [
@@ -170,10 +173,10 @@ class ProbeitUtils:
         stdout, stderr = cls.runCommand(command, verbose=True)
 #        print(os.path.isfile(outputFasta + '_rep_seq.fasta'))
         print("file with issu {}_rep_seq.fasta'".format(outputFasta))
-        with open(outputFasta + '_rep_seq.fasta') as f:
-            for i in f:
-                print(i)
         print(stdout, stderr)
+        with open(outputFasta + '_rep_seq.fasta') as f:
+              for i in f:
+                  print(i)
         return stdout, stderr
 
     @classmethod
