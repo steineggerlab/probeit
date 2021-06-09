@@ -172,7 +172,7 @@ class ProbeitUtils:
         print("file with issu {}_rep_seq.fasta'".format(outputFasta))
         with open(outputFasta + '_rep_seq.fasta') as f:
             for i in f:
-            print(i)
+                print(i)
         print(stdout, stderr)
         return stdout, stderr
 
