@@ -744,7 +744,7 @@ class PosNegSet:
                 uniqComMap2,
                 self.deDupGenome
             )
-            self.logUpdate()
+            self.logUpdate(msg)
             with open(self.minimizedProbeSetResult2, 'w') as w:
                 w.write(msg)
             if not os.path.exists(minimizedProbeSetBed2):
