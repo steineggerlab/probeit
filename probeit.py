@@ -666,7 +666,7 @@ class PosNegSet:
         if not os.path.exists(self.minimizedProbeSetResult1):
             self.logUpdate("[INFO]minimize probe set")
             msg, err = ProbeitUtils.setCover(
-                self.setcoverCoverage,
+                self.setcoverCoverage1,
                 self.probLen1,
                 self.setcoverEarlyStop1,
                 self.setcoverSimScore1,
@@ -748,7 +748,7 @@ class PosNegSet:
         if not os.path.exists(self.minimizedProbeSetResult2):
             self.logUpdate("[INFO]minimize probe set")
             msg, err = ProbeitUtils.setCover(
-                self.setcoverCoverage,
+                self.setcoverCoverage2,
                 1,
                 self.setcoverEarlyStop2,
                 self.setcoverSimScore2,
