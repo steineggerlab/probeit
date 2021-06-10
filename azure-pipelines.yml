@@ -23,6 +23,7 @@ jobs:
             cd setcover
             make
             cd ..
+            echo setcover outside python
             .setcover/setcover
             conda info —envs
             locale
@@ -60,6 +61,7 @@ jobs:
             cd setcover
             make
             cd ..
+            echo setcover outside python
             conda info —envs
             locale
             echo  run probeit help
