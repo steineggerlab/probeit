@@ -24,8 +24,9 @@ jobs:
             cd setcover
             g++ setcover.cpp -o setcover
             ls -aR
+            echo ====== makefile ======
             head -30 Makefile
-            setocver
+            echo ====== makefile ======
             cd ..
             conda info —envs
             locale
@@ -64,8 +65,9 @@ jobs:
             cd setcover
             g++ setcover.cpp -o setcover
             ls -aR
+            echo ====== makefile ======
             head -30 Makefile
-            setocver
+            echo ====== makefile ======
             cd ..
             conda info —envs
             locale

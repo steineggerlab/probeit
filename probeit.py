@@ -49,9 +49,6 @@ class ProbeitUtils:
     @staticmethod
     def runCommand(command, verbose=False):
         if verbose:
-            print('COMMAND: ', command)
-            print(os.getcwd())
-            print(os.path.dirname(os.path.realpath(__file__)))
             commandList = command.split()
             sp = subprocess.Popen(commandList, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = sp.communicate()
@@ -164,10 +161,6 @@ class ProbeitUtils:
 
     @classmethod
     def clusterGenome(cls, inputFasta, outputFasta, outputDir, seqIdentity):
-#        with open(inputFasta) as f:
-#            for i in f:
-#               print(i)
-#        print('mmseqs clsuter', inputFasta, outputFasta)
         command = ' '.join(
             [
                 "mmseqs easy-linclust", inputFasta, outputFasta, outputDir,
@@ -180,7 +173,6 @@ class ProbeitUtils:
 
     @classmethod
     def searchNegative(cls, output, negative, maskOutput, outputDir, seqInProbe):
-#        print('mmseqs search', output, negative, maskOutput)
         command = ' '.join(
             [
                 "mmseqs easy-search", output, negative, maskOutput, outputDir+"tmp",
@@ -752,6 +744,7 @@ class PosNegSet:
                 uniqComMap2,
                 self.deDupGenome
             )
+            self.logUpdate()
             with open(self.minimizedProbeSetResult2, 'w') as w:
                 w.write(msg)
             if not os.path.exists(minimizedProbeSetBed2):
