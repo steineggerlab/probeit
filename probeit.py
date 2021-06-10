@@ -158,7 +158,8 @@ class ProbeitUtils:
         df['len'] = df.aln.apply(lambda x: len(x)-1)
         df = df[['substr', 'snp', 'len', 'aln']]
         df.to_csv(resultTSV, header=False, index=False, sep='\t')
-        return resultTSV, out1 + err1 + out2 + err2 + out3 + err3 + out4 + err4
+        print(err1.decode('UTF-8') +2err1.decode('UTF-8') + err3.decode('UTF-8') + err4.decode('UTF-8'))
+        return resultTSV, out1.decode('UTF-8') + out2.decode('UTF-8') + out3.decode('UTF-8') + out4.decode('UTF-8')
 
     @classmethod
     def clusterGenome(cls, inputFasta, outputFasta, outputDir, seqIdentity):
