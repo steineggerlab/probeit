@@ -58,10 +58,11 @@ jobs:
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
             echo  activate env
             source activate probeit
+            echo setcover outside python
             cd setcover
             make
+            ./setocver
             cd ..
-            echo setcover outside python
             conda info —envs
             locale
             echo  run probeit help

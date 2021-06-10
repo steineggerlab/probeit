@@ -889,9 +889,10 @@ class SNP:
             print('You input proper arguments.' if self.refGenomeAnnot else message.format('[WARN]', '--annotation'))
 
     def logUpdate(self, msg):
+        print(msg)
         with open(self.log, 'a') as w:
             w.write(msg+'\n')
-        print(msg)
+        
 
     def makeWorkDir(self):
         self.workDir = self.workDir + os.path.sep
