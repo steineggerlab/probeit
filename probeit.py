@@ -54,7 +54,7 @@ class ProbeitUtils:
             commandList = command.split()
             sp = subprocess.Popen(commandList, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = sp.communicate()
-            return stdout.decode('UTF-8'), stderr.decode('UTF-8')
+            return stdout, stderr
         else:
             os.system(command)
 
