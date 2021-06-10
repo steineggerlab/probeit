@@ -410,9 +410,9 @@ class PosNegSet:
         return
 
     def logUpdate(self, msg):
+        print(msg)
         with open(self.log, 'a') as w:
             w.write(msg + '\n')
-        print(msg)
 
     def copyFile(self, original, copy):
         if not os.path.exists(copy):
@@ -576,7 +576,6 @@ class PosNegSet:
         clustName = self.dedupDir + 'genomes.clu'
         # COPY POSITIVE INPUT FASTA
         posGenome = self.copyFile(original=self.inputGenome, copy=self.inputDir + 'genome.fa')
-        print(posGenome)
         # CLUTER INPUT FASTA
         self.deDupGenome = clustName + '_rep_seq.fasta'
         if self.needCluster:
