@@ -193,8 +193,8 @@ class ProbeitUtils:
             ]
         )
         stdOut, stdErr = cls.runCommand(command, verbose=True)
-        print(stdout)
-        print(stderr)
+        print(stdOut)
+        print(stdErr)
         return stdOut, stdErr
 
     @classmethod
