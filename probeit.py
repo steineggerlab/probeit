@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 from Bio.Seq import Seq
 from Bio.Seq import reverse_complement
