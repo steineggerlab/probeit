@@ -15,6 +15,8 @@ jobs:
       - script: echo "##vso[task.prependpath]$CONDA/bin"
         displayName: Add conda to PATH
       - script: |
+            ls -aR
+            pwd
             echo  hello from Linux
             echo  create env
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
@@ -47,6 +49,8 @@ jobs:
       - script: sudo chown -R $USER $CONDA
         displayName: Take ownership of conda installation
       - script: |
+            ls -aR
+            pwd
             echo  hello from macOS
             echo  create env
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
