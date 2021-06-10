@@ -22,7 +22,6 @@ jobs:
             source activate probeit
             echo setcover outside python
             cd setcover
-#            g++ setcover.cpp -o setcover
             make
             ls -aR
             echo ====== makefile ======
@@ -64,7 +63,6 @@ jobs:
             source activate probeit
             echo setcover outside python
             cd setcover
-#            g++ setcover.cpp -o setcover
             make
             ls -aR
             echo ====== makefile ======
