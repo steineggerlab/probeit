@@ -240,14 +240,13 @@ class ProbeitUtils:
 
     @classmethod
     def setCover(cls, coverage, length, proportion, distance, iteration, deDuplicatedCSV, windowFasta):
-        # ??????
         command = (
 #            "./setcover/setcover -c {} -l {} -p {} -d {} -i {} {} {}"
             "setcover/setcover -c {} -l {} -p {} -d {} -i {} {} {}"
             .format(coverage, length, proportion, distance, iteration, deDuplicatedCSV, windowFasta)
         )
         stdOut, stdErr = cls.runCommand(command, verbose=True)
-        return stdOut, stdErr
+        return stdOut.decode('UTF-8'), stdErr.decode('UTF-8')
 
     @classmethod
     def makeSetcoverResultBed(cls, lookup, setcoverResult, setcoverResultBed):
@@ -1050,7 +1049,6 @@ class SNP:
             probCSV = '{}pos{}.csv'.format(self.workDir, pos)
             csvWriter = open(probCSV, 'w')
             csvWriter.write('WT sequence,ST sequence,found,ntSNP,aaSNP\n')
-            
             for probs in self.probesByPos[pos]:
                 csvWriter.write(
                     '{},{},{},{},{}\n'.format(probs.wtSeq, probs.stSeq, probs.found, probs.ntSnp, probs.aaSnp))
