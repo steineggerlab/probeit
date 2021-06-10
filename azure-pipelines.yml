@@ -23,6 +23,7 @@ jobs:
             cd setcover
             make
             cd ..
+            .setcover/setcover
             conda info —envs
             locale
             echo  run probeit help

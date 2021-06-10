@@ -162,10 +162,10 @@ class ProbeitUtils:
 
     @classmethod
     def clusterGenome(cls, inputFasta, outputFasta, outputDir, seqIdentity):
-        with open(inputFasta) as f:
-            for i in f:
-               print(i)
-        print('mmseqs clsuter', inputFasta, outputFasta)
+#        with open(inputFasta) as f:
+#            for i in f:
+#               print(i)
+#        print('mmseqs clsuter', inputFasta, outputFasta)
         command = ' '.join(
             [
                 "mmseqs easy-linclust", inputFasta, outputFasta, outputDir,
@@ -174,14 +174,7 @@ class ProbeitUtils:
             ]
         )
         stdout, stderr = cls.runCommand(command, verbose=True)
-#        print(os.path.isfile(outputFasta + '_rep_seq.fasta'))
-        print("file with issu {}_rep_seq.fasta'".format(outputFasta))
-#        print(stdout, stderr)
-        print('error in mmeeqs', stderr)
-        with open(outputFasta + '_rep_seq.fasta') as f:
-              for i in f:
-                  print(i)
-        return stdout, stderr
+        return stdout.decode('UTF-8'), stderr.decode('UTF-8')
 
     @classmethod
     def searchNegative(cls, output, negative, maskOutput, outputDir, seqInProbe):
@@ -587,7 +580,7 @@ class PosNegSet:
         if self.needCluster:
             self.logUpdate('[INFO]deduplicate positive fasta')
             if not os.path.exists(self.deDupGenome):
-                ProbeitUtils.clusterGenome(posGenome, clustName, self.dedupDir + 'temp' + os.path.sep, self.seqIdClust)
+                self.logUpdate(ProbeitUtils.clusterGenome(posGenome, clustName, self.dedupDir + 'temp' + os.path.sep, self.seqIdClust)[0])
                 ProbeitUtils.sortFasta(self.deDupGenome, self.dedupDir + 'sorted.fasta')
                 ProbeitUtils.renameFasta(self.dedupDir + 'sorted.fasta', self.deDupGenome)
             else:
@@ -676,7 +669,6 @@ class PosNegSet:
                 uniqComMap1,
                 self.deDupGenome
             )
-            print(msg)
             with open(self.minimizedProbeSetResult1, 'w') as w:
                 w.write(msg)
             if not os.path.exists(minimizedProbeSetBed1):
@@ -778,10 +770,8 @@ class PosNegSet:
         return
 
     def excute(self):
-#        print('!!!!')
         self.getPars()
         self.checkArgs()
-#        print('!!!!')
         self.makeWorkDir()
         self.logUpdate(' '.join(['{} {}'.format(i[0], i[1]).strip() for i in self.args]))
         self.filterInputData()
