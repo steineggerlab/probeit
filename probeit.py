@@ -49,6 +49,8 @@ class ProbeitUtils:
     def runCommand(command, verbose=False):
         if verbose:
             print('COMMAND: ', command)
+            print(os.getcwd())
+            print(os.path.dirname(os.path.realpath(__file__)))
             commandList = command.split()
             sp = subprocess.Popen(commandList, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = sp.communicate()
