@@ -24,7 +24,7 @@ jobs:
             cd setcover
             make
             ls -aR
-            ./setocver
+            setocver
             cd ..
             conda info —envs
             locale
@@ -63,7 +63,7 @@ jobs:
             cd setcover
             make
             ls -aR
-            ./setocver
+            setocver
             cd ..
             conda info —envs
             locale
