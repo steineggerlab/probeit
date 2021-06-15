@@ -52,7 +52,7 @@ class ProbeitUtils:
             commandList = command.split()
             sp = subprocess.Popen(commandList, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = sp.communicate()
-            return stdout, stderr
+            return stdout.decode('UTF-8'), stderr.decode('UTF-8')
         else:
             os.system(command)
 
@@ -63,8 +63,8 @@ class ProbeitUtils:
 
     # TO CALL SEQKIT MODULES
     @classmethod
-    def sortFasta(cls, fasta, sortedFasta):
-        command = "seqkit sort {} > {} -w 0".format(fasta, sortedFasta)
+    def sortFasta(cls, inputFasta, outputFasta):
+        command = "seqkit sort {} > {} -w 0".format(inputFasta, outputFasta)
         cls.runCommand(command)
 
     @classmethod
@@ -73,14 +73,16 @@ class ProbeitUtils:
         cls.runCommand(command)
 
     @classmethod
-    def getSubseqFasta(cls, coordinateBed, oldFasta, newFasta):
-        command = "seqkit subseq --quiet --bed {} {} > {}".format(coordinateBed, oldFasta, newFasta)
-        cls.runCommand(command)
+    def getSubseqFasta(cls, coordinateBed, inputFasta, outputFasta):
+        command1 = "seqkit subseq --quiet --bed {} {} > {}".format(coordinateBed, inputFasta, outputFasta)
+        cls.runCommand(command1)
 
     @classmethod
     def getPatternPosition(cls, patternFasta, genomeFasta, positonsTSV):
         command = "seqkit locate -f {} {} > {}".format(patternFasta, genomeFasta, positonsTSV)
         cls.runCommand(command)
+        df = pd.read_csv(positonsTSV, sep='\t')
+        df.sort_values(by=list(df.columns), ignore_index=True).to_csv(positonsTSV, sep='\t', index=False)
         return positonsTSV
 
     # TO CALL GENMAP MODULES
@@ -156,8 +158,8 @@ class ProbeitUtils:
         df['len'] = df.aln.apply(lambda x: len(x)-1)
         df = df[['substr', 'snp', 'len', 'aln']]
         df.to_csv(resultTSV, header=False, index=False, sep='\t')
-        print(err1.decode('UTF-8') + err1.decode('UTF-8') + err3.decode('UTF-8') + err4.decode('UTF-8'))
-        return resultTSV, out1.decode('UTF-8') + out2.decode('UTF-8') + out3.decode('UTF-8') + out4.decode('UTF-8')
+        print(err1 + err2 + err3 + err4)
+        return resultTSV, out1 + out2 + out3 + out4
 
     @classmethod
     def clusterGenome(cls, inputFasta, outputFasta, outputDir, seqIdentity):
@@ -169,7 +171,7 @@ class ProbeitUtils:
             ]
         )
         stdout, stderr = cls.runCommand(command, verbose=True)
-        return stdout.decode('UTF-8'), stderr.decode('UTF-8')
+        return stdout, stderr
 
     @classmethod
     def searchNegative(cls, output, negative, maskOutput, outputDir, seqInProbe):
@@ -238,7 +240,7 @@ class ProbeitUtils:
             .format(coverage, length, proportion, distance, iteration, deDuplicatedCSV, windowFasta)
         )
         stdOut, stdErr = cls.runCommand(command, verbose=True)
-        return stdOut.decode('UTF-8'), stdErr.decode('UTF-8')
+        return stdOut, stdErr
 
     @classmethod
     def makeSetcoverResultBed(cls, lookup, setcoverResult, setcoverResultBed):
@@ -260,6 +262,11 @@ class ProbeitUtils:
     @classmethod
     def getUserArgs(cls, args):
         return ' '.join(['{} {}'.format(i[0], i[1]) if len(i) == 2 else i for i in args])
+
+    @classmethod
+    def sortFile(cls, inputFile, outputFile):
+        command = 'sort {} > {}'.format(inputFile, outputFile)
+        cls.runCommand(command)
 
 
 class Probeit:
@@ -681,7 +688,8 @@ class PosNegSet:
                             idx = line.split(';')[0].split(',')[0]
                             pos = line.split(';')[0].split(',')[1]
                             w.write('\t'.join([genomeAndIdx[idx], pos, str(int(pos)+self.probLen1), kmers])+'\n')
-        ProbeitUtils.getSubseqFasta(minimizedProbeSetBed1, self.deDupGenome, self.workDir + 'probe1.fa')
+        self.probe1 = self.workDir + 'probe1.fa'
+        ProbeitUtils.getSubseqFasta(minimizedProbeSetBed1, self.deDupGenome, self.probe1)
 
     def make2ndWindow(self):
         probe2InputFasta = self.inputDir2 + 'seq.fa'
@@ -763,7 +771,8 @@ class PosNegSet:
                             idx = line.split(';')[0].split(',')[0]
                             pos = line.split(';')[0].split(',')[1]
                             w.write('\t'.join([genomeAndIdx[idx], pos, str(int(pos)+self.probLen2), kmers])+'\n')
-        ProbeitUtils.getSubseqFasta(minimizedProbeSetBed2, self.deDupGenome, self.workDir + 'probe2.fa')
+        self.probe2 = self.workDir + 'probe2.fa'
+        ProbeitUtils.getSubseqFasta(minimizedProbeSetBed2, self.deDupGenome, self.probe2)
         return
 
     def excute(self):
@@ -775,6 +784,9 @@ class PosNegSet:
         self.make1stProbe()
         self.make2ndWindow()
         self.make2ndProbe()
+        ProbeitUtils.sortFile(self.probe1, self.workDir + 'sorted1.fa')
+        ProbeitUtils.sortFile(self.probe2, self.workDir + 'sorted2.fa')
+
         return
 
     @staticmethod
@@ -801,7 +813,7 @@ class PosNegSet:
         # print('  --setcover-earlystop2 minimum ratio of covered sequences to earlystop (default 0.99)[FLOAT]')
         # print('  --setcover-simscore2 maximum levenshtein score (default 20)[INT]')
         # print('  --setcover-repeats2 minimize probes randomly N iterations (default 10)[INT]')
-        # quit()
+        quit()
 
 
 class SNP:
@@ -1055,8 +1067,9 @@ class SNP:
                     '>{}{};{}\n'.format(probs.ntSnp, '=' + probs.aaSnp if probs.aaSnp else '', pos))
                 probeLines.append('{}\n'.format(probs.stSeq))
             csvWriter.close()
-        with open('{}{}mer.fa'.format(self.workDir, self.probLen1), 'w') as fastaWriter:
-            fastaWriter.writelines(probeLines)
+        self.probe1 = self.workDir + 'probe1.fa'
+        with open(self.probe1, 'w') as w:
+            w.writelines(probeLines)
 
     @staticmethod
     def makeProbMaskCoords(inputDF, outputBed):
@@ -1084,8 +1097,10 @@ class SNP:
         )
         # MAKE PROBEs MAKSED FASTA
         self.probe2Window = ProbeitUtils.getWindowFasta(
-            self.strGenome, snpMaskedBed, self.workDir + 'SNP.masked.fasta',
-            self.workDir + 'window.bed', self.workDir + '2nd.input.fasta'
+            self.strGenome, snpMaskedBed,
+            self.workDir + 'SNP.masked.fasta',
+            self.workDir + 'window.bed',
+            self.workDir + '2nd.input.fasta'
         )
         lookup = ProbeitUtils.makeLookup(self.probe2Window, self.workDir + 'name.lookup')
         ProbeitUtils.delDir(self.indexDir)
@@ -1109,18 +1124,18 @@ class SNP:
             w.write(stdOut)
         self.setcoverResultBed = ProbeitUtils.makeSetcoverResultBed(lookup, setcoverResult, self.workDir + 'result.bed')
 
-    def set2ndProbe(self):
-        tempSecondProbeFasta = '{}temp.{}mer.fasta'.format(self.workDir, self.probLen2)
-        secondProbeFasta = '{}{}mer.fa'.format(self.workDir, self.probLen2)
-        ProbeitUtils.getSubseqFasta(self.setcoverResultBed, self.probe2Window, tempSecondProbeFasta)
+    def make2ndProbe(self):
+        tempProbe2 = '{}{}mer.fasta'.format(self.workDir, self.probLen2)
+        self.probe2 = self.workDir + 'probe2.fa'
+        ProbeitUtils.getSubseqFasta(self.setcoverResultBed, self.probe2Window, tempProbe2)
         maskDF = pd.read_csv(self.lookupTSV, sep='\t')
         maskDF['lookup'] = maskDF.apply(
             lambda x: '{}:{}-{}'.format(x[0], x[4] - self.window, x[5] + self.window), axis=1
         )
         kmers = list(maskDF['patternName'])
         # PARSING TEMP 2ND FASTA
-        w = open(secondProbeFasta, 'w')
-        for h, s in SimpleFastaParser(open(tempSecondProbeFasta)):
+        w = open(self.probe2, 'w')
+        for h, s in SimpleFastaParser(open(tempProbe2)):
             p = re.compile('[0-9]+,')
             kmerIndex = p.findall(h)
             soveredSNPs = ':'.join(list((set([kmers[int(i[:-1])] for i in kmerIndex]))))
@@ -1137,8 +1152,10 @@ class SNP:
         self.make1stProbe()
         self.logUpdate("[INFO]make 2nd probes")
         self.make2ndWindow()
-        self.set2ndProbe()
+        self.make2ndProbe()
         self.logUpdate("[INFO]done")
+        ProbeitUtils.sortFile(self.probe1, self.workDir + 'sorted1.fa')
+        ProbeitUtils.sortFile(self.probe2, self.workDir + 'sorted2.fa')
         return
 
     @staticmethod

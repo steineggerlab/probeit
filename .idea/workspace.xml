@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="ab952712-016a-4239-b4f3-38165e8dfb08" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/probeit.py" beforeDir="false" afterPath="$PROJECT_DIR$/probeit.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectId" id="1klDPkV3RxyAwjooDJ2NRWOxA00" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+  </component>
+  <component name="RunManager">
+    <configuration name="probeit" type="PythonConfigurationType" factoryName="Python">
+      <module name="probeit" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="$USER_HOME$/anaconda3/bin/python" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/probeit.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="ab952712-016a-4239-b4f3-38165e8dfb08" name="Default Changelist" comment="" />
+      <created>1606266262212</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1606266262212</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="324" y="391" width="1071" height="802" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1623635172777">
+      <screen x="0" y="25" width="3440" height="1415" />
+    </state>
+    <state x="324" y="391" width="1071" height="802" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.25.3440.1415@0.25.3440.1415" timestamp="1623635172777" />
+    <state x="647" y="501" key="#com.intellij.ide.macro.MacrosDialog" timestamp="1623635169814">
+      <screen x="0" y="25" width="3440" height="1415" />
+    </state>
+    <state x="647" y="501" key="#com.intellij.ide.macro.MacrosDialog/0.25.3440.1415@0.25.3440.1415" timestamp="1623635169814" />
+    <state x="720" y="526" key="EnvironmentVariablesDialog" timestamp="1623635142887">
+      <screen x="0" y="25" width="3440" height="1415" />
+    </state>
+    <state x="720" y="526" key="EnvironmentVariablesDialog/0.25.3440.1415@0.25.3440.1415" timestamp="1623635142887" />
+    <state x="1615" y="125" width="1520" height="1215" key="com.intellij.history.integration.ui.views.FileHistoryDialog" timestamp="1623743628871">
+      <screen x="0" y="25" width="3440" height="1415" />
+    </state>
+    <state x="1615" y="125" width="1520" height="1215" key="com.intellij.history.integration.ui.views.FileHistoryDialog/0.25.3440.1415@0.25.3440.1415" timestamp="1623743628871" />
+  </component>
+</project>
