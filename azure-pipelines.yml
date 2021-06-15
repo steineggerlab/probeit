@@ -38,17 +38,18 @@ jobs:
             
             echo [process] compare outputs
             echo posnegset 1
-            diff posnegset1/sorted1.fa sample/posnegset_1.fa
+            diff posnegset1/sorted1.fa sample/posnegset_1.fa -s
             echo posnegset 2
-            diff posnegset1/sorted2.fa sample/posnegset_2.fa
+            diff posnegset1/sorted2.fa sample/posnegset_2.fa -s
             echo snp aa 1
-            diff snp1/sorted1.fa sample/snp_aa_1.fa
+            diff snp1/sorted1.fa sample/snp_aa_1.fa -s
             echo snp aa 2
-            diff snp1/sorted2.fa sample/snp_aa_2.fa
+            diff snp1/sorted2.fa sample/snp_aa_2.fa -s
             echo snp nt 1
-            diff snp3/sorted1.fa sample/snp_nt_1.fa
+            diff snp3/sorted1.fa sample/snp_nt_1.fa -s
             echo snp nt 2
-            diff snp3/sorted2.fa sample/snp_nt_2.fa
+            diff snp3/sorted2.fa sample/snp_nt_2.fa -s
+            exit 0
 - job: macOS
   timeoutInMinutes: 120
   pool:
@@ -84,16 +85,17 @@ jobs:
             
             echo [process] compare outputs
             echo posneget 1
-            diff posnegset2/sorted1.fa sample/posnegset_1.fa
+            diff posnegset2/sorted1.fa sample/posnegset_1.fa -s
             echo posnegset 2
-            diff posnegset2/sorted2.fa sample/posnegset_2.fa
+            diff posnegset2/sorted2.fa sample/posnegset_2.fa -s
             echo snp aa 1
-            diff snp2/sorted1.fa sample/snp_aa_1.fa
+            diff snp2/sorted1.fa sample/snp_aa_1.fa -s
             echo snp aa 2
-            diff snp2/sorted2.fa sample/snp_aa_2.fa
+            diff snp2/sorted2.fa sample/snp_aa_2.fa -s
             echo snp nt 1
-            diff snp4/sorted1.fa sample/snp_nt_1.fa
+            diff snp4/sorted1.fa sample/snp_nt_1.fa -s
             echo snp nt 2
-            diff snp4/sorted2.fa sample/snp_nt_2.fa
+            diff snp4/sorted2.fa sample/snp_nt_2.fa -s
+            exit 0
 
 

@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="ab952712-016a-4239-b4f3-38165e8dfb08" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/probeit.py" beforeDir="false" afterPath="$PROJECT_DIR$/probeit.py" afterDir="false" />
-    </list>
+    <list default="true" id="ab952712-016a-4239-b4f3-38165e8dfb08" name="Default Changelist" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
