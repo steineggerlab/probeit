@@ -36,9 +36,13 @@ jobs:
             python probeit.py snp -r sample/ref.fasta -a sample/ref.gff -s sample/str.fasta  -p "10,11,19,20,21,22" -m "aa:orf1ab:L4715F,aa:S:Q52R,aa:S:E484K,aa:S:Q677H,aa:S:F888L,aa:E:L21F,aa:M:I82T" -o snp1
             
             echo [process] compare outputs
-            diff posnegset1/sorted1.fa sample/posnetset_1.fa
-            diff posnegset1/sorted2.fa sample/posnetset_2.fa
+            echo posnegset 1
+            diff posnegset1/sorted1.fa sample/posnegset_1.fa
+            echo posnegset 2
+            diff posnegset1/sorted2.fa sample/posnegset_2.fa
+            echo snp aa 1
             diff snp1/sorted1.fa sample/snp_aa_1.fa
+            echo snp aa 2
             diff snp1/sorted2.fa sample/snp_aa_2.fa
 - job: macOS
   timeoutInMinutes: 120
@@ -73,9 +77,13 @@ jobs:
             python probeit.py snp -r sample/ref.fasta -a sample/ref.gff -s sample/str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C,nt:A21716G" -o snp2
             
             echo [process] compare outputs
-            diff posnegset2/sorted1.fa sample/posnetset_1.fa
-            diff posnegset2/sorted2.fa sample/posnetset_2.fa
+            echo posneget 1
+            diff posnegset2/sorted1.fa sample/posnegset_1.fa
+            echo posnegset 2
+            diff posnegset2/sorted2.fa sample/posnegset_2.fa
+            echo snp nt 1
             diff snp2/sorted1.fa sample/snp_nt_1.fa
+            echosnp nt 2
             diff snp2/sorted2.fa sample/snp_nt_2.fa
 
 
