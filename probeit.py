@@ -132,7 +132,7 @@ class ProbeitUtils:
         return lookup
 
     @classmethod
-    def doBlastSearch(cls, workDir, inputFasta, strGenomeFasta, resultTSV):
+    def searchMut(cls, workDir, inputFasta, strGenomeFasta, resultTSV, kmer=12):
         searchDir = workDir + 'search' + os.path.sep
         tempDir = searchDir + 'temp' + os.path.sep
         resultTSV = workDir + resultTSV
@@ -144,11 +144,11 @@ class ProbeitUtils:
         aln = searchDir + 'mmseqs.aln'
         command1 = 'mmseqs createdb {} {}'
         command2 = 'mmseqs createdb {} {}'
-        command3 = 'mmseqs search {} {} {} {} --search-type 3 -k 12'
+        command3 = 'mmseqs search {} {} {} {} --search-type 3 -k {}'
         command4 = 'mmseqs convertalis {} {} {} {} --format-output target,query,tseq,tstart,tend --search-type 3'
         out1, err1 = cls.runCommand(command1.format(inputFasta, searchdb), verbose=True)
         out2, err2 = cls.runCommand(command2.format(strGenomeFasta, strdb), verbose=True)
-        out3, err3 =  cls.runCommand(command3.format(searchdb, strdb, aln, tempDir), verbose=True)
+        out3, err3 = cls.runCommand(command3.format(searchdb, strdb, aln, tempDir, kmer), verbose=True)
         out4, err4 = cls.runCommand(command4.format(searchdb, strdb, aln, resultTSV), verbose=True)
         df = pd.read_csv(resultTSV, sep='\t', header=None)
         df.columns = ['substr', 'snp', 'strseq', 'start', 'end']
@@ -156,7 +156,7 @@ class ProbeitUtils:
         df['len'] = df.aln.apply(lambda x: len(x)-1)
         df = df[['substr', 'snp', 'len', 'aln']]
         df.to_csv(resultTSV, header=False, index=False, sep='\t')
-        print(err1.decode('UTF-8') +err1.decode('UTF-8') + err3.decode('UTF-8') + err4.decode('UTF-8'))
+        print(err1.decode('UTF-8') + err1.decode('UTF-8') + err3.decode('UTF-8') + err4.decode('UTF-8'))
         return resultTSV, out1.decode('UTF-8') + out2.decode('UTF-8') + out3.decode('UTF-8') + out4.decode('UTF-8')
 
     @classmethod
@@ -345,7 +345,7 @@ class PosNegSet:
                 self.probeError1 = int(val) if opt == '--probe-error1' else self.probeError1
                 self.probeError2 = int(val) if opt == '--probe-error2' else self.probeError2
                 self.needCluster = int(val) == 1 if opt == '--cluster' else self.needCluster
-
+                # hidden args
                 self.setcoverCoverage1 = int(val) if opt == '--setcover-coverage1' else self.setcoverCoverage1
                 self.setcoverCoverage2 = int(val) if opt == '--setcover-coverage2' else self.setcoverCoverage2
                 self.setcoverEarlyStop1 = float(val) if opt == '--setcover-earlystop1' else self.setcoverEarlyStop1
@@ -573,7 +573,9 @@ class PosNegSet:
         if self.needCluster:
             self.logUpdate('[INFO]deduplicate positive fasta')
             if not os.path.exists(self.deDupGenome):
-                self.logUpdate(ProbeitUtils.clusterGenome(posGenome, clustName, self.dedupDir + 'temp' + os.path.sep, self.seqIdClust)[0])
+                tempDir = self.dedupDir + 'temp' + os.path.sep
+                msg, err = ProbeitUtils.clusterGenome(posGenome, clustName, tempDir, self.seqIdClust)
+                self.logUpdate(msg + err)
                 ProbeitUtils.sortFasta(self.deDupGenome, self.dedupDir + 'sorted.fasta')
                 ProbeitUtils.renameFasta(self.dedupDir + 'sorted.fasta', self.deDupGenome)
             else:
@@ -787,26 +789,29 @@ class PosNegSet:
         print(" --probe-error1 error allowed in probe 1 (default 0)[INT]")
         print(" --probe-error2 error allowed in probe 2 (default 1)[INT]")
         print(" --probe-len1 length of first probe (default 40)[INT]")
-        print(" PROBE1 MINIMIZING ")
-        print("  --setcover-coverage1 genome coverage by probes1 (default 1)[INT]")
-        print('  --setcover-earlystop1 minimum ratio of covered sequences to earlystop (default 0.9)[FLOAT]')
-        print('  --setcover-simscore1 maximum levenshtein score (default 11)[INT]')
-        print('  --setcover-repeats1 minimize probes randomly N iterations (default 1)[INT]')
-        print(" PROBE2 MINIMIZING ")
-        print("  --setcover-coverage2 probes1 coverage by probes2 (default 1)[INT]")
-        print('  --setcover-earlystop2 minimum ratio of covered sequences to earlystop (default 0.99)[FLOAT]')
-        print('  --setcover-simscore2 maximum levenshtein score (default 20)[INT]')
-        print('  --setcover-repeats2 minimize probes randomly N iterations (default 10)[INT]')
-        quit()
+
+        # hidden args
+        # print(" PROBE1 MINIMIZING ")
+        # print("  --setcover-coverage1 genome coverage by probes1 (default 1)[INT]")
+        # print('  --setcover-earlystop1 minimum ratio of covered sequences to earlystop (default 0.9)[FLOAT]')
+        # print('  --setcover-simscore1 maximum levenshtein score (default 11)[INT]')
+        # print('  --setcover-repeats1 minimize probes randomly N iterations (default 1)[INT]')
+        # print(" PROBE2 MINIMIZING ")
+        # print("  --setcover-coverage2 probes1 coverage by probes2 (default 1)[INT]")
+        # print('  --setcover-earlystop2 minimum ratio of covered sequences to earlystop (default 0.99)[FLOAT]')
+        # print('  --setcover-simscore2 maximum levenshtein score (default 20)[INT]')
+        # print('  --setcover-repeats2 minimize probes randomly N iterations (default 10)[INT]')
+        # quit()
 
 
 class SNP:
     args = []
     shortParmas = 'hr:a:s:p:m:o:'
     longParams = [
-        'reference=', 'annotation=', 'strain=', 'positions=', 'mutations=', 'output=', '--probe-error=', 'help'
+        'reference=', 'annotation=', 'strain=', 'positions=', 'mutations=', 'output=', 'probe-error=',
+        'setcover-coverage=', 'setcover-earlystop=', 'setcover-simscore=', 'setcover-repeats=',
+        'search-kmer=', 'help'
     ]
-    setcoverParams = ['setcover-coverage=', 'setcover-earlystop=', 'setcover-simscore=', 'setcover-repeats=']
     refGenome = ''
     refGenomeAnnot = ''
     strGenome = ''
@@ -822,9 +827,10 @@ class SNP:
     setcoverRepeats = 10
     probeError = 1
     error = 1
+    kmer = 12
 
     def __init__(self, args):
-        self.args = getopt.getopt(args, self.shortParmas, self.longParams + self.setcoverParams)[0]
+        self.args = getopt.getopt(args, self.shortParmas, self.longParams)[0]
 
     @staticmethod
     def getArgList(value, isInt=False):
@@ -845,11 +851,12 @@ class SNP:
                 self.posList = self.getArgList(val, isInt=True) if opt in ('-p', '--positions') else self.posList
                 self.snpList = self.getArgList(val) if opt in ('-m', '--mutations') else self.snpList
                 self.probeError = int(val) if opt == '--probe-error' else self.probeError
-
+                # hidden args
                 self.setcoverCoverage = int(val) if opt == '--setcover-coverage' else self.setcoverCoverage
                 self.setcoverEarlyStop = float(val) if opt == '--setcover-earlystop' else self.setcoverEarlyStop
                 self.setcoverSimScore = int(val) if opt == '--setcover-simscore' else self.setcoverSimScore
                 self.setcoverRepeats = int(val) if opt == '--setcover-repeats' else self.setcoverRepeats
+                self.kmer = int(val) if opt == '--search-kmer' else self.kmer
 
             except Exception as e:
                 print(e)
@@ -885,7 +892,6 @@ class SNP:
         print(msg)
         with open(self.log, 'a') as w:
             w.write(msg+'\n')
-        
 
     def makeWorkDir(self):
         self.workDir = self.workDir + os.path.sep
@@ -900,7 +906,7 @@ class SNP:
         searchProbe = '{}blast.fa'.format(self.workDir)
         with open(searchProbe, 'w') as w:
             w.write('>{}\n{}\n'.format(mutation, seqWithSNP))
-        blastOutput, msg = ProbeitUtils.doBlastSearch(self.workDir, searchProbe, self.strGenome, 'blast.tsv')
+        blastOutput, msg = ProbeitUtils.searchMut(self.workDir, searchProbe, self.strGenome, 'blast.tsv', self.kmer)
         self.logUpdate(msg)
         return blastOutput
 
@@ -985,7 +991,7 @@ class SNP:
                     self.logUpdate('[ERROR]Failure to find SNP {} in reference genome'.format(snp))
                     continue
                 seqWithSNP = refSeq[codonStartPos - (maxPos-1): codonEndPos + (self.probLen1 - minPos)]
-                strainKmerNearSNP = self.getStrKmerNearSNP(mutation, seqWithSNP) #blast.fa
+                strainKmerNearSNP = self.getStrKmerNearSNP(mutation, seqWithSNP)  # blast.fa
                 df = pd.read_csv(strainKmerNearSNP, sep='\t', header=None)
                 df.columns = ['subGenome', 'SNPbyAA', 'match', 'STsequence']
                 try:
@@ -1087,6 +1093,7 @@ class SNP:
             self.probe2Window, self.indexDir, self.error, self.probLen2, self.workDir
         )
         dedupMappedCSV = ProbeitUtils.deDuplicateProbesCSV(mappedCSV, '{}uniq.genmap.csv'.format(self.workDir))
+        self.logUpdate('[INFO]minimize probe set')
         stdOut, stdErr = ProbeitUtils.setCover(
             self.setcoverCoverage,
             1,
@@ -1144,11 +1151,12 @@ class SNP:
         print("OPTIONAL")
         print(" -a|--annotation Annotation File of Reference Genome [GFF FILE]")
         print(" --probe-error error allowed in probe 2 (default 1)[INT]")
-        print(" MINIMIZING PROBE2")
-        print("--setcover-coverage The number of times each sequence should be covered (default 1)[INT]")
-        print("--setcover-earlystop minimum ratio of covered sequences to earlystop (default 0.99)[FLOAT]")
-        print("--setcover-simscore maximum levenshtein score (default 20)[INT]")
-        print("--setcover-repeats minimize probes randomly N iterations (default 10)[INT]")
+        # hidden args
+        # print(" MINIMIZING PROBE2")
+        # print("--setcover-coverage The number of times each sequence should be covered (default 1)[INT]")
+        # print("--setcover-earlystop minimum ratio of covered sequences to earlystop (default 0.99)[FLOAT]")
+        # print("--setcover-simscore maximum levenshtein score (default 20)[INT]")
+        # print("--setcover-repeats minimize probes randomly N iterations (default 10)[INT]")
         quit()
 
 

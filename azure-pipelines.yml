@@ -15,33 +15,25 @@ jobs:
       - script: echo "##vso[task.prependpath]$CONDA/bin"
         displayName: Add conda to PATH
       - script: |
-            echo  hello from Linux
-            echo  create env
-            conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
-            echo  activate env
+            echo HELLO FROM Linux
+            echo [process] create env
+            conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
+            echo [process] activate env
             source activate probeit
-            echo setcover outside python
+            conda info —envs
+            
+            echo [process] make setcover
             cd setcover
             make
-            ls -aR
             echo ====== makefile ======
             head -30 Makefile
             echo ====== makefile ======
             cd ..
-            conda info —envs
-            locale
-            echo  run probeit help
-            python probeit.py --help
-            python probeit.py posnegset --help
-            python probeit.py snp --help
-            echo  run probeit posnegset
+            
+            echo [process] run probeit posnegset
             python probeit.py posnegset -p sample/positive.fasta -n sample/negative.fasta -o posnegset1
-            head posnegset1/cluster/genomes.clu_rep_seq.fasta
-            echo  run probeit snp
+            echo [process] run probeit snp
             python probeit.py snp -r sample/ref.fasta -a sample/ref.gff -s sample/str.fasta  -p "10,11,19,20,21,22" -m "aa:orf1ab:L4715F,aa:S:Q52R,aa:S:E484K,aa:S:Q677H,aa:S:F888L,aa:E:L21F,aa:M:I82T" -o snp1
-            cd snp1
-            ls
-            head blast.tsv
 - job: macOS
   timeoutInMinutes: 120
   pool:
@@ -50,37 +42,28 @@ jobs:
       - script: echo "##vso[task.prependpath]$CONDA/bin"
         displayName: Add conda to PATH
 
-        # On Hosted macOS, the agent user doesn't have ownership of Miniconda's installation directory/
-        # We need to take ownership if we want to update conda or install packages globally
       - script: sudo chown -R $USER $CONDA
         displayName: Take ownership of conda installation
       - script: |
  
-            echo  hello from macOS
-            echo  create env
-            conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
-            echo  activate env
+            echo HELLO FROM MacOS
+            echo [process] create env
+            conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
+            echo [process] activate env
             source activate probeit
-            echo setcover outside python
+            conda info —envs
+            
+            echo [process] make setcover
             cd setcover
             make
-            ls -aR
             echo ====== makefile ======
             head -30 Makefile
             echo ====== makefile ======
             cd ..
-            conda info —envs
-            locale
-            echo  run probeit help
-            python probeit.py --help
-            python probeit.py posnegset --help
-            python probeit.py snp --help
-            echo  run probeit posnegset
+            
+            echo [process] run probeit posnegset
             python probeit.py posnegset -p sample/positive.fasta -n sample/negative.fasta -o posnegset2
-            head posnegset2/cluster/genomes.clu_rep_seq.fasta
-            echo  run probeit snp
+            echo [process] run probeit snp
             python probeit.py snp -r sample/ref.fasta -a sample/ref.gff -s sample/str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C,nt:A21716G" -o snp2
-            cd snp2
-            ls
-            head blast.tsv
+
 
