@@ -296,7 +296,7 @@ int main(int argc, char ** argv){
     int coverProbCnt = INT_MAX;
     std::vector<Probe> result;
     for(size_t i = 0; i < randIterations; i++){
-        std::random_shuffle ( probeSet.begin(), probeSet.end() );
+        // std::random_shuffle ( probeSet.begin(), probeSet.end() );
         std::vector<Probe> cover = setCover(probeSet, seqs, totalGenomes, minCovered, percentCoverd, distanceThreshhold);
         if(cover.size() < coverProbCnt){
             coverProbCnt = cover.size();
