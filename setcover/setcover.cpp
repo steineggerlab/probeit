@@ -298,7 +298,7 @@ int main(int argc, char ** argv){
     std::vector<Probe> result;
     for(size_t i = 0; i < randIterations; i++){
         
-        std::srand(50);
+//        std::srand(50);
         std::random_device rd;
         std::mt19937 g(rd());
         //        std::random_shuffle ( probeSet.begin(), probeSet.end(), g);
