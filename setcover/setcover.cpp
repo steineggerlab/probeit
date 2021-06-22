@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <limits.h>
 #include <unistd.h>
+#include <random>
 
 KSEQ_INIT(int, read)
 
@@ -296,7 +297,13 @@ int main(int argc, char ** argv){
     int coverProbCnt = INT_MAX;
     std::vector<Probe> result;
     for(size_t i = 0; i < randIterations; i++){
-        // std::random_shuffle ( probeSet.begin(), probeSet.end() );
+        
+        std::srand(50);
+        std::random_device rd;
+        std::mt19937 g(rd());
+        //        std::random_shuffle ( probeSet.begin(), probeSet.end(), g);
+        std::shuffle ( probeSet.begin(), probeSet.end(), g);
+        
         std::vector<Probe> cover = setCover(probeSet, seqs, totalGenomes, minCovered, percentCoverd, distanceThreshhold);
         if(cover.size() < coverProbCnt){
             coverProbCnt = cover.size();
