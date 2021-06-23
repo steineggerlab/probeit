@@ -263,7 +263,8 @@ std::vector<T> shuffle_vec(std::vector<T> input_vec, int seed){
     int pop;
     for (size_t i = 0; i < size; i++){
 //        std::cout << input_vec.size() << std::endl;
-        seed = seed * 1664525 + 1013904223;
+//        seed = seed * 1664525 + 1013904223;
+        seed = seed * 1664 + 101390;
         pop = (seed >> 24)%input_vec.size();
         shuffle_vec.push_back(input_vec[pop]);
         input_vec.erase(input_vec.begin()+pop);
