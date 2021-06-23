@@ -256,6 +256,21 @@ std::vector<Probe> readInSet(std::string &filePath, size_t & totalGenomes, int p
     return genomicSets;
 }
 
+template<typename T>
+std::vector<T> shuffle_vec(std::vector<T> input_vec, int seed){
+    int size = input_vec.size();
+    std::vector<T> shuffle_vec;
+    int pop;
+    for (size_t i = 0; i < size; i++){
+//        std::cout << input_vec.size() << std::endl;
+        seed = seed * 1664525 + 1013904223;
+        pop = (seed >> 24)%input_vec.size();
+        shuffle_vec.push_back(input_vec[pop]);
+        input_vec.erase(input_vec.begin()+pop);
+    }
+    return shuffle_vec;
+}
+
 int main(int argc, char ** argv){
     int minCovered = 1;
     int range = 1;
@@ -298,9 +313,10 @@ int main(int argc, char ** argv){
     std::vector<Probe> result;
     for(size_t i = 0; i < randIterations; i++){
         
-        std::mt19937 g(0);
-        //        std::random_shuffle ( probeSet.begin(), probeSet.end(), g);
-        std::shuffle ( probeSet.begin(), probeSet.end(), g);
+//        std::mt19937 g(0);
+//        //        std::random_shuffle ( probeSet.begin(), probeSet.end(), g);
+//        std::shuffle ( probeSet.begin(), probeSet.end(), g);
+        probeSet = shuffle_vec<Probe>(probeSet, 777);
         
         std::vector<Probe> cover = setCover(probeSet, seqs, totalGenomes, minCovered, percentCoverd, distanceThreshhold);
         if(cover.size() < coverProbCnt){
