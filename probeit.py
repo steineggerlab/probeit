@@ -309,34 +309,40 @@ class Probeit:
 class PosNegSet:
     args = []
     shortParams = 'hp:n:o:'
-    essLongParams = ['positive=', 'negative=', 'output=', 'help']
-    optLongParams = ['probe-len1=', 'probe-len2=', 'seq-id-cluster=', 'seq-id-probe=', 'probe-error1=', 'probe-error2=']
-    scLongPrams = [
-        "setcover-coverage1=", "setcover-earlystop1=", "setcover-simscore1=", "setcover-repeats1=",
-        "setcover-coverage2=", "setcover-earlystop2=", "setcover-simscore2=", "setcover-repeats2="
-    ]
+    longParams = [
+                    # usage
+                    'help',
+                    # required
+                    'positive=', 'negative=', 'output=',
+                    # optional
+                    'never-cluster-positive', 'probe-len1=', 'probe-len2=', 'probe-error1=', 'probe-error2=',
+                    'minimizing-covered1=', 'minimizing-covered2=', 'minimizing-repeats1=', 'minimizing-repeats2',
+                    'minimizing-earlystop-criteria1=', 'minimizing-earlystop-criteria2='
+                    # hidden
+                    'dedup-genome-identity=', 'rid-negative-identity=', 'minimizing-simscore1=', 'minimizing-simscore2='
+                    ]
     inputGenome = ''
     negGenome = ''
     workDir = ''
     probLen1 = 40
     probLen2 = 20
-    seqIdClust = 0.97  # for mmseqs linclust
-    seqIdSearch = 0.90   # for mmseqs easy-search
+    deDupGenomeIdentity = 0.97  # for mmseqs linclust
+    ridNegIdentity = 0.90   # for mmseqs easy-search
     probeError1 = 0
     probeError2 = 1
-    setcoverCoverage1 = 1
-    setcoverCoverage2 = 1
+    minzCovered1 = 1
+    minzCovered2 = 1
     needCluster = True
     window = 200
-    setcoverEarlyStop1 = 0.9
-    setcoverSimScore1 = 11
-    setcoverRepeats1 = 1
-    setcoverEarlyStop2 = 0.99
-    setcoverSimScore2 = 20
-    setcoverRepeats2 = 10
+    minzEarlyStop1 = 0.9
+    minzSimScore1 = 11
+    minzRepeats1 = 1
+    minzEarlyStop2 = 0.99
+    minzSimScore2 = 20
+    minzRepeats2 = 10
 
     def __init__(self, args):
-        self.args = getopt.getopt(args, self.shortParams, self.essLongParams + self.optLongParams + self.scLongPrams)[0]
+        self.args = getopt.getopt(args, self.shortParams, self.longParams)[0]
 
     def getPars(self):
         for opt, val in self.args:
@@ -346,23 +352,28 @@ class PosNegSet:
                 self.inputGenome = str(val) if opt in ('-p', '--positive') else self.inputGenome
                 self.negGenome = str(val) if opt in ('-n', '--negative') else self.negGenome
                 self.workDir = str(val) if opt in ('-o', '--output') else self.workDir
-
+                # optional args
+                self.needCluster = False if opt == '--never-cluster-positive' else self.needCluster
                 self.probLen1 = int(val) if opt == '--probe-len1' else self.probLen1
                 self.probLen2 = int(val) if opt == '--probe-len2' else self.probLen2
-                self.seqIdClust = float(val) if opt == '--seq-id-cluster' else self.seqIdClust
-                self.seqIdSearch = float(val) if opt == '--seq-id-probe' else self.seqIdSearch
                 self.probeError1 = int(val) if opt == '--probe-error1' else self.probeError1
                 self.probeError2 = int(val) if opt == '--probe-error2' else self.probeError2
-                self.needCluster = int(val) == 1 if opt == '--cluster' else self.needCluster
-                # hidden args
-                self.setcoverCoverage1 = int(val) if opt == '--setcover-coverage1' else self.setcoverCoverage1
-                self.setcoverCoverage2 = int(val) if opt == '--setcover-coverage2' else self.setcoverCoverage2
-                self.setcoverEarlyStop1 = float(val) if opt == '--setcover-earlystop1' else self.setcoverEarlyStop1
-                self.setcoverSimScore1 = int(val) if opt == '--setcover-simscore1' else self.setcoverSimScore1
-                self.setcoverRepeats1 = int(val) if opt == '--setcover-repeats1' else self.setcoverRepeats1
-                self.setcoverEarlyStop2 = float(val) if opt == '--setcover-earlystop2' else self.setcoverEarlyStop2
-                self.setcoverSimScore2 = int(val) if opt == '--setcover-simscore2' else self.setcoverSimScore2
-                self.setcoverRepeats2 = int(val) if opt == '--setcover-repeats2' else self.setcoverRepeats2
+                self.minzCovered1 = int(val) if opt == '--minimizing-covered1' else self.minzCovered1
+                self.minzCovered2 = int(val) if opt == '--minimizing-covered2' else self.minzCovered2
+                self.minzRepeats1 = int(val) if opt == '--minimizing-repeats1' else self.minzRepeats1
+                self.minzRepeats2 = int(val) if opt == '--minimizing-repeats2' else self.minzRepeats2
+                self.minzEarlyStop1 = float(val) if opt == '--minimizing-earlystop-criteria1' else self.minzEarlyStop1
+                self.minzEarlyStop2 = float(val) if opt == '--minimizing-earlystop-criteria2' else self.minzEarlyStop2
+                # HIDDEN args
+                # identity in mmseqs cluster
+                self.deDupGenomeIdentity = float(val) if opt == '--dedup-genome-identity' else self.deDupGenomeIdentity
+                # identity in mmeqs seqrch
+                self.ridNegIdentity = float(val) if opt == '--rid-negative-identity' else self.ridNegIdentity
+                # setcover similarity
+                self.minzSimScore1 = int(val) if opt == '--minimizing-simscore1' else self.minzSimScore1
+                self.minzSimScore2 = int(val) if opt == '--minimizing-simscore2' else self.minzSimScore2
+
+                
             except Exception as e:
                 print(e)
                 print("Your arguments: posnegset {}".format(ProbeitUtils.getUserArgs(self.args)))
@@ -583,7 +594,7 @@ class PosNegSet:
             self.logUpdate('[INFO]deduplicate positive fasta')
             if not os.path.exists(self.deDupGenome):
                 tempDir = self.dedupDir + 'temp' + os.path.sep
-                msg, err = ProbeitUtils.clusterGenome(posGenome, clustName, tempDir, self.seqIdClust)
+                msg, err = ProbeitUtils.clusterGenome(posGenome, clustName, tempDir, self.deDupGenomeIdentity)
                 self.logUpdate(msg + err)
                 ProbeitUtils.sortFasta(self.deDupGenome, self.dedupDir + 'sorted.fasta')
                 ProbeitUtils.renameFasta(self.dedupDir + 'sorted.fasta', self.deDupGenome)
@@ -609,7 +620,7 @@ class PosNegSet:
         self.logUpdate('[INFO]remove probes found in negative genome')
         negProbesCoords = self.maskingDir + 'mmseqs.search'
         if not os.path.exists(negProbesCoords):
-            ProbeitUtils.searchNegative(posProbes, self.negGenome, negProbesCoords, self.maskingDir, self.seqIdSearch)
+            ProbeitUtils.searchNegative(posProbes, self.negGenome, negProbesCoords, self.maskingDir, self.ridNegIdentity)
         # MAKE DEDUPLICATE GENOME POSITIONS
         deDupGenomeCoords = clustName + '_rep_seq.bed'
         with open(self.deDupGenome) as f:
@@ -665,11 +676,11 @@ class PosNegSet:
         if not os.path.exists(self.minimizedProbeSetResult1):
             self.logUpdate("[INFO]minimize probe set")
             msg, err = ProbeitUtils.setCover(
-                self.setcoverCoverage1,
+                self.minzCovered1,
                 self.probLen1,
-                self.setcoverEarlyStop1,
-                self.setcoverSimScore1,
-                self.setcoverRepeats1,
+                self.minzEarlyStop1,
+                self.minzSimScore1,
+                self.minzRepeats1,
                 uniqComMap1,
                 self.deDupGenome
             )
@@ -748,11 +759,11 @@ class PosNegSet:
         if not os.path.exists(self.minimizedProbeSetResult2):
             self.logUpdate("[INFO]minimize probe set")
             msg, err = ProbeitUtils.setCover(
-                self.setcoverCoverage2,
+                self.minzCovered2,
                 1,
-                self.setcoverEarlyStop2,
-                self.setcoverSimScore2,
-                self.setcoverRepeats2,
+                self.minzEarlyStop2,
+                self.minzSimScore2,
+                self.minzRepeats2,
                 uniqComMap2,
                 self.deDupGenome
             )
@@ -793,28 +804,25 @@ class PosNegSet:
 
     @staticmethod
     def printUsage():
+        print("Usage")
+        print(" -h|--help to see usage [NONE]")
+        print("python probeit.py -p [positive genome(fasta)]-n [negative genome(fasta)] -o [output dir]")
+        print("REQUIRED")
         print(" -p|--positive sequence set that should be covered[FASTA]")
         print(" -n|--negative sequence set that should be not contained[FASTA]")
         print(" -o|--output result output folder[DIR]")
         print("OPTIONAL")
-        print(" --seq-id-cluster clustering identity treshold (default 0.97)[FLOAT]")
-        print(" --seq-id-probe identity treshold to filter probes aligned to neg. set (default 0.90)[FLOAT]")
-        print(" --cluster cluster sequences (default 1)[0 or 1]")
-        print(" --probe-error1 error allowed in probe 1 (default 0)[INT]")
-        print(" --probe-error2 error allowed in probe 2 (default 1)[INT]")
-        print(" --probe-len1 length of first probe (default 40)[INT]")
-
-        # hidden args
-        # print(" PROBE1 MINIMIZING ")
-        # print("  --setcover-coverage1 genome coverage by probes1 (default 1)[INT]")
-        # print('  --setcover-earlystop1 minimum ratio of covered sequences to earlystop (default 0.9)[FLOAT]')
-        # print('  --setcover-simscore1 maximum levenshtein score (default 11)[INT]')
-        # print('  --setcover-repeats1 minimize probes randomly N iterations (default 1)[INT]')
-        # print(" PROBE2 MINIMIZING ")
-        # print("  --setcover-coverage2 probes1 coverage by probes2 (default 1)[INT]")
-        # print('  --setcover-earlystop2 minimum ratio of covered sequences to earlystop (default 0.99)[FLOAT]')
-        # print('  --setcover-simscore2 maximum levenshtein score (default 20)[INT]')
-        # print('  --setcover-repeats2 minimize probes randomly N iterations (default 10)[INT]')
+        print("--never-cluster-positive use this option if you don't need to cluster positive genome. [NONE]")
+        print("--probe-len1 length of probe1 (ligation probe) (default 40)[INT]")
+        print("--probe-len2 length of probe2 (capture probe) (default 20)[INT]")
+        print(" --probe-error1 error allowed in probe1 (ligation probe) (default 0)[INT]")
+        print(" --probe-error2 error allowed in probe2 (capture probe) (default 1)[INT]")
+        print("--minimizing-covered1 how many times should each positive seq be covered by probe1 while minimizing probe1 (default 1)[INT]")
+        print("--minimizing-covered2 how many times should each probe1 be covered by probe2 while minimizing probe2 (default 1)[INT]")
+        print("--minimizing-repeats1 randomly N iterations while minimizing probe1 (ligation probe) (default 1)[INT]")
+        print("--minimizing-repeats2 randomly N iterations while minimizing probe2 (capture probe) (default 10)[INT]")
+        print("--minimizing-earlystop-criteria1 proportion of positive seq covered by probe1 to earlysotp minimizing probe1 (default 0.9)[FLOAT]")
+        print("--minimizing-earlystop-criteria2 proportion of probe1 covered by probe2 to earlysotp minimizing probe2 (default 0.99)[FLOAT]")
         quit()
 
 
@@ -822,9 +830,15 @@ class SNP:
     args = []
     shortParmas = 'hr:a:s:p:m:o:'
     longParams = [
-        'reference=', 'annotation=', 'strain=', 'positions=', 'mutations=', 'output=', 'probe-error=',
-        'setcover-coverage=', 'setcover-earlystop=', 'setcover-simscore=', 'setcover-repeats=',
-        'search-kmer=', 'help'
+        # usage
+        'help',
+        # required
+        'reference=', 'strain=', 'positions=', 'mutations=', 'output=', 'annotation=',
+        # optional
+        'probe-len1=', 'probe-len2=', 'probe-error2=',
+        'minimizing-covered2=', 'minimizing-earlystop-criteria2=', 'minimizing-repeats2=',
+        # hidden
+        'setcover-simscore=', 'mutation-search-kmer='
     ]
     refGenome = ''
     refGenomeAnnot = ''
@@ -835,13 +849,12 @@ class SNP:
     window = 200
     probLen1 = 40
     probLen2 = 20
-    setcoverCoverage = 1
-    setcoverEarlyStop = 0.99
-    setcoverSimScore = 20
-    setcoverRepeats = 10
-    probeError = 1
-    error = 1
-    kmer = 12
+    minzCovered2 = 1
+    minzEarlyStop2 = 0.99
+    minimizingSimScore2 = 20
+    minzRepeats2 = 10
+    probeError2 = 1
+    kmerSizeForMutationSearch = 12
 
     def __init__(self, args):
         self.args = getopt.getopt(args, self.shortParmas, self.longParams)[0]
@@ -858,19 +871,23 @@ class SNP:
             if opt in ('-h', '--help'):
                 self.printUsage()
             try:
+                # required
                 self.refGenome = val if opt in ('-r', '--reference') else self.refGenome
-                self.refGenomeAnnot = val if opt in ('-a', '--annotation') else self.refGenomeAnnot
                 self.strGenome = val if opt in ('-s', '--strain') else self.strGenome
                 self.workDir = val if opt in ('-o', '--output') else self.workDir
                 self.posList = self.getArgList(val, isInt=True) if opt in ('-p', '--positions') else self.posList
                 self.snpList = self.getArgList(val) if opt in ('-m', '--mutations') else self.snpList
-                self.probeError = int(val) if opt == '--probe-error' else self.probeError
+                self.refGenomeAnnot = val if opt in ('-a', '--annotation') else self.refGenomeAnnot
+                # optional
+                self.probLen1 = int(val) if opt == '--probe-len1' else self.probLen1
+                self.probLen2 = int(val) if opt == '--probe-len2' else self.probLen2
+                self.probeError2 = int(val) if opt == '--probe-error2' else self.probeError2  # genmap map error
+                self.minzCovered2 = int(val) if opt == '--minimizing-covered2' else self.minzCovered2
+                self.minzEarlyStop2 = float(val) if opt == '--minimizing-earlystop-criteria2' else self.minzEarlyStop2
+                self.minzRepeats2 = int(val) if opt == '--minimizing-repeats2' else self.minzRepeats2
                 # hidden args
-                self.setcoverCoverage = int(val) if opt == '--setcover-coverage' else self.setcoverCoverage
-                self.setcoverEarlyStop = float(val) if opt == '--setcover-earlystop' else self.setcoverEarlyStop
-                self.setcoverSimScore = int(val) if opt == '--setcover-simscore' else self.setcoverSimScore
-                self.setcoverRepeats = int(val) if opt == '--setcover-repeats' else self.setcoverRepeats
-                self.kmer = int(val) if opt == '--search-kmer' else self.kmer
+                self.minimizingSimScore2 = int(val) if opt == '--minimizing-simscore2' else self.minimizingSimScore2
+                self.kmerSizeForMutationSearch = int(val) if opt == '--mutation-search-kmer' else self.kmerSizeForMutationSearch
 
             except Exception as e:
                 print(e)
@@ -930,7 +947,9 @@ class SNP:
         searchProbe = '{}blast.fa'.format(self.blastDir)
         with open(searchProbe, 'w') as w:
             w.write('>{}\n{}\n'.format(mutation, seqWithSNP))
-        blastOutput, msg = ProbeitUtils.searchMut(self.blastDir, searchProbe, self.strGenome, 'blast.tsv', self.kmer)
+        blastOutput, msg = ProbeitUtils.searchMut(
+            self.blastDir, searchProbe, self.strGenome, 'blast.tsv', self.kmerSizeForMutationSearch
+        )
         self.logUpdate(msg)
         return blastOutput
 
@@ -984,7 +1003,7 @@ class SNP:
         except Exception:
             return False
 
-    def setProbesByPos(self):
+    def makeProbesByPos(self):
         self.probesByPos = {pos: [] for pos in self.posList + [-1]}
         minPos = min(self.posList)
         maxPos = max(self.posList)
@@ -1117,16 +1136,16 @@ class SNP:
         lookup = ProbeitUtils.makeLookup(self.probe2Window, self.input2Dir + 'name.lookup')
         ProbeitUtils.delDir(self.indexDir)
         mappedCSV = ProbeitUtils.computeMappability(
-            self.probe2Window, self.indexDir, self.error, self.probLen2, self.mapping2Dir
+            self.probe2Window, self.indexDir, self.probeError2, self.probLen2, self.mapping2Dir
         )
         dedupMappedCSV = ProbeitUtils.deDuplicateProbesCSV(mappedCSV, '{}uniq.genmap.csv'.format(self.mapping2Dir))
         self.logUpdate('[INFO]minimize probe set')
         stdOut, stdErr = ProbeitUtils.setCover(
-            self.setcoverCoverage,
+            self.minzCovered2,
             1,
-            self.setcoverEarlyStop,
-            self.setcoverSimScore,
-            self.setcoverRepeats,
+            self.minzEarlyStop2,
+            self.minimizingSimScore2,
+            self.minzRepeats2,
             dedupMappedCSV,
             self.probe2Window
         )
@@ -1160,7 +1179,7 @@ class SNP:
         self.makeWorkDir()
         self.logUpdate('[INFO]Your arguments: snp ' + ProbeitUtils.getUserArgs(self.args) + '\n')
         self.logUpdate("[INFO]make 1st probes")
-        self.setProbesByPos()
+        self.makeProbesByPos()
         self.make1stProbe()
         self.logUpdate("[INFO]make 2nd probes")
         self.make2ndWindow()
@@ -1177,15 +1196,14 @@ class SNP:
         print(" -o|--output Directory for Output Data [DIR]")
         print(" -p|--positions Positions for First Probes [Comma Separated INT ARRAY]")
         print(" -m|--mutations SNPs the strain of Interest has [Comma Separated SNP ARRAY]")
+        print(" -a|--annotation Annotation File of Reference Genome. only needed for aa SNPs [GFF FILE]")
         print("OPTIONAL")
-        print(" -a|--annotation Annotation File of Reference Genome [GFF FILE]")
-        print(" --probe-error error allowed in probe 2 (default 1)[INT]")
-        # hidden args
-        # print(" MINIMIZING PROBE2")
-        # print("--setcover-coverage The number of times each sequence should be covered (default 1)[INT]")
-        # print("--setcover-earlystop minimum ratio of covered sequences to earlystop (default 0.99)[FLOAT]")
-        # print("--setcover-simscore maximum levenshtein score (default 20)[INT]")
-        # print("--setcover-repeats minimize probes randomly N iterations (default 10)[INT]")
+        print("--probe-len1 length of probe1 (ligation probe) (default 40)[INT]")
+        print("--probe-len2 length of probe2 (capture probe) (default 20)[INT]")
+        print(" --probe-error2 error allowed in probe2 (capture probe) (default 1)[INT]")
+        print("--minimizing-covered2 how many times should each probe1 be covered by probe2 while minimizing probe2 (default 1)[INT]")
+        print("--minimizing-repeats2 randomly N iterations while minimizing probe2 (capture probe) (default 10)[INT]")
+        print("--minimizing-earlystop-criteria2 proportion of probe1 covered by probe2 to earlysotp minimizing probe2 (default 0.99)[FLOAT]")
         quit()
 
 
