@@ -912,15 +912,25 @@ class SNP:
         self.tempDir = self.workDir + 'temp' + os.path.sep
         self.log = self.workDir + 'log.txt'
         self.indexDir = self.workDir + 'index'
+        self.blastDir = self.workDir + 'blast' + os.path.sep
+        self.probe1byPosDir = self.workDir + 'porbe1byPos' + os.path.sep
+        self.input2Dir = self.workDir + 'input2' + os.path.sep
+        self.mapping2Dir = self.workDir + 'mapping2' + os.path.sep
+        self.setcover2Dir = self.workDir + 'setcover2' + os.path.sep
         ProbeitUtils.delDir(self.workDir)
         os.makedirs(self.workDir)
         os.makedirs(self.tempDir)
+        os.makedirs(self.blastDir)
+        os.makedirs(self.probe1byPosDir)
+        os.makedirs(self.input2Dir)
+        os.makedirs(self.mapping2Dir)
+        os.makedirs(self.setcover2Dir)
 
     def getStrKmerNearSNP(self, mutation, seqWithSNP):
-        searchProbe = '{}blast.fa'.format(self.workDir)
+        searchProbe = '{}blast.fa'.format(self.blastDir)
         with open(searchProbe, 'w') as w:
             w.write('>{}\n{}\n'.format(mutation, seqWithSNP))
-        blastOutput, msg = ProbeitUtils.searchMut(self.workDir, searchProbe, self.strGenome, 'blast.tsv', self.kmer)
+        blastOutput, msg = ProbeitUtils.searchMut(self.blastDir, searchProbe, self.strGenome, 'blast.tsv', self.kmer)
         self.logUpdate(msg)
         return blastOutput
 
@@ -1059,7 +1069,7 @@ class SNP:
     def make1stProbe(self):
         probeLines = []
         for pos in self.posList:
-            probCSV = '{}pos{}.csv'.format(self.workDir, pos)
+            probCSV = '{}pos{}.csv'.format(self.probe1byPosDir, pos)
             csvWriter = open(probCSV, 'w')
             csvWriter.write('WT sequence,ST sequence,found,ntSNP,aaSNP\n')
             for probs in self.probesByPos[pos]:
@@ -1086,8 +1096,8 @@ class SNP:
 
     def make2ndWindow(self):
         # FILE NAMES
-        snpNearprobes = '{}SNP.pattern.fasta'.format(self.workDir)
-        snpMaskedBed = '{}SNP.masked.bed'.format(self.workDir)
+        snpNearprobes = '{}SNP.pattern.fasta'.format(self.input2Dir)
+        snpMaskedBed = '{}SNP.masked.bed'.format(self.input2Dir)
         # USING PROBEs AND STRAIN GENOME MAKE PROBEs MASK TSV
         with open(snpNearprobes, 'w') as w:
             w.writelines(
@@ -1100,16 +1110,16 @@ class SNP:
         # MAKE PROBEs MAKSED FASTA
         self.probe2Window = ProbeitUtils.getWindowFasta(
             self.strGenome, snpMaskedBed,
-            self.workDir + 'SNP.masked.fasta',
-            self.workDir + 'window.bed',
-            self.workDir + '2nd.input.fasta'
+            self.input2Dir + 'SNP.masked.fasta',
+            self.input2Dir + 'window.bed',
+            self.input2Dir + '2nd.input.fasta'
         )
-        lookup = ProbeitUtils.makeLookup(self.probe2Window, self.workDir + 'name.lookup')
+        lookup = ProbeitUtils.makeLookup(self.probe2Window, self.input2Dir + 'name.lookup')
         ProbeitUtils.delDir(self.indexDir)
         mappedCSV = ProbeitUtils.computeMappability(
-            self.probe2Window, self.indexDir, self.error, self.probLen2, self.workDir
+            self.probe2Window, self.indexDir, self.error, self.probLen2, self.mapping2Dir
         )
-        dedupMappedCSV = ProbeitUtils.deDuplicateProbesCSV(mappedCSV, '{}uniq.genmap.csv'.format(self.workDir))
+        dedupMappedCSV = ProbeitUtils.deDuplicateProbesCSV(mappedCSV, '{}uniq.genmap.csv'.format(self.mapping2Dir))
         self.logUpdate('[INFO]minimize probe set')
         stdOut, stdErr = ProbeitUtils.setCover(
             self.setcoverCoverage,
@@ -1120,14 +1130,14 @@ class SNP:
             dedupMappedCSV,
             self.probe2Window
         )
-        setcoverResult = self.workDir + 'result'
+        setcoverResult = self.setcover2Dir + 'result'
         self.logUpdate(stdOut)
         with open(setcoverResult, 'w') as w:
             w.write(stdOut)
-        self.setcoverResultBed = ProbeitUtils.makeSetcoverResultBed(lookup, setcoverResult, self.workDir + 'result.bed')
+        self.setcoverResultBed = ProbeitUtils.makeSetcoverResultBed(lookup, setcoverResult, self.setcover2Dir + 'result.bed')
 
     def make2ndProbe(self):
-        tempProbe2 = '{}{}mer.fasta'.format(self.workDir, self.probLen2)
+        tempProbe2 = '{}temp{}mer.fasta'.format(self.workDir, self.probLen2)
         self.probe2 = self.workDir + 'probe2.fa'
         ProbeitUtils.getSubseqFasta(self.setcoverResultBed, self.probe2Window, tempProbe2)
         maskDF = pd.read_csv(self.lookupTSV, sep='\t')
