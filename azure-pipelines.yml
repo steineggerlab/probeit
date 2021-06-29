@@ -67,6 +67,7 @@ jobs:
             echo [process] create env
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
             echo [process] activate env
+            eval "$(conda shell.bash hook)"
             conda activate probeit
             conda info —envs
             
