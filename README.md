@@ -35,17 +35,17 @@ python probeit.py posnegset -p [positive genome] -n [negative genome] -o [output
 **negative genome** is the name of the genome file **NOT** to be included in the probes, and it should be in fasta format.
 **Output directory** means the name of directory for output files and Probeit posnegset workflow will make a new directory with that name. 
 ###### [Optional]
---never-cluster-positive use this option if you don't need to cluster positive genome. [NONE]       
---probe-len1 length of probe1 (ligation probe) (default 40)[INT]      
---probe-len2 length of probe2 (capture probe) (default 20)[INT]      
- --probe-error1 error allowed in probe1 (ligation probe) (default 0)[INT]            
- --probe-error2 error allowed in probe2 (capture probe) (default 1)[INT]                       
---minimizing-covered1 how many times should each positive seq be covered by probe1 while minimizing probe1 (default 1)[INT]                                
---minimizing-covered2 how many times should each probe1 be covered by probe2 while minimizing probe2 (default 1)[INT]                           
---minimizing-repeats1 randomly N iterations while minimizing probe1 (ligation probe) (default 1)[INT]                       
---minimizing-repeats2 randomly N iterations while minimizing probe2 (capture probe) (default 10)[INT]                                
---minimizing-earlystop-criteria1 proportion of positive seq covered by probe1 to earlysotp minimizing. probe1 (default 0.9)[FLOAT]                                  
---minimizing-earlystop-criteria2 proportion of probe1 covered by probe2 to earlysotp minimizing probe2 (default 0.99)[FLOAT]                                              
+- **--never-cluster-positive** option for use this option if you don't need to cluster positive genome. [NONE]       
+- **--probe-len1** option for length of probe1 (ligation probe) (default 40)[INT]       
+- **--probe-len2** option for length of probe2 (capture probe) (default 20)[INT]      
+- **--probe-error1** option for error allowed in probe1 (ligation probe) (default 0)[INT]            
+- **--probe-error2** option for error allowed in probe2 (capture probe) (default 1)[INT]                       
+- **--minimizing-covered1** option for how many times should each positive seq be covered by probe1 while minimizing probe1 (default 1)[INT]                                
+- **--minimizing-covered2** option for how many times should each probe1 be covered by probe2 while minimizing probe2 (default 1)[INT]                           
+- **--minimizing-repeats1** option for randomly N iterations while minimizing probe1 (ligation probe) (default 1)[INT]                       
+- **--minimizing-repeats2** option for randomly N iterations while minimizing probe2 (capture probe) (default 10)[INT]                                
+- **--minimizing-earlystop-criteria1** option for proportion of positive seq covered by probe1 to earlysotp minimizing. probe1 (default 0.9)[FLOAT]                                  
+- **--minimizing-earlystop-criteria2** option for proportion of probe1 covered by probe2 to earlysotp minimizing probe2 (default 0.99)[FLOAT]                                              
 
 ##### Probes generating for genotyping. 
 For genotyping Probeit snp is available. The snp workflow extracts sequences containing a snp from a strain genome.
@@ -60,10 +60,10 @@ The positions in the **position list** indicate the positions of snp in the liga
 **Output directory** means the name of directory for output files and Probeit snp workflow will make a new directory with that name. 
 **Reference annotation** means the wildtype genome annotation file and it must be in GFF format, and it is only needed when mutations are written at the amino acid level. It is only needed when you input SNPs in amino acid level.
 ###### [Optional]
- --probe-len1 length of probe1 (ligation probe) (default 40)[INT]                           
---probe-len2 length of probe2 (capture probe) (default 20)[INT]                           
---probe-error2 error allowed in probe2 (capture probe) (default 1)[INT]                                                     
---minimizing-covered2 how many times should each probe1 be covered by probe2 while minimizing probe2 (default 1)[INT]                                                     
---minimizing-repeats2 randomly N iterations while minimizing probe2 (capture probe) (default 10)[INT]                                            
---minimizing-earlystop-criteria2 proportion of probe1 covered by probe2 to earlysotp minimizing probe2 (default 0.99)[FLOAT]                                                 
+-  **--probe-len1** option for length of probe1 (ligation probe) (default 40)[INT]                           
+- **--probe-len2** option for length of probe2 (capture probe) (default 20)[INT]                           
+- **--probe-error2** option for error allowed in probe2 (capture probe) (default 1)[INT]                                                     
+- **--minimizing-covered2** option forhow many times should each probe1 be covered by probe2 while minimizing probe2 (default 1)[INT]                                                     
+- **--minimizing-repeats2** option for randomly N iterations while minimizing probe2 (capture probe) (default 10)[INT]                                            
+- **--minimizing-earlystop-criteria2** option for proportion of probe1 covered by probe2 to earlysotp minimizing probe2 (default 0.99)[FLOAT]                                                 
 
