@@ -4,66 +4,101 @@ Probeit is a software to generate probes which are for pathogen detection and ge
 ### Publication
 
 ### Installation
-```sh
-# to get source code of probeit 
+##### To get source code of Probeit
+```
 # move to the directory where you want to install probeit.
 git clone https://github.com/steineggerlab/probeit.git
 cd probeit
-
-# to create probeit environment
+```
+##### To create probeit environment
+```
 conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct fire primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython
-
-# to initiate setcover
-cd set cover
+```
+##### To initiate setcover
+```
+cd setcover
 make
 cd ..
-
-# Before run probeit 
-conda activate probeit  
-# or ...
-source activate probeit
 ```
+##### Before run probeit 
+```
+conda activate probeit  
+```
+
 ### Getting started
 We provide 2 types of workflows: posnegset for detection and snp for genotyping.
-##### Probes generating for detection
+#### **Probes generating for detection**
 For generating probes for detection Probeit posnegset is available. The posnegset  workflow finds sequences that are included in the positive genome but not included in the negative genome.
-```sh
-python probeit.py posnegset -p [positive genome] -n [negative genome] -o [output directory]
+##### Easy User's Guide
+You can use some data in **probeit/sample** to test Probeit posnegset
 ```
-###### [Essential]
-**Positive genome** is the name of the genome file to be included in the probes, and it should be in fasta format.
-**negative genome** is the name of the genome file **NOT** to be included in the probes, and it should be in fasta format.
-**Output directory** means the name of directory for output files and Probeit posnegset workflow will make a new directory with that name. 
-###### [Optional]
-- **--never-cluster-positive** option for use this option if you don't need to cluster positive genome. [NONE]       
-- **--probe-len1** option for length of probe1 (ligation probe) (default 40)[INT]       
-- **--probe-len2** option for length of probe2 (capture probe) (default 20)[INT]      
-- **--probe-error1** option for error allowed in probe1 (ligation probe) (default 0)[INT]            
-- **--probe-error2** option for error allowed in probe2 (capture probe) (default 1)[INT]                       
-- **--minimizing-covered1** option for how many times should each positive seq be covered by probe1 while minimizing probe1 (default 1)[INT]                                
-- **--minimizing-covered2** option for how many times should each probe1 be covered by probe2 while minimizing probe2 (default 1)[INT]                           
-- **--minimizing-repeats1** option for randomly N iterations while minimizing probe1 (ligation probe) (default 1)[INT]                       
-- **--minimizing-repeats2** option for randomly N iterations while minimizing probe2 (capture probe) (default 10)[INT]                                
-- **--minimizing-earlystop-criteria1** option for proportion of positive seq covered by probe1 to earlysotp minimizing. probe1 (default 0.9)[FLOAT]                                  
-- **--minimizing-earlystop-criteria2** option for proportion of probe1 covered by probe2 to earlysotp minimizing probe2 (default 0.99)[FLOAT]                                              
+python probeit.py posnegset -p sample/positive.fasta -n sample/negative.fasta -o posnegset_output [additional opts]
+```
+##### Required Options
+###### **-p/--positive** FASTA file 
+Option for the genome which **MUST** be covered by the probes.
+###### **-n/--negative** FASTA file
+Option for the genome which **MUST NOT** to be covered by the probes. 
+###### **-o/--output** Dir
+Option for the output directory. Because Probeit posnegset workflow makes a new directory with given name, you don't have to create a directory. 
 
-##### Probes generating for genotyping. 
+##### Additional Options
+###### **--never-cluster-positive** NONE
+When you **DO NOT** need to cluster positive genome, you can use this option.      
+###### **--probe-len1** INT [40]
+Option for length of Lig Probes. 
+###### **--probe-len2** INT [20]
+Option for length of Cap Probes.      
+###### **--probe-error1** INT [0] 
+Option for the number of error allowed in Lig Probes.            
+###### **--probe-error2** INT [1] 
+Option for the number of error allowed in Cap Probes.                         
+###### **--minimizing-covered1** INT [1]
+Option for the number of times each seq from positive genome should be covered by Lig Probes    
+###### **--minimizing-covered2** INT [1]
+Option for the number of times each Lig Probe should be covered by Cap Probes                               
+###### **--minimizing-repeats1** INT [1] 
+Option for the number of random iterations when minimizing Lig Probes.     
+###### **--minimizing-repeats2** INT [10] 
+Option for the number of random iterations when minimizing Cap Probes.                           
+###### **--minimizing-earlystop-criteria1** FLOAT [0.9]
+Option for proportion of seqs from positive genome covered by Lig Probes for earlystop upon minimizing of Lig Probes.                              
+###### **--minimizing-earlystop-criteria2** FLOAT [0.99]
+Option for proportion of Lig Probes covered by Cap Probes for earlystop upon minimizing of Cap Probes.  
+#### **Probes generating for genotyping** 
 For genotyping Probeit snp is available. The snp workflow extracts sequences containing a snp from a strain genome.
-```sh
-python probeit.py snp  -r [reference genome] -s [strain genome]  -p [position list] -m [mutation list]  -o [output directory] -a [reference annotation]
+##### Easy User's Guide
+You can use some data in **probeit/sample** to test Probeit snp
 ```
-###### [Essential]
-**Reference genome** means the name of the. wildtype genome file and it must be in fasta format.
-**Strain genome** means the name of the strain genome file and it must be in fasta format.
-The positions in the **position list** indicate the positions of snp in the ligation probe. This must be a list of integers. ex) ”10,21,31”
-**Mutation list** means the snp list of the strain. snps can be written at the amino acid or nucleotide level. ex) ”aa:orf1ab:L4715F,nt:A21716G”
-**Output directory** means the name of directory for output files and Probeit snp workflow will make a new directory with that name. 
-**Reference annotation** means the wildtype genome annotation file and it must be in GFF format, and it is only needed when mutations are written at the amino acid level. It is only needed when you input SNPs in amino acid level.
-###### [Optional]
--  **--probe-len1** option for length of probe1 (ligation probe) (default 40)[INT]                           
-- **--probe-len2** option for length of probe2 (capture probe) (default 20)[INT]                           
-- **--probe-error2** option for error allowed in probe2 (capture probe) (default 1)[INT]                                                     
-- **--minimizing-covered2** option forhow many times should each probe1 be covered by probe2 while minimizing probe2 (default 1)[INT]                                                     
-- **--minimizing-repeats2** option for randomly N iterations while minimizing probe2 (capture probe) (default 10)[INT]                                            
-- **--minimizing-earlystop-criteria2** option for proportion of probe1 covered by probe2 to earlysotp minimizing probe2 (default 0.99)[FLOAT]                                                 
+python probeit.py snp  -r sample/ref.fasta -s str.fasta  -p "10,11,19,20,21,22" -m "aa:orf1ab:L4715F,aa:S:Q52R,aa:S:E484K,aa:S:Q677H,aa:S:F888L,aa:E:L21F,aa:M:I82T"  -o snp_aa_output -a ref.gff [additional opts]
+```
+```
+python probeit.py snp  -r sample/ref.fasta -s str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C,nt:A21716G"  -o snp_nt_output -a ref.gff [additional opts]
+```
 
+##### Required Options
+###### **-r/--reference** FASTA file
+Option for the wildtype(reference) genome. 
+###### **-s/--strain** FASTA file
+Option for the strain genome.  format** as a parameter.
+###### **-p/--positions** COMMA SEPARATED INT ARRAY
+Option for The position list. Positons in the position list indicate the positions of SNPs in the Lig Probes(or, ligation probe).  
+###### **-m/--mutations** COMMA SEPARATED SNP ARRAY
+Option for SNP list of the strain. Both amino acid differences and nucleotide differences are allowed. 
+###### **-o/--output** DIR
+Option for the output directory.Because Probeit snp workflow makes a new directory with given name, you don't have to create a directory. 
+###### **-a/--annotation** GFF file
+Option for wild-type genome annotation. Only required when using amino acid differences in the -m option.
+##### Additional Options
+###### **--probe-len1** INT [40]
+Option for length of Lig Probes. 
+###### **--probe-len2** INT [20]
+Option for length of Cap Probes. 
+###### **--probe-error2** INT [1] 
+Option for the number of error allowed in Cap Probes.   
+###### **--minimizing-covered2** INT [1]
+Option for the number of times each Lig Probe should be covered by Cap Probes                                           
+###### **--minimizing-repeats2** INT [10] 
+Option for the number of random iterations when minimizing Cap Probes.                           
+###### **--minimizing-earlystop-criteria2** FLOAT [0.99]
+Option for proportion of Lig Probes covered by Cap Probes for earlystop upon minimizing of Cap Probes. 
