@@ -39,6 +39,7 @@ class ParaSeqs:
         return isSameClass and isSameNtSNP and isSameWtSeq and isSameStSeq
 
     def getProbesWithPos(self, pos):
+        # print(pos,  self.mutLoc)
         return (
             self.wtSeq[self.mutLoc - pos + 1:self.mutLoc - pos + self.probLen + 1],
             self.stSeq[self.mutLoc - pos + 1:self.mutLoc - pos + self.probLen + 1]
@@ -122,11 +123,11 @@ class ProbeitUtils:
         return windowFasta
 
     @classmethod
-    def makeLookup(cls, windowFasta, lookup, needOnly1stCol=False):
+    def makeLookup(cls, windowFasta, lookup, simpleGenome=False):
         if os.path.exists(lookup):
             return lookup
         with open(windowFasta) as f:
-            if needOnly1stCol:
+            if simpleGenome:
                 headers = [title.split()[0].strip() for title, seq in SimpleFastaParser(f)]
             else:
                 headers = [title.strip() for title, seq in SimpleFastaParser(f)]
@@ -136,7 +137,7 @@ class ProbeitUtils:
         return lookup
 
     @classmethod
-    def searchMut(cls, workDir, inputFasta, strGenomeFasta, resultTSV, kmer=12):
+    def searchSNPs(cls, workDir, inputFasta, strGenomeFasta, resultTSV, kmer=12):
         searchDir = workDir + 'search' + os.path.sep
         tempDir = searchDir + 'temp' + os.path.sep
         resultTSV = workDir + resultTSV
@@ -191,7 +192,7 @@ class ProbeitUtils:
         return stdOut, stdErr
 
     @classmethod
-    def deDuplicateProbesCSV(cls, inputCSV, outputCSV):
+    def deDuplicateMapCSV(cls, inputCSV, outputCSV):
         def deduplicate(kmers):
             prevIndex = []
             newKmers = []
@@ -236,16 +237,15 @@ class ProbeitUtils:
         return outputCSV
 
     @classmethod
-    def setCover(cls, coverage, length, proportion, distance, iteration, deDuplicatedCSV, windowFasta):
-        command = (
-            "./setcover/setcover -c {} -l {} -p {} -d {} -i {} {} {}"
-            .format(coverage, length, proportion, distance, iteration, deDuplicatedCSV, windowFasta)
-        )
-        stdOut, stdErr = cls.runCommand(command, verbose=True)
+    def setCover(cls, coverage, length, eStop, dist, reps, mapCSV, genome):
+        filePath = os.path.sep.join(os.path.realpath(__file__).split(os.path.sep)[:-1])
+        setcoverPath = '{}{}{}{}{}'.format(filePath, os.path.sep, 'setcover', os.path.sep, 'setcover')
+        command = " -c {} -l {} -p {} -d {} -i {} {} {}".format(coverage, length, eStop, dist, reps, mapCSV, genome)
+        stdOut, stdErr = cls.runCommand(setcoverPath + command, verbose=True)
         return stdOut, stdErr
 
     @classmethod
-    def makeSetcoverResultBed(cls, lookup, setcoverResult, setcoverResultBed):
+    def makeMinzProbeBed(cls, lookup, setcoverResult, setcoverResultBed, probeLen):
         genomeAndIdx = dict()
         with open(lookup) as f1:
             for line in f1:
@@ -258,7 +258,7 @@ class ProbeitUtils:
                     matchedKmers = line.split(';')[1].strip()
                     genome = line.split(';')[0].split(',')[0]
                     pos = line.split(';')[0].split(',')[1]
-                    w.write('\t'.join([genomeAndIdx[genome], pos, str(int(pos) + 20), matchedKmers]) + '\n')
+                    w.write('\t'.join([genomeAndIdx[genome], pos, str(int(pos) + probeLen), matchedKmers]) + '\n')
         return setcoverResultBed
 
     @classmethod
@@ -269,6 +269,54 @@ class ProbeitUtils:
     def sortFile(cls, inputFile, outputFile):
         command = 'sort {} > {}'.format(inputFile, outputFile)
         cls.runCommand(command)
+        cls.runCommand(command)
+
+    @staticmethod
+    def simplifyFastaHeaders(inputFasta, outputFasta):
+        with open(inputFasta) as f:
+            with open(outputFasta, 'w') as w:
+                for title, seq in SimpleFastaParser(f):
+                    w.write(('>' + title).split()[0].strip() + '\n')
+                    w.write(seq + '\n')
+
+    @classmethod
+    def makeProbe(
+            cls, indexDir, mapDir, mapError, probLen, window, genome, lookup, probe, minzResult, minzBed,
+            minzCovered, minzLen, minzEarlyStop, minzSimScore, minzRepeats, selector='',
+    ):
+        # COMPUTEMAPPABILITY
+        message = ''
+        message += '[INFO]compute mappability'
+        comMap = ProbeitUtils.computeMappability(window, indexDir, mapError, probLen, mapDir, selector)
+        message += '[INFO]deduplicate genmap result'
+        uniqComMap = ProbeitUtils.deDuplicateMapCSV(comMap, mapDir + 'uniq.genmap.csv')
+
+        # SETCOVER
+        message += "[INFO]minimize probe set"
+        msg, err = ProbeitUtils.setCover(
+            minzCovered,
+            minzLen,
+            minzEarlyStop,
+            minzSimScore,
+            minzRepeats,
+            uniqComMap,
+            genome
+        )
+        message += msg
+        message += err
+        with open(minzResult, 'w') as w:
+            w.write(msg)
+
+        # MAKE PROBEs
+        ProbeitUtils.makeMinzProbeBed(lookup, minzResult, minzBed, probLen)
+        ProbeitUtils.getSubseqFasta(minzBed, genome, probe)
+        return message
+
+    @staticmethod
+    def parseGenmapPattern(header):
+        p1 = re.compile('[0-9]+,')
+        p2 = re.compile(',[0-9]+')
+        return [int(i[:-1]) for i in p1.findall(header)], [int(i[1:]) for i in p2.findall(header)]
 
 
 class Probeit:
@@ -310,30 +358,30 @@ class PosNegSet:
     args = []
     shortParams = 'hp:n:o:'
     longParams = [
-                    # usage
-                    'help',
-                    # required
-                    'positive=', 'negative=', 'output=',
-                    # optional
-                    'never-cluster-positive', 'probe-len1=', 'probe-len2=', 'probe-error1=', 'probe-error2=',
-                    'minimizing-covered1=', 'minimizing-covered2=', 'minimizing-repeats1=', 'minimizing-repeats2',
-                    'minimizing-earlystop-criteria1=', 'minimizing-earlystop-criteria2='
-                    # hidden
-                    'dedup-genome-identity=', 'rid-negative-identity=', 'minimizing-simscore1=', 'minimizing-simscore2='
-                    ]
+        # usage
+        'help',
+        # required
+        'positive=', 'negative=', 'output=',
+        # optional
+        'never-cluster-positive', 'probe-len1=', 'probe-len2=', 'probe-error1=', 'probe-error2=',
+        'minimizing-covered1=', 'minimizing-covered2=', 'minimizing-repeats1=', 'minimizing-repeats2',
+        'minimizing-earlystop-criteria1=', 'minimizing-earlystop-criteria2='
+        # hidden
+        'dedup-genome-identity=', 'rid-negative-identity=', 'minimizing-simscore1=', 'minimizing-simscore2='
+    ]
     inputGenome = ''
     negGenome = ''
     workDir = ''
-    probLen1 = 40
-    probLen2 = 20
+    probeLen1 = 40
+    probeLen2 = 20
     deDupGenomeIdentity = 0.97  # for mmseqs linclust
     ridNegIdentity = 0.90   # for mmseqs easy-search
-    probeError1 = 0
-    probeError2 = 1
+    mapError1 = 0
+    mapError2 = 1
     minzCovered1 = 1
     minzCovered2 = 1
     needCluster = True
-    window = 200
+    windowSize = 200
     minzEarlyStop1 = 0.9
     minzSimScore1 = 11
     minzRepeats1 = 1
@@ -354,10 +402,10 @@ class PosNegSet:
                 self.workDir = str(val) if opt in ('-o', '--output') else self.workDir
                 # optional args
                 self.needCluster = False if opt == '--never-cluster-positive' else self.needCluster
-                self.probLen1 = int(val) if opt == '--probe-len1' else self.probLen1
-                self.probLen2 = int(val) if opt == '--probe-len2' else self.probLen2
-                self.probeError1 = int(val) if opt == '--probe-error1' else self.probeError1
-                self.probeError2 = int(val) if opt == '--probe-error2' else self.probeError2
+                self.probeLen1 = int(val) if opt == '--probe-len1' else self.probeLen1
+                self.probeLen2 = int(val) if opt == '--probe-len2' else self.probeLen2
+                self.mapError1 = int(val) if opt == '--probe-error1' else self.mapError1
+                self.mapError2 = int(val) if opt == '--probe-error2' else self.mapError2
                 self.minzCovered1 = int(val) if opt == '--minimizing-covered1' else self.minzCovered1
                 self.minzCovered2 = int(val) if opt == '--minimizing-covered2' else self.minzCovered2
                 self.minzRepeats1 = int(val) if opt == '--minimizing-repeats1' else self.minzRepeats1
@@ -405,16 +453,16 @@ class PosNegSet:
         self.thermoFilteringDir = self.workDir + 'filter' + os.path.sep
         self.mapDir1 = self.workDir + 'mapping_probe1' + os.path.sep
         self.indexDir1 = self.workDir + 'index_probe1' + os.path.sep
-        self.minimizingDir1 = self.workDir + 'setcover_probe1' + os.path.sep
+        self.minzDir1 = self.workDir + 'setcover_probe1' + os.path.sep
         self.inputDir2 = self.workDir + 'input_probe2' + os.path.sep
         self.mapDir2 = self.workDir + 'mapping_probe2' + os.path.sep
         self.indexDir2 = self.workDir + 'index_probe2' + os.path.sep
-        self.minimizingDir2 = self.workDir + 'setcover_probe2' + os.path.sep
+        self.minzDir2 = self.workDir + 'setcover_probe2' + os.path.sep
         self.log = self.workDir + 'log.txt'
         dirList = [
             self.workDir, self.inputDir, self.dedupDir, self.maskingDir,
-            self.thermoFilteringDir, self.mapDir1, self.minimizingDir1,
-            self.inputDir2, self.mapDir2, self.minimizingDir2
+            self.thermoFilteringDir, self.mapDir1, self.minzDir1,
+            self.inputDir2, self.mapDir2, self.minzDir2
         ]
         for directory in dirList:
             if not os.path.exists(directory):
@@ -435,7 +483,7 @@ class PosNegSet:
     def thrmoFilter(
             self, directory, inputBed, ligInput, capInput="", doSaveUnfiltered=True,
     ):
-        probeLen = self.probLen1
+        probeLen = self.probeLen1
         minGC = 0.30
         maxGC = 0.70
         homoDimerTmCutoff = 60
@@ -586,9 +634,8 @@ class PosNegSet:
 
     def filterInputData(self):
         clustName = self.dedupDir + 'genomes.clu'
-        # COPY POSITIVE INPUT FASTA
+        # CLUTER POSITIVE GENOME
         posGenome = self.copyFile(original=self.inputGenome, copy=self.inputDir + 'genome.fa')
-        # CLUTER INPUT FASTA
         self.deDupGenome = clustName + '_rep_seq.fasta'
         if self.needCluster:
             self.logUpdate('[INFO]deduplicate positive fasta')
@@ -600,35 +647,37 @@ class PosNegSet:
                 ProbeitUtils.renameFasta(self.dedupDir + 'sorted.fasta', self.deDupGenome)
             else:
                 self.copyFile(posGenome, self.deDupGenome)
-        # MAKE A LOOKUP
-        self.lookup1 = ProbeitUtils.makeLookup(self.deDupGenome, self.workDir + 'id.lookup', needOnly1stCol=True)
-        # MAKE 40MER FROM POSITIVE FASTA
+        self.lookup1 = ProbeitUtils.makeLookup(self.deDupGenome, self.workDir + 'genome.lookup', simpleGenome=True)
+        
+        # MAKE 40 MERS FROM POSITIVE GENOME
         posProbes = self.maskingDir + 'probes.fa'
-        self.logUpdate("[INFO]remove probes that aligns to negative set")
-        self.logUpdate('[INFO]get {}mer probes from positive genome'.format(self.probLen1))
+        self.logUpdate('[INFO]get {}mer probes from positive genome'.format(self.probeLen1))
         f = open(self.deDupGenome)
         w = open(posProbes, 'w')
         for title, seq in SimpleFastaParser(f):
             header = '>' + title.split()[0].strip()
             genomeLen = len(seq.strip())
-            lines = [header + '_' + str(i + 1) + '\n' + seq[i:i + self.probLen1] + '\n' for i in
-                     range(genomeLen - self.probLen1)]
+            lines = [header + '_' + str(i + 1) + '\n' + seq[i:i + self.probeLen1] + '\n' for i in
+                     range(genomeLen - self.probeLen1)]
             w.writelines(lines)
         f.close()
         w.close()
-        # MAKE 40MER BED FROM NEGATIVE FASTA
+        
+        # MAKE 40MERS FROM BOTH THE POSAITIVE GENOME AND THE NEGATIVE GENOME COORDINATE FILE(BED)
         self.logUpdate('[INFO]remove probes found in negative genome')
         negProbesCoords = self.maskingDir + 'mmseqs.search'
         if not os.path.exists(negProbesCoords):
             ProbeitUtils.searchNegative(posProbes, self.negGenome, negProbesCoords, self.maskingDir, self.ridNegIdentity)
-        # MAKE DEDUPLICATE GENOME POSITIONS
+        
+        # MAKE DEDUPLICATE POSITIVE GENOME COORDINATE FILE(BED)
         deDupGenomeCoords = clustName + '_rep_seq.bed'
         with open(self.deDupGenome) as f:
             with open(deDupGenomeCoords, 'w') as w:
                 for title, seq in SimpleFastaParser(f):
                     header = title.split()[0].strip()
                     w.write(header + '\t1\t' + str(len(seq.strip())) + '\n')
-        #
+        
+        # COPY 40MERS FROM THE NEGATIVE GENOME COORDINATE FILE(BED) TO FILTER DIR
         simpleNegProbesCoords = self.thermoFilteringDir + 'mmseqs.txt'
         with open(negProbesCoords) as f:
             with open(simpleNegProbesCoords, 'w')as w:
@@ -636,10 +685,13 @@ class PosNegSet:
                     c1 = line.split()[0].strip()
                     b = c1.split('_')[-1]
                     c1 = c1.split('_')[0]
-                    w.write(c1 + '\t' + str(int(b) - 1) + '\t' + str(int(b) - 1 + self.probLen1) + '\n')
+                    w.write(c1 + '\t' + str(int(b) - 1) + '\t' + str(int(b) - 1 + self.probeLen1) + '\n')
+        
+        # MAKE NEGATIVE REMOVED COORDINATE FILE(BED)
         negRemCoords = ProbeitUtils.getSubtractedBed(
             deDupGenomeCoords, simpleNegProbesCoords, self.thermoFilteringDir + 'crosstaxa.bed'
         )
+        
         self.logUpdate('[INFO]filter probes with thermodynamic features')
         probesForTheromFilter = self.thermoFilteringDir + 'probes.fa'
         with open(posProbes) as f:
@@ -648,64 +700,22 @@ class PosNegSet:
                     header = ('>' + title).split('_')
                     w.write('_'.join(header[:-1]) + '\t' + header[-1] + '\n')
                     w.write(seq + '\n')
-        # TO FILTER PROBES by THERMODYNAMIC FEATURES
+                    
+        # TO FILTER 40MERS by THERMODYNAMIC FEATURES
         thermoImpCoords = self.thrmoFilter(self.thermoFilteringDir, deDupGenomeCoords, probesForTheromFilter)
-        self.thermoCoords = ProbeitUtils.getSubtractedBed(
+        self.thermoBed = ProbeitUtils.getSubtractedBed(
             negRemCoords, thermoImpCoords, self.thermoFilteringDir + 'crosstaxa.primer3.bed'
         )
-        self.mapGenome1 = self.dedupDir + 'seq.fasta'
-        if not os.path.exists(self.mapGenome1):
-            self.logUpdate('[INFO]compute mappability')
-            with open(self.deDupGenome) as f:
-                with open(self.mapGenome1, 'w') as w:
-                    for title, seq in SimpleFastaParser(f):
-                        w.write(('>' + title).split()[0].strip() + '\n')
-                        w.write(seq + '\n')
 
-    def make1stProbe(self):
-        # COMPUTEMAPPABILITY
-        self.logUpdate('[INFO]compute mappability')
-        comMap1 = ProbeitUtils.computeMappability(
-            self.mapGenome1, self.indexDir1, self.probeError1, self.probLen1, self.mapDir1, '-S ' + self.thermoCoords
-        )
-        self.logUpdate('[INFO]deduplicate genmap result')
-        uniqComMap1 = ProbeitUtils.deDuplicateProbesCSV(comMap1, self.mapDir1 + 'uniq.genmap.csv')
-        # MINIMIZE 1ST PROBE SET
-        self.minimizedProbeSetResult1 = self.minimizingDir1 + 'result'
-        minimizedProbeSetBed1 = self.minimizingDir1 + 'result.bed'
-        if not os.path.exists(self.minimizedProbeSetResult1):
-            self.logUpdate("[INFO]minimize probe set")
-            msg, err = ProbeitUtils.setCover(
-                self.minzCovered1,
-                self.probLen1,
-                self.minzEarlyStop1,
-                self.minzSimScore1,
-                self.minzRepeats1,
-                uniqComMap1,
-                self.deDupGenome
-            )
-            self.logUpdate(msg)
-            with open(self.minimizedProbeSetResult1, 'w') as w:
-                w.write(msg)
-            if not os.path.exists(minimizedProbeSetBed1):
-                genomeAndIdx = dict()
-                with open(self.lookup1) as f1:
-                    for line in f1:
-                        genome = line.split()[0].strip()
-                        idx = line.split()[1].strip()
-                        genomeAndIdx[idx] = genome
-                with open(self.minimizedProbeSetResult1) as f2:
-                    with open(minimizedProbeSetBed1, 'w') as w:
-                        for line in f2:
-                            kmers = line.split(';')[1].strip()
-                            idx = line.split(';')[0].split(',')[0]
-                            pos = line.split(';')[0].split(',')[1]
-                            w.write('\t'.join([genomeAndIdx[idx], pos, str(int(pos)+self.probLen1), kmers])+'\n')
-        self.probe1 = self.workDir + 'probe1.fa'
-        ProbeitUtils.getSubseqFasta(minimizedProbeSetBed1, self.deDupGenome, self.probe1)
+        # MAKE SEQ.FA
+        self.window1 = self.dedupDir + 'seq.fasta'
+        if not os.path.exists(self.window1):
+            self.logUpdate('[INFO]compute mappability')
+            ProbeitUtils.simplifyFastaHeaders(self.deDupGenome, self.window1)
 
     def make2ndWindow(self):
-        probe2InputFasta = self.inputDir2 + 'seq.fa'
+        # MAKE SEQ.FA
+        self.window2 = self.inputDir2 + 'seq.fa'
         with open(self.deDupGenome) as f1:
             seqName = dict()
             seqs = dict()
@@ -716,26 +726,26 @@ class PosNegSet:
                 seqs[seqIdx] = sequence
                 seqIdx += 1
         #
-        with open(self.minimizedProbeSetResult1) as f2:  # 1st setcover result
+        with open(self.minzResult1) as f2:  # 1st setcover result
             probes = dict()
             probIdx = 1
             matchedKmers = sum([line.split(';')[1].split('|') for line in f2.readlines()], [])
             for kmer in matchedKmers:
                 genome = int(kmer.split(',')[0])
                 probeStart = int(kmer.split(',')[1]) + 1
-                probeEnd = probeStart + self.probLen1
+                probeEnd = probeStart + self.probeLen1
                 probes[probIdx] = [genome, probeStart, probeEnd]
                 probIdx += 1
         #
-        with open(probe2InputFasta, 'w') as w:  # seq.fa
+        with open(self.window2, 'w') as w:  # seq.fa
             for key in probes:
                 seqIdx = probes[key][0]
                 probeStart = probes[key][1]
                 probeEnd = probes[key][2]
                 inputSeq = seqs[seqIdx].strip()
                 seqLen = len(inputSeq)
-                start = probeStart - self.window if probeStart > self.window else 1
-                end = probeStart + self.probLen1 + self.window
+                start = probeStart - self.windowSize if probeStart > self.windowSize else 1
+                end = probeStart + self.probeLen1 + self.windowSize
                 end = end if end < seqLen else seqLen
                 maskMap = [list(range(probes[k][1] - 1, probes[k][2] - 1)) for k in probes if probes[k][0] == seqIdx]
                 maskMap = sum(maskMap, [])
@@ -744,49 +754,41 @@ class PosNegSet:
                 outputHeader = '\t'.join([outputHeader, str(start), str(end), str(seqLen)])
                 w.write(outputHeader + '\n')
                 w.write(outputSeq + '\n')
-        self.lookup2 = ProbeitUtils.makeLookup(probe2InputFasta, self.workDir + 'name.lookup.2', needOnly1stCol=True)
+        self.lookup2 = ProbeitUtils.makeLookup(self.window2, self.workDir + 'probe1.lookup', simpleGenome=True)
 
-    def make2ndProbe(self):
-        # COMPUTEMAPPABILITY
-        comMap2 = ProbeitUtils.computeMappability(
-            self.deDupGenome, self.indexDir2, self.probeError2, self.probLen2, self.mapDir2, '-S ' + self.thermoCoords
-        )
-        uniqComMap2 = ProbeitUtils.deDuplicateProbesCSV(comMap2, self.mapDir2 + 'uniq.genmap.csv')
-        # MINIMIZE 1ST PROBE SET
-        self.minimizedProbeSetResult2 = self.minimizingDir2 + 'result'
-        minimizedProbeSetBed2 = self.minimizingDir2 + 'result.bed'
-        self.minimizedProbeSetResult2 = self.minimizingDir2 + 'result'
-        if not os.path.exists(self.minimizedProbeSetResult2):
-            self.logUpdate("[INFO]minimize probe set")
-            msg, err = ProbeitUtils.setCover(
-                self.minzCovered2,
-                1,
-                self.minzEarlyStop2,
-                self.minzSimScore2,
-                self.minzRepeats2,
-                uniqComMap2,
-                self.deDupGenome
-            )
-            self.logUpdate(msg)
-            with open(self.minimizedProbeSetResult2, 'w') as w:
-                w.write(msg)
-            if not os.path.exists(minimizedProbeSetBed2):
-                genomeAndIdx = dict()
-                with open(self.lookup1) as f1:
-                    for line in f1:
-                        genome = line.split()[0].strip()
-                        idx = line.split()[1].strip()
-                        genomeAndIdx[idx] = genome
-                with open(self.minimizedProbeSetResult2) as f2:
-                    with open(minimizedProbeSetBed2, 'w') as w:
-                        for line in f2:
-                            kmers = line.split(';')[1].strip()
-                            idx = line.split(';')[0].split(',')[0]
-                            pos = line.split(';')[0].split(',')[1]
-                            w.write('\t'.join([genomeAndIdx[idx], pos, str(int(pos)+self.probLen2), kmers])+'\n')
+    def trimProbes(self):
+        # MAKE PROBEs UNERSTANDABLE
+        self.probe1 = self.workDir + 'probe1.fa'
         self.probe2 = self.workDir + 'probe2.fa'
-        ProbeitUtils.getSubseqFasta(minimizedProbeSetBed2, self.deDupGenome, self.probe2)
-        return
+
+        with open(self.lookup1)as f:
+            genomeKeys = {int(i.split()[1]):i.split()[0] for i in f}
+        with open(self.lookup2)as f:
+            probe1Keys = {int(i.split()[1]):i.split()[0] for i in f}
+
+        cnt = 0
+        namesForProbes1 = {}
+        lines1 = []
+        for h, s in SimpleFastaParser(open(self.tempProbe1)):
+            keys, pos = ProbeitUtils.parseGenmapPattern(h)
+            keys = [genomeKeys[k] for k in keys]
+            probes = ['{}:{}:{}'.format(keys[i], pos[i], pos[i] + 40) for i in range(len(keys))]
+            for i in probes:
+                namesForProbes1[i] = 'p1_{}'.format(cnt)
+            lines1.append('>p1_{}\t{}\n{}\n'.format(cnt, ';'.join(probes), s))
+            cnt += 1
+        with open(self.probe1, 'w') as w:
+            w.writelines(lines1)
+
+        cnt = 0
+        lines2 = []
+        for h, s in SimpleFastaParser(open(self.tempProbe2)):
+            keys, pos = ProbeitUtils.parseGenmapPattern(h)
+            keys = set([namesForProbes1[probe1Keys[k]] for k in keys])
+            lines2.append('>p2_{}\t{}\n{}\n'.format(cnt, ';'.join([p for p in keys]), s) )
+            cnt += 1
+        with open(self.probe2, 'w') as w:
+            w.writelines(lines2)
 
     def excute(self):
         self.getPars()
@@ -794,12 +796,26 @@ class PosNegSet:
         self.makeWorkDir()
         self.logUpdate(' '.join(['{} {}'.format(i[0], i[1]).strip() for i in self.args]))
         self.filterInputData()
-        self.make1stProbe()
+        # self.make1stProbe()
+        self.minzResult1 = self.minzDir1 + 'result'
+        self.tempProbe1 = self.workDir + '{}mer.fa'.format(self.probeLen1)
+        msg = ProbeitUtils.makeProbe(
+            self.indexDir1, self.mapDir1, self.mapError1, self.probeLen1, self.window1, self.deDupGenome,
+            self.lookup1, self.tempProbe1, self.minzResult1, self.minzResult1 + '.bed', self.minzCovered1,
+            self.probeLen1, self.minzEarlyStop1, self.minzSimScore1, self.minzRepeats1, selector='-S ' + self.thermoBed
+        )
+        self.logUpdate(msg)
         self.make2ndWindow()
-        self.make2ndProbe()
-        ProbeitUtils.sortFile(self.probe1, self.workDir + 'sorted1.fa')
-        ProbeitUtils.sortFile(self.probe2, self.workDir + 'sorted2.fa')
-
+        self.tempProbe2 = self.workDir + '{}mer.fa'.format(self.probeLen2)
+        self.minzResult2 = self.minzDir2 + 'result'
+        ProbeitUtils.makeProbe(
+            self.indexDir2, self.mapDir2, self.mapError2, self.probeLen2, self.window2, self.window2,
+            self.lookup2, self.tempProbe2, self.minzResult2, self.minzResult2 + '.bed',
+            self.minzCovered2, 1, self.minzEarlyStop2, self.minzSimScore2, self.minzRepeats2
+        )
+        self.trimProbes()
+        ProbeitUtils.sortFasta(self.probe1, self.workDir + 'sorted1.fa')
+        ProbeitUtils.sortFasta(self.probe2, self.workDir + 'sorted2.fa')
         return
 
     @staticmethod
@@ -819,25 +835,25 @@ class PosNegSet:
         print("--never-cluster-positive NONE")
         print("\t Use it when you **DO NOT** need to cluster positive genome")
         print("--probe-len1 INT[40]")
-        print("\t Length of Lig Probes")
+        print("\t Length of 1st Probes")
         print("--probe-len2 INT[20]")
-        print("\t Length of Cap Probes")
+        print("\t Length of 2nd Probes")
         print(" --probe-error1 INT[0]")
-        print("\t The number of error allowed in Lig Probes")
+        print("\t The number of error allowed in 1st Probes")
         print(" --probe-error2 INT[1]")
-        print("\t The number of error allowed in Cap Probes")
+        print("\t The number of error allowed in 2nd Probes")
         print("--minimizing-covered1 INT[1]")
-        print("\t The number of times each Seqs from positive genome should be covered by Lig Probes")
+        print("\t The number of times each Seqs from positive genome should be covered by 1st Probes")
         print("--minimizing-covered2 INT[1]")
-        print("\t The number of times each Lig Probe should be covered by Cap Probes")
+        print("\t The number of times each 1st Probe should be covered by 2nd Probes")
         print("--minimizing-repeats1 INT[1]")
-        print("\t The number of random iterations when minimizing Lig Probes")
+        print("\t The number of random iterations when minimizing 1st Probes")
         print("--minimizing-repeats2 INT[10]")
-        print("\t The number of random iterations when minimizing Cap Probes")
+        print("\t The number of random iterations when minimizing 2nd Probes")
         print("--minimizing-earlystop-criteria1 FLOAT[0.9]")
-        print("\t Proportion of Seqs from positive genome covered by Lig Probes for earlystop upon minimizing of Lig Probe")
+        print("\t Proportion of Seqs from positive genome covered by 1st Probes for earlystop upon minimizing of 1st Probe")
         print("--minimizing-earlystop-criteria2 FLOAT[0.99]")
-        print("\t Proportion of Lig Probes covered by Cap Probes for earlystop upon minimizing of Cap Probe")
+        print("\t Proportion of 1st Probes covered by 2nd Probes for earlystop upon minimizing of 2nd Probe")
         quit()
 
 
@@ -861,14 +877,14 @@ class SNP:
     posList = []
     snpList = []
     workDir = ''
-    window = 200
+    windowSize = 200
     probLen1 = 40
-    probLen2 = 20
+    probeLen2 = 20
     minzCovered2 = 1
     minzEarlyStop2 = 0.99
-    minimizingSimScore2 = 20
+    minzSimScore2 = 20
     minzRepeats2 = 10
-    probeError2 = 1
+    mapError2 = 1
     kmerSizeForMutationSearch = 12
 
     def __init__(self, args):
@@ -895,13 +911,13 @@ class SNP:
                 self.refGenomeAnnot = val if opt in ('-a', '--annotation') else self.refGenomeAnnot
                 # optional
                 self.probLen1 = int(val) if opt == '--probe-len1' else self.probLen1
-                self.probLen2 = int(val) if opt == '--probe-len2' else self.probLen2
-                self.probeError2 = int(val) if opt == '--probe-error2' else self.probeError2  # genmap map error
+                self.probeLen2 = int(val) if opt == '--probe-len2' else self.probeLen2
+                self.mapError2 = int(val) if opt == '--probe-error2' else self.mapError2  # genmap map error
                 self.minzCovered2 = int(val) if opt == '--minimizing-covered2' else self.minzCovered2
                 self.minzEarlyStop2 = float(val) if opt == '--minimizing-earlystop-criteria2' else self.minzEarlyStop2
                 self.minzRepeats2 = int(val) if opt == '--minimizing-repeats2' else self.minzRepeats2
                 # hidden args
-                self.minimizingSimScore2 = int(val) if opt == '--minimizing-simscore2' else self.minimizingSimScore2
+                self.minzSimScore2 = int(val) if opt == '--minimizing-simscore2' else self.minzSimScore2
                 self.kmerSizeForMutationSearch = int(val) if opt == '--mutation-search-kmer' else self.kmerSizeForMutationSearch
 
             except Exception as e:
@@ -945,24 +961,24 @@ class SNP:
         self.log = self.workDir + 'log.txt'
         self.indexDir = self.workDir + 'index'
         self.blastDir = self.workDir + 'blast' + os.path.sep
-        self.probe1byPosDir = self.workDir + 'porbe1byPos' + os.path.sep
+        self.probe1byPosDir = self.workDir + 'probe1byPos' + os.path.sep
         self.input2Dir = self.workDir + 'input2' + os.path.sep
-        self.mapping2Dir = self.workDir + 'mapping2' + os.path.sep
-        self.setcover2Dir = self.workDir + 'setcover2' + os.path.sep
+        self.map2Dir = self.workDir + 'mapping2' + os.path.sep
+        self.minz2Dir = self.workDir + 'setcover2' + os.path.sep
         ProbeitUtils.delDir(self.workDir)
         os.makedirs(self.workDir)
         os.makedirs(self.tempDir)
         os.makedirs(self.blastDir)
         os.makedirs(self.probe1byPosDir)
         os.makedirs(self.input2Dir)
-        os.makedirs(self.mapping2Dir)
-        os.makedirs(self.setcover2Dir)
+        os.makedirs(self.map2Dir)
+        os.makedirs(self.minz2Dir)
 
     def getStrKmerNearSNP(self, mutation, seqWithSNP):
         searchProbe = '{}blast.fa'.format(self.blastDir)
         with open(searchProbe, 'w') as w:
             w.write('>{}\n{}\n'.format(mutation, seqWithSNP))
-        blastOutput, msg = ProbeitUtils.searchMut(
+        blastOutput, msg = ProbeitUtils.searchSNPs(
             self.blastDir, searchProbe, self.strGenome, 'blast.tsv', self.kmerSizeForMutationSearch
         )
         self.logUpdate(msg)
@@ -980,6 +996,7 @@ class SNP:
                 stSequence = i[0][1]
                 locSNP = i[0][2]
                 ntSNP = i[0][3]
+                print('???', locSNP)
             return wtSequence, stSequence, ntSNP, locSNP, found
 
     @staticmethod
@@ -1069,9 +1086,11 @@ class SNP:
                     self.logUpdate('[ERROR]Failure to find snp {} in the strain genome or reference genome'.format(snp))
                     continue
                 wtSequence, stSequence, ntSNP, locSnp, found = self.parseBlastResult(blastResult=df)
+                # print('found:', found)
                 self.logUpdate('[INFO]aa:{}:{} converted nt:{}'.format(orf, mutation, ntSNP))
                 mutSeqs = ParaSeqs(ntSNP, '{}:{}'.format(orf, mutation), wtSequence, stSequence, mutLoc=locSnp)
             else:
+
                 nt1, nt2, snpPos = mutation[0], mutation[-1], int(mutation[1:-1])
                 refNT = refSeq[snpPos]
                 if nt1 != refNT:
@@ -1091,11 +1110,12 @@ class SNP:
                     continue
                 wtSequence, stSequence, ntSNP, locSnp, found = self.parseBlastResult(blastResult=df)
                 mutSeqs = ParaSeqs(ntSNP, '', wtSequence, stSequence, mutLoc=locSnp)
-            if found == 0:
+            if found < 0 or not found:
                 self.logUpdate('[ERROR]Failure to find SNP {} in strain genome'.format(snp))
                 continue
             self.probesByPos[-1].append(mutSeqs)
             for pos in self.posList:
+                # print(locSnp)
                 wtProbe, stProbe = mutSeqs.getProbesWithPos(pos)
                 paraSeq = ParaSeqs(mutSeqs.ntSnp, mutSeqs.aaSnp, wtProbe, stProbe, found=found, probLen=self.probLen1)
                 self.probesByPos[pos].append(paraSeq)
@@ -1124,64 +1144,41 @@ class SNP:
         return outputBed
 
     def makeWindowCoordBed(self, inputDF, outputBed):
-        inputDF[1] = inputDF[1].apply(lambda x: x - self.window)
-        inputDF[2] = inputDF[2].apply(lambda x: x + self.window)
+        inputDF[1] = inputDF[1].apply(lambda x: x - self.windowSize)
+        inputDF[2] = inputDF[2].apply(lambda x: x + self.windowSize)
         inputDF.to_csv(outputBed, sep='\t', header=False, index=False)
 
     def make2ndWindow(self):
-        # FILE NAMES
-        snpNearprobes = '{}SNP.pattern.fasta'.format(self.input2Dir)
-        snpMaskedBed = '{}SNP.masked.bed'.format(self.input2Dir)
-        # USING PROBEs AND STRAIN GENOME MAKE PROBEs MASK TSV
-        with open(snpNearprobes, 'w') as w:
+        snpPatternKmers = '{}patterns.fasta'.format(self.input2Dir)
+        snpMaskingBed = '{}masked.bed'.format(self.input2Dir)
+        with open(snpPatternKmers, 'w') as w:
             w.writelines(
                 ['>{}{}\n{}\n'.format(p.ntSnp, '=' + p.aaSnp if p.aaSnp else '', p.stSeq) for p in self.probesByPos[-1]]
             )
-        self.lookupTSV = ProbeitUtils.getPatternPosition(snpNearprobes, self.strGenome, self.workDir + 'lookup.tsv')
-        snpMaskedBed = self.makeProbMaskCoords(
-            pd.read_csv(self.lookupTSV, sep='\t')[['seqID', 'start', 'end']], snpMaskedBed
+        self.lookupTSV = ProbeitUtils.getPatternPosition(snpPatternKmers, self.strGenome, self.workDir + 'lookup.tsv')
+        snpMaskingBed = self.makeProbMaskCoords(
+            pd.read_csv(self.lookupTSV, sep='\t')[['seqID', 'start', 'end']], snpMaskingBed
         )
         # MAKE PROBEs MAKSED FASTA
-        self.probe2Window = ProbeitUtils.getWindowFasta(
-            self.strGenome, snpMaskedBed,
-            self.input2Dir + 'SNP.masked.fasta',
+        self.window2 = ProbeitUtils.getWindowFasta(
+            self.strGenome,
+            snpMaskingBed,
+            self.input2Dir + 'masked.fasta',
             self.input2Dir + 'window.bed',
-            self.input2Dir + '2nd.input.fasta'
+            self.input2Dir + 'seq.fasta'
         )
-        lookup = ProbeitUtils.makeLookup(self.probe2Window, self.input2Dir + 'name.lookup')
-        ProbeitUtils.delDir(self.indexDir)
-        mappedCSV = ProbeitUtils.computeMappability(
-            self.probe2Window, self.indexDir, self.probeError2, self.probLen2, self.mapping2Dir
-        )
-        dedupMappedCSV = ProbeitUtils.deDuplicateProbesCSV(mappedCSV, '{}uniq.genmap.csv'.format(self.mapping2Dir))
-        self.logUpdate('[INFO]minimize probe set')
-        stdOut, stdErr = ProbeitUtils.setCover(
-            self.minzCovered2,
-            1,
-            self.minzEarlyStop2,
-            self.minimizingSimScore2,
-            self.minzRepeats2,
-            dedupMappedCSV,
-            self.probe2Window
-        )
-        setcoverResult = self.setcover2Dir + 'result'
-        self.logUpdate(stdOut)
-        with open(setcoverResult, 'w') as w:
-            w.write(stdOut)
-        self.setcoverResultBed = ProbeitUtils.makeSetcoverResultBed(lookup, setcoverResult, self.setcover2Dir + 'result.bed')
+        self.lookup2 = ProbeitUtils.makeLookup(self.window2, self.input2Dir + 'name.lookup')
 
-    def make2ndProbe(self):
-        tempProbe2 = '{}temp{}mer.fasta'.format(self.workDir, self.probLen2)
+    def trimProbes(self):
         self.probe2 = self.workDir + 'probe2.fa'
-        ProbeitUtils.getSubseqFasta(self.setcoverResultBed, self.probe2Window, tempProbe2)
         maskDF = pd.read_csv(self.lookupTSV, sep='\t')
         maskDF['lookup'] = maskDF.apply(
-            lambda x: '{}:{}-{}'.format(x[0], x[4] - self.window, x[5] + self.window), axis=1
+            lambda x: '{}:{}-{}'.format(x[0], x[4] - self.windowSize, x[5] + self.windowSize), axis=1
         )
         kmers = list(maskDF['patternName'])
         # PARSING TEMP 2ND FASTA
         w = open(self.probe2, 'w')
-        for h, s in SimpleFastaParser(open(tempProbe2)):
+        for h, s in SimpleFastaParser(open(self.tempProbe2)):
             p = re.compile('[0-9]+,')
             kmerIndex = p.findall(h)
             soveredSNPs = ':'.join(list((set([kmers[int(i[:-1])] for i in kmerIndex]))))
@@ -1198,10 +1195,18 @@ class SNP:
         self.make1stProbe()
         self.logUpdate("[INFO]make 2nd probes")
         self.make2ndWindow()
-        self.make2ndProbe()
+        ProbeitUtils.delDir(self.indexDir)
+        self.tempProbe2 = '{}{}mer.fasta'.format(self.workDir, self.probeLen2)
+        self.minzResult2 = self.minz2Dir + 'result'
+        ProbeitUtils.makeProbe(
+            self.indexDir, self.map2Dir, self.mapError2, self.probeLen2, self.window2, self.window2, self.lookup2,
+            self.tempProbe2, self.minzResult2, self.minzResult2 + '.bed', self.minzCovered2, 1, self.minzEarlyStop2,
+            self.minzSimScore2, self.minzRepeats2
+        )
+        self.trimProbes()
         self.logUpdate("[INFO]done")
-        ProbeitUtils.sortFile(self.probe1, self.workDir + 'sorted1.fa')
-        ProbeitUtils.sortFile(self.probe2, self.workDir + 'sorted2.fa')
+        ProbeitUtils.sortFasta(self.probe1, self.workDir + 'sorted1.fa')
+        ProbeitUtils.sortFasta(self.probe2, self.workDir + 'sorted2.fa')
         return
 
     @staticmethod
@@ -1217,7 +1222,7 @@ class SNP:
         print(" -s|--strain FASTA file")
         print("\t The strain Genome.")
         print(" -p|--positions COMMA SEPARATED INT ARRAY")
-        print("\t Position List: The position of this indicates the position of the SNP on the Lig Probes")
+        print("\t Position List: The position of this indicates the position of the SNP on the 1st Probes")
         print(" -m|--mutations COMMA SEPARATED SNP ARRAY")
         print("\t SNP List. Both amino acid differences and nucleotide differences are allowed.")
         print(" -o|--output DIR")
@@ -1226,19 +1231,18 @@ class SNP:
         print("\t The wildtype genome annotation. Only required when using amino acid differences in the -m option.")
         print("ADDITIONAL OPTIONS")
         print("--probe-len1 INT[40]")
-        print("\t Length of Lig Probes")
+        print("\t Length of 1st Probes")
         print("--probe-len2 INT[20]")
-        print("\t Length of Cap Probes")
+        print("\t Length of 2nd Probes")
         print(" --probe-error2 INT[1]")
-        print("\t The number of error allowed in Cap Probes")
+        print("\t The number of error allowed in 2nd Probes")
         print("--minimizing-covered2 INT[1]")
-        print("\t The number of times each Lig Probe should be covered by Cap Probes")
+        print("\t The number of times each 1st Probe should be covered by 2nd Probes")
         print("--minimizing-repeats2 INT[10]")
-        print("\t The number of random iterations when minimizing Cap Probes")
+        print("\t The number of random iterations when minimizing 2nd Probes")
         print("--minimizing-earlystop-criteria2 FLOAT[0.99]")
-        print("\t Proportion of Lig Probes covered by Cap Probes for earlystop upon minimizing of Cap Probe")
+        print("\t Proportion of 1st Probes covered by 2nd Probes for earlystop upon minimizing of 2nd Probe")
         quit()
-
 
 def main(args):
     probeit = Probeit(args)

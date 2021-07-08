@@ -1,15 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="BranchesTreeState">
+    <expand>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="LOCAL_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="REMOTE_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="REMOTE_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="GROUP_NODE:origin" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+    </expand>
+    <select />
+  </component>
   <component name="ChangeListManager">
     <list default="true" id="ab952712-016a-4239-b4f3-38165e8dfb08" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/temp.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/probeit.py" beforeDir="false" afterPath="$PROJECT_DIR$/probeit.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/setcover/setcover.dSYM/Contents/Resources/DWARF/setcover" beforeDir="false" afterPath="$PROJECT_DIR$/setcover/setcover.dSYM/Contents/Resources/DWARF/setcover" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -38,7 +64,7 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/probeit.py" />
-      <option name="PARAMETERS" value="" />
+      <option name="PARAMETERS" value="-p sample/positive.fasta -n sample/negative.fasta -o posnegset1" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -58,11 +84,23 @@
     </task>
     <servers />
   </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
   <component name="WindowStateProjectService">
-    <state x="324" y="391" width="1071" height="802" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1623635172777">
+    <state x="324" y="391" width="1071" height="802" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1625462364503">
       <screen x="0" y="25" width="3440" height="1415" />
     </state>
-    <state x="324" y="391" width="1071" height="802" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.25.3440.1415@0.25.3440.1415" timestamp="1623635172777" />
+    <state x="324" y="391" width="1071" height="802" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.25.3440.1415@0.25.3440.1415" timestamp="1625462364503" />
     <state x="647" y="501" key="#com.intellij.ide.macro.MacrosDialog" timestamp="1623635169814">
       <screen x="0" y="25" width="3440" height="1415" />
     </state>
@@ -71,13 +109,24 @@
       <screen x="0" y="25" width="3440" height="1415" />
     </state>
     <state x="720" y="526" key="EnvironmentVariablesDialog/0.25.3440.1415@0.25.3440.1415" timestamp="1623635142887" />
-    <state x="713" y="25" width="1520" height="1215" key="com.intellij.history.integration.ui.views.FileHistoryDialog" timestamp="1624868538696">
+    <state x="1623" y="25" width="1817" height="1215" key="com.intellij.history.integration.ui.views.FileHistoryDialog" timestamp="1625616965527">
       <screen x="0" y="25" width="3440" height="1415" />
     </state>
-    <state x="713" y="25" width="1520" height="1215" key="com.intellij.history.integration.ui.views.FileHistoryDialog/0.25.3440.1415@0.25.3440.1415" timestamp="1624868538696" />
-    <state x="2203" y="347" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser" timestamp="1624869289509">
+    <state x="1623" y="25" width="1817" height="1215" key="com.intellij.history.integration.ui.views.FileHistoryDialog/0.25.3440.1415@0.25.3440.1415" timestamp="1625616965527" />
+    <state x="2203" y="347" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser" timestamp="1625465308865">
       <screen x="0" y="25" width="3440" height="1415" />
     </state>
-    <state x="2203" y="347" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/0.25.3440.1415@0.25.3440.1415" timestamp="1624869289509" />
+    <state x="2203" y="347" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/0.25.3440.1415@0.25.3440.1415" timestamp="1625465308865" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/probeit.py</url>
+          <line>1087</line>
+          <option name="timeStamp" value="6" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>
