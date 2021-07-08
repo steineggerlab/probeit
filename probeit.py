@@ -110,12 +110,12 @@ class ProbeitUtils:
         return outputBed
 
     @classmethod
-    def getWindowFasta(cls, genomeFasta, maskingBed, maskedGenomeFasta, windowBed, windowFasta):
+    def getWindowFasta(cls, genomeFasta, maskingBed, maskedGenomeFasta, windowBed, windowFasta, windowSize):
         command1 = "bedtools maskfasta -fi {} -bed {} -fo {}".format(genomeFasta, maskingBed, maskedGenomeFasta)
         cls.runCommand(command1)
         inputDF = pd.read_csv(maskingBed, sep='\t', header=None)
-        inputDF[1] = inputDF[1].apply(lambda x: x - 200)
-        inputDF[2] = inputDF[2].apply(lambda x: x + 200)
+        inputDF[1] = inputDF[1].apply(lambda x: x - windowSize)
+        inputDF[2] = inputDF[2].apply(lambda x: x + windowSize)
         inputDF.to_csv(windowBed, sep='\t', header=False, index=False)
         command2 = "bedtools getfasta -fi {} -bed {} > {}".format(maskedGenomeFasta, windowBed, windowFasta)
         cls.runCommand(command2)
@@ -747,8 +747,6 @@ class PosNegSet:
                 start = probeStart - self.windowSize if probeStart > self.windowSize else 1
                 end = probeStart + self.probeLen1 + self.windowSize
                 end = end if end < seqLen else seqLen
-                print('!!!', probeStart, probeEnd,start, end, self.windowSize)
-                quit()
                 maskMap = [list(range(probes[k][1] - 1, probes[k][2] - 1)) for k in probes if probes[k][0] == seqIdx]
                 maskMap = sum(maskMap, [])
                 outputSeq = ''.join(['N' if pos in maskMap else inputSeq[pos] for pos in range(start - 1, end)])
@@ -1160,11 +1158,8 @@ class SNP:
         )
         # MAKE PROBEs MAKSED FASTA
         self.window2 = ProbeitUtils.getWindowFasta(
-            self.strGenome,
-            snpMaskingBed,
-            self.input2Dir + 'masked.fasta',
-            self.input2Dir + 'window.bed',
-            self.input2Dir + 'seq.fasta'
+            self.strGenome, snpMaskingBed, self.input2Dir + 'masked.fa', self.input2Dir + 'window.bed',
+            self.input2Dir + 'seq.fa', self.windowSize
         )
         self.lookup2 = ProbeitUtils.makeLookup(self.window2, self.input2Dir + 'name.lookup')
 
