@@ -362,9 +362,9 @@ class PosNegSet:
         # required
         'positive=', 'negative=', 'output=',
         # optional
-        'never-cluster-positive', 'probe-len1=', 'probe-len2=', 'probe-error1=', 'probe-error2=',
+        'not-cluster-positive', 'probe-len1=', 'probe-len2=', 'probe-error1=', 'probe-error2=',
         'minimizing-covered1=', 'minimizing-covered2=', 'minimizing-repeats1=', 'minimizing-repeats2',
-        'minimizing-earlystop-criteria1=', 'minimizing-earlystop-criteria2='
+        'minimizing-earlystop-criteria1=', 'minimizing-earlystop-criteria2=', 'window-size=',
         # hidden
         'dedup-genome-identity=', 'rid-negative-identity=', 'minimizing-simscore1=', 'minimizing-simscore2='
     ]
@@ -400,7 +400,8 @@ class PosNegSet:
                 self.negGenome = str(val) if opt in ('-n', '--negative') else self.negGenome
                 self.workDir = str(val) if opt in ('-o', '--output') else self.workDir
                 # optional args
-                self.needCluster = False if opt == '--never-cluster-positive' else self.needCluster
+                self.windowSize - int(val) if opt == '--window-size' else self.windowSize
+                self.needCluster = False if opt == '--not-cluster-positive' else self.needCluster
                 self.probeLen1 = int(val) if opt == '--probe-len1' else self.probeLen1
                 self.probeLen2 = int(val) if opt == '--probe-len2' else self.probeLen2
                 self.mapError1 = int(val) if opt == '--probe-error1' else self.mapError1
@@ -831,7 +832,9 @@ class PosNegSet:
         print(" -o|--output DIR")
         print("\t Output directory The Directory is automatically created by Probeit.")
         print("OPTIONAL")
-        print("--never-cluster-positive NONE")
+        print(" --window-size INT[200]")
+        print("\t size of windows for 2nd probes")
+        print("--not-cluster-positive NONE")
         print("\t Use it when you **DO NOT** need to cluster positive genome")
         print("--probe-len1 INT[40]")
         print("\t Length of 1st Probes")
@@ -865,7 +868,7 @@ class SNP:
         # required
         'reference=', 'strain=', 'positions=', 'mutations=', 'output=', 'annotation=',
         # optional
-        'probe-len1=', 'probe-len2=', 'probe-error2=',
+        'window-size=', 'probe-len1=', 'probe-len2=', 'probe-error2=',
         'minimizing-covered2=', 'minimizing-earlystop-criteria2=', 'minimizing-repeats2=',
         # hidden
         'setcover-simscore=', 'mutation-search-kmer='
@@ -909,6 +912,7 @@ class SNP:
                 self.snpList = self.getArgList(val) if opt in ('-m', '--mutations') else self.snpList
                 self.refGenomeAnnot = val if opt in ('-a', '--annotation') else self.refGenomeAnnot
                 # optional
+                self.windowSize = int(val) if opt == '--window-size' else self.windowSize
                 self.probLen1 = int(val) if opt == '--probe-len1' else self.probLen1
                 self.probeLen2 = int(val) if opt == '--probe-len2' else self.probeLen2
                 self.mapError2 = int(val) if opt == '--probe-error2' else self.mapError2  # genmap map error
@@ -923,6 +927,8 @@ class SNP:
                 print(e)
                 print("Your arguments: snp {}".format(ProbeitUtils.getUserArgs(self.args)))
                 self.printUsage()
+            else:
+                self.windowSize = self.windowSize - (max(self.posList) - min(self.posList))
         return
 
     def checkArgs(self):
@@ -1140,8 +1146,8 @@ class SNP:
         return outputBed
 
     def makeWindowCoordBed(self, inputDF, outputBed):
-        inputDF[1] = inputDF[1].apply(lambda x: x - self.windowSize)
-        inputDF[2] = inputDF[2].apply(lambda x: x + self.windowSize)
+        inputDF[1] = inputDF[1].apply(lambda x: x - self.windowSize)  # + diff
+        inputDF[2] = inputDF[2].apply(lambda x: x + self.windowSize)  # - diff
         inputDF.to_csv(outputBed, sep='\t', header=False, index=False)
 
     def make2ndWindow(self):
@@ -1226,17 +1232,19 @@ class SNP:
         print(" -a|--annotation GFF file")
         print("\t The wildtype genome annotation. Only required when using amino acid differences in the -m option.")
         print("ADDITIONAL OPTIONS")
-        print("--probe-len1 INT[40]")
+        print(" --window-size INT[200]")
+        print("\t size of windows for 2nd probes")
+        print(" --probe-len1 INT[40]")
         print("\t Length of 1st Probes")
-        print("--probe-len2 INT[20]")
+        print(" --probe-len2 INT[20]")
         print("\t Length of 2nd Probes")
         print(" --probe-error2 INT[1]")
         print("\t The number of error allowed in 2nd Probes")
-        print("--minimizing-covered2 INT[1]")
+        print(" --minimizing-covered2 INT[1]")
         print("\t The number of times each 1st Probe should be covered by 2nd Probes")
-        print("--minimizing-repeats2 INT[10]")
+        print(" --minimizing-repeats2 INT[10]")
         print("\t The number of random iterations when minimizing 2nd Probes")
-        print("--minimizing-earlystop-criteria2 FLOAT[0.99]")
+        print(" --minimizing-earlystop-criteria2 FLOAT[0.99]")
         print("\t Proportion of 1st Probes covered by 2nd Probes for earlystop upon minimizing of 2nd Probe")
         quit()
 

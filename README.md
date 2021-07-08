@@ -43,7 +43,9 @@ Option for the genome which **MUST NOT** to be covered by the probes.
 Option for the output directory. Because Probeit posnegset workflow makes a new directory with given name, you don't have to create a directory. 
 
 ##### Additional Options
-###### **--never-cluster-positive** NONE
+###### **window-size** INT[200]
+Option for the size of window for Cap Probes
+###### **--not-cluster-positive** NONE
 When you **DO NOT** need to cluster positive genome, you can use this option.      
 ###### **--probe-len1** INT [40]
 Option for length of Lig Probes. 
@@ -90,6 +92,8 @@ Option for the output directory.Because Probeit snp workflow makes a new directo
 ###### **-a/--annotation** GFF file
 Option for wild-type genome annotation. Only required when using amino acid differences in the -m option.
 ##### Additional Options
+###### **window-size** INT[200]
+Option for the size of window for Cap Probes
 ###### **--probe-len1** INT [40]
 Option for length of Lig Probes. 
 ###### **--probe-len2** INT [20]
