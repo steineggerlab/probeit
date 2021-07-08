@@ -748,6 +748,7 @@ class PosNegSet:
                 end = probeStart + self.probeLen1 + self.windowSize
                 end = end if end < seqLen else seqLen
                 print('!!!', probeStart, probeEnd,start, end, self.windowSize)
+                quit()
                 maskMap = [list(range(probes[k][1] - 1, probes[k][2] - 1)) for k in probes if probes[k][0] == seqIdx]
                 maskMap = sum(maskMap, [])
                 outputSeq = ''.join(['N' if pos in maskMap else inputSeq[pos] for pos in range(start - 1, end)])
