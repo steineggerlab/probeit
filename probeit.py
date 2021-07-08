@@ -1105,7 +1105,6 @@ class SNP:
                 aaOrf = '{}:{}'.format(orf, mutation)
                 mutSeqs = ParaSeqs(ntSNP, aaOrf, wtSequence, stSequence, mutLoc=locSnp, probLen=self.probLen1)
             else:
-
                 nt1, nt2, snpPos = mutation[0], mutation[-1], int(mutation[1:-1])
                 refNT = refSeq[snpPos]
                 if nt1 != refNT:
@@ -1140,6 +1139,8 @@ class SNP:
             probCSV = '{}pos{}.csv'.format(self.probe1byPosDir, pos) if pos>0 else self.probe1byPosDir + 'merged.csv'
             csvWriter = open(probCSV, 'w')
             csvWriter.write('WT sequence,ST sequence,found,ntSNP,aaSNP\n')
+            if pos == -1:
+                continue
             for probs in self.probesByPos[pos]:
                 csvWriter.write(
                     '{},{},{},{},{}\n'.format(probs.wtSeq, probs.stSeq, probs.found, probs.ntSnp, probs.aaSnp))
