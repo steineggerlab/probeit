@@ -928,6 +928,7 @@ class SNP:
                 print("Your arguments: snp {}".format(ProbeitUtils.getUserArgs(self.args)))
                 self.printUsage()
             else:
+                print(self.posList)
                 self.windowSize = self.windowSize - (max(self.posList) - min(self.posList))
         return
 
