@@ -929,6 +929,7 @@ class SNP:
                 self.printUsage()
         else:
             self.windowSize = self.windowSize - (max(self.posList) - min(self.posList))
+            print(self.windowSize)
         return
 
     def checkArgs(self):
