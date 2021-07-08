@@ -1095,7 +1095,8 @@ class SNP:
                     continue
                 wtSequence, stSequence, ntSNP, locSnp, found = self.parseBlastResult(blastResult=df)
                 self.logUpdate('[INFO]aa:{}:{} converted nt:{}'.format(orf, mutation, ntSNP))
-                mutSeqs = ParaSeqs(ntSNP, '{}:{}'.format(orf, mutation), wtSequence, stSequence, mutLoc=locSnp)
+                aaOrf = '{}:{}'.format(orf, mutation)
+                mutSeqs = ParaSeqs(ntSNP, aaOrf, wtSequence, stSequence, mutLoc=locSnp, probLen=self.probLen1)
             else:
 
                 nt1, nt2, snpPos = mutation[0], mutation[-1], int(mutation[1:-1])
