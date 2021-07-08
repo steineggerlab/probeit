@@ -747,6 +747,7 @@ class PosNegSet:
                 start = probeStart - self.windowSize if probeStart > self.windowSize else 1
                 end = probeStart + self.probeLen1 + self.windowSize
                 end = end if end < seqLen else seqLen
+                print('!!!', probeStart, probeEnd,start, end, self.windowSize)
                 maskMap = [list(range(probes[k][1] - 1, probes[k][2] - 1)) for k in probes if probes[k][0] == seqIdx]
                 maskMap = sum(maskMap, [])
                 outputSeq = ''.join(['N' if pos in maskMap else inputSeq[pos] for pos in range(start - 1, end)])
@@ -1145,11 +1146,6 @@ class SNP:
         inputDF.to_csv(outputBed, sep='\t', header=False, index=False)
         return outputBed
 
-    # def makeWindowCoordBed(self, inputDF, outputBed):
-    #     inputDF[1] = inputDF[1].apply(lambda x: x - self.windowSize)  # + diff
-    #     inputDF[2] = inputDF[2].apply(lambda x: x + self.windowSize)  # - diff
-    #     inputDF.to_csv(outputBed, sep='\t', header=False, index=False)
-
     def make2ndWindow(self):
         snpPatternKmers = '{}patterns.fasta'.format(self.input2Dir)
         snpMaskingBed = '{}masked.bed'.format(self.input2Dir)
@@ -1174,9 +1170,6 @@ class SNP:
     def trimProbes(self):
         self.probe2 = self.workDir + 'probe2.fa'
         maskDF = pd.read_csv(self.lookupTSV, sep='\t')
-        # maskDF['lookup'] = maskDF.apply(
-        #     lambda x: '{}:{}-{}'.format(x[0], x[4] - self.windowSize, x[5] + self.windowSize), axis=1
-        # )
         kmers = list(maskDF['patternName'])
         # PARSING TEMP 2ND FASTA
         w = open(self.probe2, 'w')
