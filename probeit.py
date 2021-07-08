@@ -1139,14 +1139,13 @@ class SNP:
             probCSV = '{}pos{}.csv'.format(self.probe1byPosDir, pos) if pos>0 else self.probe1byPosDir + 'merged.csv'
             csvWriter = open(probCSV, 'w')
             csvWriter.write('WT sequence,ST sequence,found,ntSNP,aaSNP\n')
-            if pos == -1:
-                continue
             for probs in self.probesByPos[pos]:
                 csvWriter.write(
                     '{},{},{},{},{}\n'.format(probs.wtSeq, probs.stSeq, probs.found, probs.ntSnp, probs.aaSnp))
-                probeLines.append(
-                    '>{}{};{}\n'.format(probs.ntSnp, '=' + probs.aaSnp if probs.aaSnp else '', pos))
-                probeLines.append('{}\n'.format(probs.stSeq))
+                if pos != -1:
+                    probeLines.append(
+                        '>{}{};{}\n{}\n'.format(probs.ntSnp, '=' + probs.aaSnp if probs.aaSnp else '', pos, probs.stSeq)
+                    )
             csvWriter.close()
         self.probe1 = self.workDir + 'probe1.fa'
         with open(self.probe1, 'w') as w:
