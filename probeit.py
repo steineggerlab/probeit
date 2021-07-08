@@ -39,7 +39,6 @@ class ParaSeqs:
         return isSameClass and isSameNtSNP and isSameWtSeq and isSameStSeq
 
     def getProbesWithPos(self, pos):
-        # print(pos,  self.mutLoc)
         return (
             self.wtSeq[self.mutLoc - pos + 1:self.mutLoc - pos + self.probLen + 1],
             self.stSeq[self.mutLoc - pos + 1:self.mutLoc - pos + self.probLen + 1]
@@ -996,7 +995,6 @@ class SNP:
                 stSequence = i[0][1]
                 locSNP = i[0][2]
                 ntSNP = i[0][3]
-                print('???', locSNP)
             return wtSequence, stSequence, ntSNP, locSNP, found
 
     @staticmethod
@@ -1086,7 +1084,6 @@ class SNP:
                     self.logUpdate('[ERROR]Failure to find snp {} in the strain genome or reference genome'.format(snp))
                     continue
                 wtSequence, stSequence, ntSNP, locSnp, found = self.parseBlastResult(blastResult=df)
-                # print('found:', found)
                 self.logUpdate('[INFO]aa:{}:{} converted nt:{}'.format(orf, mutation, ntSNP))
                 mutSeqs = ParaSeqs(ntSNP, '{}:{}'.format(orf, mutation), wtSequence, stSequence, mutLoc=locSnp)
             else:
@@ -1115,7 +1112,6 @@ class SNP:
                 continue
             self.probesByPos[-1].append(mutSeqs)
             for pos in self.posList:
-                # print(locSnp)
                 wtProbe, stProbe = mutSeqs.getProbesWithPos(pos)
                 paraSeq = ParaSeqs(mutSeqs.ntSnp, mutSeqs.aaSnp, wtProbe, stProbe, found=found, probLen=self.probLen1)
                 self.probesByPos[pos].append(paraSeq)
