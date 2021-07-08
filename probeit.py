@@ -929,7 +929,6 @@ class SNP:
                 self.printUsage()
         else:
             self.windowSize = self.windowSize - (max(self.posList) - min(self.posList))
-            print(self.windowSize)
         return
 
     def checkArgs(self):
@@ -1146,10 +1145,10 @@ class SNP:
         inputDF.to_csv(outputBed, sep='\t', header=False, index=False)
         return outputBed
 
-    def makeWindowCoordBed(self, inputDF, outputBed):
-        inputDF[1] = inputDF[1].apply(lambda x: x - self.windowSize)  # + diff
-        inputDF[2] = inputDF[2].apply(lambda x: x + self.windowSize)  # - diff
-        inputDF.to_csv(outputBed, sep='\t', header=False, index=False)
+    # def makeWindowCoordBed(self, inputDF, outputBed):
+    #     inputDF[1] = inputDF[1].apply(lambda x: x - self.windowSize)  # + diff
+    #     inputDF[2] = inputDF[2].apply(lambda x: x + self.windowSize)  # - diff
+    #     inputDF.to_csv(outputBed, sep='\t', header=False, index=False)
 
     def make2ndWindow(self):
         snpPatternKmers = '{}patterns.fasta'.format(self.input2Dir)
@@ -1175,16 +1174,15 @@ class SNP:
     def trimProbes(self):
         self.probe2 = self.workDir + 'probe2.fa'
         maskDF = pd.read_csv(self.lookupTSV, sep='\t')
-        maskDF['lookup'] = maskDF.apply(
-            lambda x: '{}:{}-{}'.format(x[0], x[4] - self.windowSize, x[5] + self.windowSize), axis=1
-        )
+        # maskDF['lookup'] = maskDF.apply(
+        #     lambda x: '{}:{}-{}'.format(x[0], x[4] - self.windowSize, x[5] + self.windowSize), axis=1
+        # )
         kmers = list(maskDF['patternName'])
         # PARSING TEMP 2ND FASTA
         w = open(self.probe2, 'w')
         for h, s in SimpleFastaParser(open(self.tempProbe2)):
-            p = re.compile('[0-9]+,')
-            kmerIndex = p.findall(h)
-            soveredSNPs = ':'.join(list((set([kmers[int(i[:-1])] for i in kmerIndex]))))
+            kmerIndex = ProbeitUtils.parseGenmapPattern(h)[0]
+            soveredSNPs = ':'.join(list((set([kmers[i] for i in kmerIndex]))))
             w.write('>{}\n'.format(soveredSNPs))
             w.write(s + '\n')
 
