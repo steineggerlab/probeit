@@ -868,7 +868,7 @@ class SNP:
         # required
         'reference=', 'strain=', 'positions=', 'mutations=', 'output=', 'annotation=',
         # optional
-        'max-window=', 'window-size=', 'probe-len1=', 'probe-len2=', 'probe-error2=',
+        'max-window', 'window-size=', 'probe-len1=', 'probe-len2=', 'probe-error2=',
         'minimizing-covered2=', 'minimizing-earlystop-criteria2=', 'minimizing-repeats2=',
         # hidden
         'setcover-simscore=', 'mutation-search-kmer='
