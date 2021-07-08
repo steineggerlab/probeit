@@ -70,10 +70,10 @@ For genotyping Probeit snp is available. The snp workflow extracts sequences con
 ##### Easy User's Guide
 You can use some data in **probeit/sample** to test Probeit snp
 ```
-python probeit.py snp  -r sample/ref.fasta -s str.fasta  -p "10,11,19,20,21,22" -m "aa:orf1ab:L4715F,aa:S:Q52R,aa:S:E484K,aa:S:Q677H,aa:S:F888L,aa:E:L21F,aa:M:I82T"  -o snp_aa_output -a ref.gff [additional opts]
+python probeit.py snp  -r sample/ref.fasta -s sample/str.fasta  -p "10,11,19,20,21,22" -m "aa:orf1ab:L4715F,aa:S:Q52R,aa:S:E484K,aa:S:Q677H,aa:S:F888L,aa:E:L21F,aa:M:I82T"  -o snp_aa_output -a sample/ref.gff [additional opts]
 ```
 ```
-python probeit.py snp  -r sample/ref.fasta -s str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C,nt:A21716G"  -o snp_nt_output -a ref.gff [additional opts]
+python probeit.py snp  -r sample/ref.fasta -s sample/str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C,nt:A21716G"  -o snp_nt_output [additional opts]
 ```
 
 ##### Required Options
