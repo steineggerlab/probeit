@@ -868,7 +868,7 @@ class SNP:
         # required
         'reference=', 'strain=', 'positions=', 'mutations=', 'output=', 'annotation=',
         # optional
-        'window-size=', 'probe-len1=', 'probe-len2=', 'probe-error2=',
+        'max-window=', 'window-size=', 'probe-len1=', 'probe-len2=', 'probe-error2=',
         'minimizing-covered2=', 'minimizing-earlystop-criteria2=', 'minimizing-repeats2=',
         # hidden
         'setcover-simscore=', 'mutation-search-kmer='
@@ -879,6 +879,7 @@ class SNP:
     posList = []
     snpList = []
     workDir = ''
+    isMaxWindow = False
     windowSize = 200
     probLen1 = 40
     probeLen2 = 20
@@ -887,7 +888,8 @@ class SNP:
     minzSimScore2 = 20
     minzRepeats2 = 10
     mapError2 = 1
-    kmerSizeForMutationSearch = 12
+    mutSearchKmer = 12
+
 
     def __init__(self, args):
         self.args = getopt.getopt(args, self.shortParmas, self.longParams)[0]
@@ -912,6 +914,7 @@ class SNP:
                 self.snpList = self.getArgList(val) if opt in ('-m', '--mutations') else self.snpList
                 self.refGenomeAnnot = val if opt in ('-a', '--annotation') else self.refGenomeAnnot
                 # optional
+                self.isMaxWindow = True if opt == '--max-window' else self.isMaxWindow
                 self.windowSize = int(val) if opt == '--window-size' else self.windowSize
                 self.probLen1 = int(val) if opt == '--probe-len1' else self.probLen1
                 self.probeLen2 = int(val) if opt == '--probe-len2' else self.probeLen2
@@ -921,14 +924,15 @@ class SNP:
                 self.minzRepeats2 = int(val) if opt == '--minimizing-repeats2' else self.minzRepeats2
                 # hidden args
                 self.minzSimScore2 = int(val) if opt == '--minimizing-simscore2' else self.minzSimScore2
-                self.kmerSizeForMutationSearch = int(val) if opt == '--mutation-search-kmer' else self.kmerSizeForMutationSearch
+                self.mutSearchKmer = int(val) if opt == '--mutation-search-kmer' else self.mutSearchKmer
 
             except Exception as e:
                 print(e)
                 print("Your arguments: snp {}".format(ProbeitUtils.getUserArgs(self.args)))
                 self.printUsage()
         else:
-            self.windowSize = self.windowSize - (max(self.posList) - min(self.posList))
+            if not self.isMaxWindow:
+                self.windowSize = self.windowSize - (max(self.posList) - min(self.posList))
         return
 
     def checkArgs(self):
@@ -984,7 +988,7 @@ class SNP:
         with open(searchProbe, 'w') as w:
             w.write('>{}\n{}\n'.format(mutation, seqWithSNP))
         blastOutput, msg = ProbeitUtils.searchSNPs(
-            self.blastDir, searchProbe, self.strGenome, 'blast.tsv', self.kmerSizeForMutationSearch
+            self.blastDir, searchProbe, self.strGenome, 'blast.tsv', self.mutSearchKmer
         )
         self.logUpdate(msg)
         return blastOutput
@@ -1220,6 +1224,8 @@ class SNP:
         print(" -a|--annotation GFF file")
         print("\t The wildtype genome annotation. Only required when using amino acid differences in the -m option.")
         print("ADDITIONAL OPTIONS")
+        print(" --max-window NONE")
+        print("\t When you need maximum window mode, then use this option. Default window mode is minimum window.")
         print(" --window-size INT[200]")
         print("\t size of windows for 2nd probes")
         print(" --probe-len1 INT[40]")

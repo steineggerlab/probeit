@@ -92,6 +92,8 @@ Option for the output directory.Because Probeit snp workflow makes a new directo
 ###### **-a/--annotation** GFF file
 Option for wild-type genome annotation. Only required when using amino acid differences in the -m option.
 ##### Additional Options
+###### **--max-window** [NONE]
+When you need maximum window mode, then use this option. Default window mode is minimum window.
 ###### **window-size** INT[200]
 Option for the size of window for Cap Probes
 ###### **--probe-len1** INT [40]
