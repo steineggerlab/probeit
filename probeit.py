@@ -1117,7 +1117,7 @@ class SNP:
                     self.logUpdate('[ERROR]Failure to find snp {} in the strain genome or reference genome'.format(snp))
                     continue
                 wtSequence, stSequence, ntSNP, locSnp, found = self.parseBlastResult(blastResult=df)
-                mutSeqs = ParaSeqs(ntSNP, '', wtSequence, stSequence, mutLoc=locSnp)
+                mutSeqs = ParaSeqs(ntSNP, '', wtSequence, stSequence, mutLoc=locSnp, probLen=self.probLen1)
             if found < 0 or not found:
                 self.logUpdate('[ERROR]Failure to find SNP {} in strain genome'.format(snp))
                 continue
