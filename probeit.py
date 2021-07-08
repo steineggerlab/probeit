@@ -1118,8 +1118,8 @@ class SNP:
 
     def make1stProbe(self):
         probeLines = []
-        for pos in self.posList:
-            probCSV = '{}pos{}.csv'.format(self.probe1byPosDir, pos)
+        for pos in self.posList + [-1]:
+            probCSV = '{}pos{}.csv'.format(self.probe1byPosDir, pos) if pos>p else self.probesByPos + 'merged.csv'
             csvWriter = open(probCSV, 'w')
             csvWriter.write('WT sequence,ST sequence,found,ntSNP,aaSNP\n')
             for probs in self.probesByPos[pos]:
