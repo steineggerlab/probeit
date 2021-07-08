@@ -931,7 +931,9 @@ class SNP:
                 print("Your arguments: snp {}".format(ProbeitUtils.getUserArgs(self.args)))
                 self.printUsage()
         else:
+            print(self.snpList)
             self.snpList = list(set(self.snpList))
+            print(self.snpList)
             validPosList = []
             for p in self.posList:
                 if 0 < p <= self.probLen1:
