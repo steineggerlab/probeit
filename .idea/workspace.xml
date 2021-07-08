@@ -20,7 +20,6 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ab952712-016a-4239-b4f3-38165e8dfb08" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/probeit.py" beforeDir="false" afterPath="$PROJECT_DIR$/probeit.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -115,5 +114,9 @@
       <screen x="0" y="25" width="3440" height="1415" />
     </state>
     <state x="2203" y="347" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/0.25.3440.1415@0.25.3440.1415" timestamp="1625465308865" />
+    <state x="770" y="349" width="670" height="676" key="search.everywhere.popup" timestamp="1625731116850">
+      <screen x="0" y="25" width="3440" height="1415" />
+    </state>
+    <state x="770" y="349" width="670" height="676" key="search.everywhere.popup/0.25.3440.1415@0.25.3440.1415" timestamp="1625731116850" />
   </component>
 </project>

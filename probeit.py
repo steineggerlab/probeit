@@ -931,6 +931,13 @@ class SNP:
                 print("Your arguments: snp {}".format(ProbeitUtils.getUserArgs(self.args)))
                 self.printUsage()
         else:
+            validPosList = []
+            for p in self.posList:
+                if 0 < p <= self.probLen1:
+                    validPosList.append(p)
+                else:
+                    print('[ERROR] {} is not proper for position list.')
+            self.posList = validPosList
             if not self.isMaxWindow:
                 self.windowSize = self.windowSize - (max(self.posList) - min(self.posList))
         return
