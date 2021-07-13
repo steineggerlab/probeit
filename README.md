@@ -44,29 +44,29 @@ Option for the output directory. Because Probeit posnegset workflow makes a new 
 
 ##### Additional Options
 ###### **window-size** INT[200]
-Option for the size of window for Cap Probes
+Option for the size of window for 2nd Probes
 ###### **--not-cluster-positive** NONE
 When you **DO NOT** need to cluster positive genome, you can use this option.      
 ###### **--probe-len1** INT [40]
-Option for length of Lig Probes. 
+Option for length of 1st Probes. 
 ###### **--probe-len2** INT [20]
-Option for length of Cap Probes.      
+Option for length of 2nd Probes.      
 ###### **--probe-error1** INT [0] 
-Option for the number of error allowed in Lig Probes.            
+Option for the number of error allowed in 1st Probes.            
 ###### **--probe-error2** INT [1] 
-Option for the number of error allowed in Cap Probes.                         
+Option for the number of error allowed in 2nd Probes.                         
 ###### **--minimizing-covered1** INT [1]
-Option for the number of times each seq from positive genome should be covered by Lig Probes    
+Option for the number of times each seq from positive genome should be covered by 1st Probes    
 ###### **--minimizing-covered2** INT [1]
-Option for the number of times each Lig Probe should be covered by Cap Probes                               
+Option for the number of times each 1st Probe should be covered by 2nd Probes                               
 ###### **--minimizing-repeats1** INT [1] 
-Option for the number of random iterations when minimizing Lig Probes.     
+Option for the number of random iterations when minimizing 1st Probes.     
 ###### **--minimizing-repeats2** INT [10] 
-Option for the number of random iterations when minimizing Cap Probes.                           
+Option for the number of random iterations when minimizing 2nd Probes.                           
 ###### **--minimizing-earlystop-criteria1** FLOAT [0.9]
-Option for proportion of seqs from positive genome covered by Lig Probes for earlystop upon minimizing of Lig Probes.                              
+Option for proportion of seqs from positive genome covered by 1st Probes for earlystop upon minimizing of 1st Probes.                              
 ###### **--minimizing-earlystop-criteria2** FLOAT [0.99]
-Option for proportion of Lig Probes covered by Cap Probes for earlystop upon minimizing of Cap Probes.  
+Option for proportion of 1st Probes covered by 2nd Probes for earlystop upon minimizing of 2nd Probes.  
 #### **Probes generating for genotyping** 
 For genotyping Probeit snp is available. The snp workflow extracts sequences containing a snp from a strain genome.
 ##### Easy User's Guide
@@ -84,7 +84,7 @@ Option for the wildtype(reference) genome.
 ###### **-s/--strain** FASTA file
 Option for the strain genome.  format** as a parameter.
 ###### **-p/--positions** COMMA SEPARATED INT ARRAY
-Option for The position list. Positons in the position list indicate the positions of SNPs in the Lig Probes(or, ligation probe).  
+Option for The position list. Positons in the position list indicate the positions of SNPs in the 1st Probes.  
 ###### **-m/--mutations** COMMA SEPARATED SNP ARRAY
 Option for SNP list of the strain. Both amino acid differences and nucleotide differences are allowed. 
 ###### **-o/--output** DIR
@@ -95,16 +95,16 @@ Option for wild-type genome annotation. Only required when using amino acid diff
 ###### **--max-window** [NONE]
 When you need maximum window mode, then use this option. Default window mode is minimum window.
 ###### **window-size** INT[200]
-Option for the size of window for Cap Probes
+Option for the size of window for 2nd Probes
 ###### **--probe-len1** INT [40]
-Option for length of Lig Probes. 
+Option for length of 1st Probes. 
 ###### **--probe-len2** INT [20]
-Option for length of Cap Probes. 
+Option for length of 2nd Probes. 
 ###### **--probe-error2** INT [1] 
-Option for the number of error allowed in Cap Probes.   
+Option for the number of error allowed in 2nd Probes.   
 ###### **--minimizing-covered2** INT [1]
-Option for the number of times each Lig Probe should be covered by Cap Probes                                           
+Option for the number of times each 1st Probe should be covered by 2nd Probes                                           
 ###### **--minimizing-repeats2** INT [10] 
-Option for the number of random iterations when minimizing Cap Probes.                           
+Option for the number of random iterations when minimizing 2nd Probes.                           
 ###### **--minimizing-earlystop-criteria2** FLOAT [0.99]
-Option for proportion of Lig Probes covered by Cap Probes for earlystop upon minimizing of Cap Probes. 
+Option for proportion of 1st Probes covered by 2nd Probes for earlystop upon minimizing of 2nd Probes. 

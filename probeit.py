@@ -66,8 +66,13 @@ class ProbeitUtils:
     # TO CALL SEQKIT MODULES
     @classmethod
     def sortFasta(cls, inputFasta, outputFasta):
-        command = "seqkit sort {} > {} -w 0".format(inputFasta, outputFasta)
-        cls.runCommand(command)
+        fastaList = []
+        for h, s in SimpleFastaParser(open(inputFasta)):
+            fastaList.append((h, s))
+        fastaList.sort()
+        fastaList = ['>{}\n{}\n'.format(i[0], i[1]) for i in fastaList]
+        with open(outputFasta, 'w') as w:
+            w.writelines(fastaList)
 
     @classmethod
     def renameFasta(cls, oldFasta, newFasta):
@@ -363,7 +368,7 @@ class PosNegSet:
         'positive=', 'negative=', 'output=',
         # optional
         'not-cluster-positive', 'probe-len1=', 'probe-len2=', 'probe-error1=', 'probe-error2=',
-        'minimizing-covered1=', 'minimizing-covered2=', 'minimizing-repeats1=', 'minimizing-repeats2',
+        'minimizing-covered1=', 'minimizing-covered2=', 'minimizing-repeats1=', 'minimizing-repeats2=',
         'minimizing-earlystop-criteria1=', 'minimizing-earlystop-criteria2=', 'window-size=',
         # hidden
         'dedup-genome-identity=', 'rid-negative-identity=', 'minimizing-simscore1=', 'minimizing-simscore2='
@@ -645,8 +650,8 @@ class PosNegSet:
                 self.logUpdate(msg + err)
                 ProbeitUtils.sortFasta(self.deDupGenome, self.dedupDir + 'sorted.fasta')
                 ProbeitUtils.renameFasta(self.dedupDir + 'sorted.fasta', self.deDupGenome)
-            else:
-                self.copyFile(posGenome, self.deDupGenome)
+        else:
+            ProbeitUtils.sortFasta(posGenome, self.deDupGenome)
         self.lookup1 = ProbeitUtils.makeLookup(self.deDupGenome, self.workDir + 'genome.lookup', simpleGenome=True)
         
         # MAKE 40 MERS FROM POSITIVE GENOME
@@ -772,7 +777,8 @@ class PosNegSet:
         for h, s in SimpleFastaParser(open(self.tempProbe1)):
             keys, pos = ProbeitUtils.parseGenmapPattern(h)
             keys = [genomeKeys[k] for k in keys]
-            probes = ['{}:{}:{}'.format(keys[i], pos[i], pos[i] + 40) for i in range(len(keys))]
+            # probes = ['{}:{}:{}'.format(keys[i], pos[i], pos[i] + 40) for i in range(len(keys))]
+            probes = ['{}:{}:{}'.format(keys[i], pos[i], pos[i] + self.probeLen1) for i in range(len(keys))]
             for i in probes:
                 namesForProbes1[i] = 'p1_{}'.format(cnt)
             lines1.append('>p1_{}\t{}\n{}\n'.format(cnt, ';'.join(probes), s))
@@ -1059,29 +1065,29 @@ class SNP:
         maxPos = max(self.posList)
         refSeq = self.getReferenceSeq(self.refGenome)
         if not refSeq:
-            self.logUpdate('[ERROR]Failure to get reference sequence from reference genome.')
+            self.logUpdate('[warn]Failure to get reference sequence from reference genome.')
             self.printUsage()
         for snp in self.snpList:
             self.logUpdate('')
             self.logUpdate('[INFO]SNP {}'.format(snp))
             mutType, orf, mutation = self.parseMutation(snp)
             if mutType not in ['aa', 'nt']:
-                self.logUpdate('[ERROR]SNP {} has a wrong format.'.format(snp))
+                self.logUpdate('[warn]SNP {} has a wrong format.'.format(snp))
                 continue
             if mutType == 'aa':
                 if self.refGenomeAnnot == '':
-                    self.logUpdate('[ERROR]For Amino Acid based SNPs reference annotation needed.')
+                    self.logUpdate('[warn]For Amino Acid based SNPs reference annotation needed.')
                     continue
                 orfStartPos = self.getOrfStartPos(self.refGenomeAnnot, orf)
                 if orfStartPos == -1:
-                    self.logUpdate('[ERROR]Failure to find snp {} in reference annotaion.'.format(snp))
+                    self.logUpdate('[warn]Failure to find snp {} in reference annotaion.'.format(snp))
                     continue
                 aa1, aa2, mutPos = mutation[0], mutation[-1], int(mutation[1:-1])
                 codonStartPos = orfStartPos + (mutPos - 1) * 3 - 1
                 codonEndPos = orfStartPos + mutPos * 3 - 1
                 refCodon = refSeq[codonStartPos: codonEndPos]
                 if aa1 != Seq(refCodon).translate():
-                    self.logUpdate('[ERROR]Failure to find SNP {} in reference genome'.format(snp))
+                    self.logUpdate('[warm]Failure to find SNP {} in reference genome'.format(snp))
                     continue
                 seqWithSNP = refSeq[codonStartPos - (maxPos-1): codonEndPos + (self.probLen1 - minPos)]
                 strainKmerNearSNP = self.getStrKmerNearSNP(mutation, seqWithSNP)  # blast.fa
@@ -1096,12 +1102,12 @@ class SNP:
                     df['diffNT'] = df.apply(lambda x: [i for i in range(len(x[4])) if x[4][i] != x[5][i]], axis=1)
                     df['diffNT'] = df.diffNT.apply(lambda x: x[0] if len(x) == 1 else -1)
                     df['locSNP'] = df['diffNT'].apply(lambda x: x + maxPos - 1)
-                    df['SNPbyNT'] = df.apply(
-                        lambda x: '{}{}{}'.format(x[5][x[6]], codonStartPos + x[6], x[4][x[6]]), axis=1
-                    )
+                    df['SNPbyNT'] = df.apply(lambda x: '{}{}{}'.format(x[5][x[6]], codonStartPos + x[6], x[4][x[6]]), axis=1)
                     df['WTsequence'] = seqWithSNP
+                    if df.empty:
+                        raise Exception
                 except:
-                    self.logUpdate('[ERROR]Failure to find snp {} in the strain genome or reference genome'.format(snp))
+                    self.logUpdate('[warn]Failure to find snp {} in the strain genome or reference genome'.format(snp))
                     continue
                 wtSequence, stSequence, ntSNP, locSnp, found = self.parseBlastResult(blastResult=df)
                 self.logUpdate('[INFO]aa:{}:{} converted nt:{}'.format(orf, mutation, ntSNP))
@@ -1111,7 +1117,7 @@ class SNP:
                 nt1, nt2, snpPos = mutation[0], mutation[-1], int(mutation[1:-1])
                 refNT = refSeq[snpPos]
                 if nt1 != refNT:
-                    self.logUpdate('[ERROR]Failure to find SNP {} in reference genome'.format(snp))
+                    self.logUpdate('[warn]Failure to find SNP {} in reference genome'.format(snp))
                     continue
                 seqWithSNP = refSeq[snpPos - (maxPos - 1):snpPos + 1 + (self.probLen1 - minPos)]
                 blastOutput = self.getStrKmerNearSNP(mutation, seqWithSNP)
@@ -1120,21 +1126,29 @@ class SNP:
                 try:
                     df['WTsequence'] = seqWithSNP
                     df['locSNP'] = maxPos - 1
+                    # df.to_csv(self.blastDir + '{}.csv'.format(mutation))
                     df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
-                    df = df[df.STsequence.apply(lambda x: x[maxPos - 1]) == nt2]
+                    df = df[df.STsequence.apply(lambda x: x[maxPos - 1] == nt2)]
+                    if df.empty:
+                        self.logUpdate('[info] length of probe1 could be too long, trt to reduce.')
+                        raise Exception
                 except:
-                    self.logUpdate('[ERROR]Failure to find snp {} in the strain genome or reference genome'.format(snp))
+                    self.logUpdate(
+                        '[warn] Problems occured searching snp {} in the strain genome or reference genome'.format(snp)
+                    )
                     continue
                 wtSequence, stSequence, ntSNP, locSnp, found = self.parseBlastResult(blastResult=df)
                 mutSeqs = ParaSeqs(ntSNP, '', wtSequence, stSequence, mutLoc=locSnp, probLen=self.probLen1)
             if found < 0 or not found:
-                self.logUpdate('[ERROR]Failure to find SNP {} in strain genome'.format(snp))
+                self.logUpdate('[warn]Failure to find SNP {} in strain genome'.format(snp))
                 continue
             self.probesByPos[-1].append(mutSeqs)
             for pos in self.posList:
                 wtProbe, stProbe = mutSeqs.getProbesWithPos(pos)
                 paraSeq = ParaSeqs(mutSeqs.ntSnp, mutSeqs.aaSnp, wtProbe, stProbe, found=found, probLen=self.probLen1)
                 self.probesByPos[pos].append(paraSeq)
+
+
 
     def make1stProbe(self):
         probeLines = []
@@ -1155,25 +1169,27 @@ class SNP:
             w.writelines(probeLines)
 
     @staticmethod
-    def makeProbMaskCoords(inputDF, outputBed):
+    def makeMaskedCoords(inputDF, outputBed):
         inputDF['seqID'] = inputDF['seqID'].apply(lambda x: x.split(';')[0])
         inputDF.to_csv(outputBed, sep='\t', header=False, index=False)
         return outputBed
 
     def make2ndWindow(self):
-        snpPatternKmers = '{}patterns.fasta'.format(self.input2Dir)
-        snpMaskingBed = '{}masked.bed'.format(self.input2Dir)
-        with open(snpPatternKmers, 'w') as w:
-            w.writelines(
-                ['>{}{}\n{}\n'.format(p.ntSnp, '=' + p.aaSnp if p.aaSnp else '', p.stSeq) for p in self.probesByPos[-1]]
-            )
-        self.lookupTSV = ProbeitUtils.getPatternPosition(snpPatternKmers, self.strGenome, self.workDir + 'lookup.tsv')
-        snpMaskingBed = self.makeProbMaskCoords(
-            pd.read_csv(self.lookupTSV, sep='\t')[['seqID', 'start', 'end']], snpMaskingBed
-        )
+        maskingKmers = '{}masking.fasta'.format(self.input2Dir)
+        maskedBed = '{}masked.bed'.format(self.input2Dir)
+        lookupLines = [
+            '>{}{}\n{}\n'.format(p.ntSnp, '=' + p.aaSnp if p.aaSnp else '', p.stSeq) for p in self.probesByPos[-1]
+        ]
+        if not lookupLines:
+            self.logUpdate('[ERROR]Cannot find any SNP in strain genomes')
+            self.printUsage()
+        with open(maskingKmers, 'w') as w:
+            w.writelines(lookupLines)
+        self.lookupTSV = ProbeitUtils.getPatternPosition(maskingKmers, self.strGenome, self.workDir + 'lookup.tsv')
+        maskedBed = self.makeMaskedCoords(pd.read_csv(self.lookupTSV, sep='\t')[['seqID', 'start', 'end']], maskedBed)
         # MAKE PROBEs MAKSED FASTA
         self.window2 = ProbeitUtils.getWindowFasta(
-            self.strGenome, snpMaskingBed, self.input2Dir + 'masked.fa', self.input2Dir + 'window.bed',
+            self.strGenome, maskedBed, self.input2Dir + 'masked.fa', self.input2Dir + 'window.bed',
             self.input2Dir + 'seq.fa', self.windowSize
         )
         self.lookup2 = ProbeitUtils.makeLookup(self.window2, self.input2Dir + 'name.lookup')
@@ -1186,8 +1202,8 @@ class SNP:
         w = open(self.probe2, 'w')
         for h, s in SimpleFastaParser(open(self.tempProbe2)):
             kmerIndex = ProbeitUtils.parseGenmapPattern(h)[0]
-            soveredSNPs = ':'.join(list((set([kmers[i] for i in kmerIndex]))))
-            w.write('>{}\n'.format(soveredSNPs))
+            coveredSNPs = list((set([kmers[i] for i in kmerIndex])))
+            w.write('>{}\n'.format(':'.join(coveredSNPs)))
             w.write(s + '\n')
 
     def excute(self):

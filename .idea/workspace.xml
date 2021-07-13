@@ -20,6 +20,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ab952712-016a-4239-b4f3-38165e8dfb08" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/probeit.py" beforeDir="false" afterPath="$PROJECT_DIR$/probeit.py" afterDir="false" />
     </list>
@@ -62,7 +63,7 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/probeit.py" />
-      <option name="PARAMETERS" value="-p sample/positive.fasta -n sample/negative.fasta -o posnegset1" />
+      <option name="PARAMETERS" value="-r sample/ref.fasta -s sample/str.fasta  -p &quot;10,11,19,20,21,22&quot; -m &quot;nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C,nt:A21716G&quot;  -o snp_nt_output_000 --max-window --window-size 300 --probe-len1 60 --probe-len2 30 --probe-error2 3 --minimizing-covered2 3 --minimizing-repeats2 5 --minimizing-earlystop-criteria2 0.9" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -95,9 +96,10 @@
     <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="324" y="391" width="1071" height="802" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1625462364503">
-      <screen x="0" y="25" width="3440" height="1415" />
+    <state x="136" y="251" width="699" height="520" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1626073518868">
+      <screen x="0" y="25" width="1440" height="875" />
     </state>
+    <state x="136" y="251" width="699" height="520" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.25.1440.875@0.25.1440.875" timestamp="1626073518868" />
     <state x="324" y="391" width="1071" height="802" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.25.3440.1415@0.25.3440.1415" timestamp="1625462364503" />
     <state x="647" y="501" key="#com.intellij.ide.macro.MacrosDialog" timestamp="1623635169814">
       <screen x="0" y="25" width="3440" height="1415" />
@@ -107,6 +109,38 @@
       <screen x="0" y="25" width="3440" height="1415" />
     </state>
     <state x="720" y="526" key="EnvironmentVariablesDialog/0.25.3440.1415@0.25.3440.1415" timestamp="1623635142887" />
+    <state width="699" height="282" key="GridCell.Tab.0.bottom" timestamp="1626074735578">
+      <screen x="0" y="25" width="1440" height="875" />
+    </state>
+    <state width="699" height="282" key="GridCell.Tab.0.bottom/0.25.1440.875@0.25.1440.875" timestamp="1626074735578" />
+    <state width="699" height="282" key="GridCell.Tab.0.center" timestamp="1626074735576">
+      <screen x="0" y="25" width="1440" height="875" />
+    </state>
+    <state width="699" height="282" key="GridCell.Tab.0.center/0.25.1440.875@0.25.1440.875" timestamp="1626074735576" />
+    <state width="699" height="282" key="GridCell.Tab.0.left" timestamp="1626074735574">
+      <screen x="0" y="25" width="1440" height="875" />
+    </state>
+    <state width="699" height="282" key="GridCell.Tab.0.left/0.25.1440.875@0.25.1440.875" timestamp="1626074735574" />
+    <state width="699" height="282" key="GridCell.Tab.0.right" timestamp="1626074735578">
+      <screen x="0" y="25" width="1440" height="875" />
+    </state>
+    <state width="699" height="282" key="GridCell.Tab.0.right/0.25.1440.875@0.25.1440.875" timestamp="1626074735578" />
+    <state width="699" height="282" key="GridCell.Tab.1.bottom" timestamp="1626074735579">
+      <screen x="0" y="25" width="1440" height="875" />
+    </state>
+    <state width="699" height="282" key="GridCell.Tab.1.bottom/0.25.1440.875@0.25.1440.875" timestamp="1626074735579" />
+    <state width="699" height="282" key="GridCell.Tab.1.center" timestamp="1626074735578">
+      <screen x="0" y="25" width="1440" height="875" />
+    </state>
+    <state width="699" height="282" key="GridCell.Tab.1.center/0.25.1440.875@0.25.1440.875" timestamp="1626074735578" />
+    <state width="699" height="282" key="GridCell.Tab.1.left" timestamp="1626074735578">
+      <screen x="0" y="25" width="1440" height="875" />
+    </state>
+    <state width="699" height="282" key="GridCell.Tab.1.left/0.25.1440.875@0.25.1440.875" timestamp="1626074735578" />
+    <state width="699" height="282" key="GridCell.Tab.1.right" timestamp="1626074735579">
+      <screen x="0" y="25" width="1440" height="875" />
+    </state>
+    <state width="699" height="282" key="GridCell.Tab.1.right/0.25.1440.875@0.25.1440.875" timestamp="1626074735579" />
     <state x="1623" y="25" width="1817" height="1215" key="com.intellij.history.integration.ui.views.FileHistoryDialog" timestamp="1625616965527">
       <screen x="0" y="25" width="3440" height="1415" />
     </state>
