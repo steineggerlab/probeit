@@ -1,0 +1,51 @@
+{% set data = load_setup_py_data() %}
+
+package:
+  name: uconnrcmpy
+  version: {{ data['version'] }}
+
+source:
+  path: ..
+
+build:
+  number: 0
+  script: python setup.py install --single-version-externally-managed --record=record.txt
+  entry_points:
+    - processrcmfolder = uconnrcmpy.dataprocessing:process_folder
+
+
+requirements:
+  build:
+    - python >=3.4,{{PY_VER}}*
+    - setuptools
+
+  run:
+    - python {{PY_VER}}*
+    - numpy >=1.8*
+    - scipy >=0.18*
+    - cantera >=2.3*
+    - pyyaml >=3.12
+    - matplotlib >=1.4*
+    - pyperclip >=1.5.27
+
+test:
+  imports:
+    - uconnrcmpy
+
+  requires:
+    - pytest >=3.0.0
+    - pytest-cov >=2.3.1
+
+  commands:
+    - pytest -vv --pyargs uconnrcmpy
+
+about:
+  home: data['url']
+  license: BSD 3-Clause
+  license_file: LICENSE.md
+  license_family: BSD
+
+  summary: data['description']
+  description: data['long_description']
+  doc_url: https://bryanwweber.github.io/UConnRCMPy
+  dev_url: data['url']
