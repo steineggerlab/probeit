@@ -12,24 +12,23 @@ Probeit is a software to generate probes which are for pathogen detection and ge
 # install probeit
 conda install -c https://161832-42372094-gh.circle-artifacts.com/0/tmp/artifacts/packages probeit
 # use posnetset workflow
-python probeit.py posnegset -p sample/positive.fasta -n sample/negative.fasta -o posnegset_output
+probeit.py posnegset -p sample/positive.fasta -n sample/negative.fasta -o posnegset_output
 # to use snp workflow with amino acid SNPs
-python probeit.py snp  -r sample/ref.fasta -s sample/str.fasta  -p "10,11,19,20,21,22" -m "aa:orf1ab:L4715F,aa:S:Q52R,aa:S:E484K,aa:S:Q677H,aa:S:F888L,aa:E:L21F,aa:M:I82T"  -o 
+probeit.py snp  -r sample/ref.fasta -s sample/str.fasta  -p "10,11,19,20,21,22" -m "aa:orf1ab:L4715F,aa:S:Q52R,aa:S:E484K,aa:S:Q677H,aa:S:F888L,aa:E:L21F,aa:M:I82T"  -o snp_aa_output -a sample/ref.gff
 # to use snp workflow with nucleotide SNPs
-snp_aa_output -a sample/ref.gff
-python probeit.py snp  -r sample/ref.fasta -s sample/str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C"  -o snp_nt_output
+probeit.py snp  -r sample/ref.fasta -s sample/str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C"  -o snp_nt_output
 ```
 ###### MacOS
 ```
 # install probeit
 conda install -c https://161837-42372094-gh.circle-artifacts.com/0/tmp/artifacts/packages probeit
 # use posnetset workflow
-python probeit.py posnegset -p sample/positive.fasta -n sample/negative.fasta -o posnegset_output
+probeit.py posnegset -p sample/positive.fasta -n sample/negative.fasta -o posnegset_output
 # to use snp workflow with amino acid SNPs
-python probeit.py snp  -r sample/ref.fasta -s sample/str.fasta  -p "10,11,19,20,21,22" -m "aa:orf1ab:L4715F,aa:S:Q52R,aa:S:E484K,aa:S:Q677H,aa:S:F888L,aa:E:L21F,aa:M:I82T"  -o 
+probeit.py snp  -r sample/ref.fasta -s sample/str.fasta  -p "10,11,19,20,21,22" -m "aa:orf1ab:L4715F,aa:S:Q52R,aa:S:E484K,aa:S:Q677H,aa:S:F888L,aa:E:L21F,aa:M:I82T"  -o 
 # to use snp workflow with nucleotide SNPs
 snp_aa_output -a sample/ref.gff
-python probeit.py snp  -r sample/ref.fasta -s sample/str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C"  -o snp_nt_output
+probeit.py snp  -r sample/ref.fasta -s sample/str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C"  -o snp_nt_output
 ```
 
 

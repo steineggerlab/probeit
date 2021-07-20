@@ -32,24 +32,24 @@ jobs:
             cd ..
             
             echo [process] run probeit posnegset
-            python probeit.py posnegset -p sample/positive.fasta -n sample/negative.fasta -o posnegset1
+            python probeit.py posnegset -p sample/positive.fa -n sample/negative.fa -o posnegset1
             echo [process] run probeit snp
-            python probeit.py snp -r sample/ref.fasta -a sample/ref.gff -s sample/str.fasta  -p "10,11,19,20,21,22" -m "aa:orf1ab:L4715F,aa:S:Q52R,aa:S:E484K,aa:S:Q677H,aa:S:F888L,aa:E:L21F,aa:M:I82T" -o snp1
-            python probeit.py snp -r sample/ref.fasta -a sample/ref.gff -s sample/str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C,nt:A21716G" -o snp3
+            python probeit.py snp -r sample/ref.fa -a sample/ref.gff -s sample/str.fa  -p "10,11,19,20,21,22" -m "aa:orf1ab:L4715F,aa:S:Q52R,aa:S:E484K,aa:S:Q677H,aa:S:F888L,aa:E:L21F,aa:M:I82T" -o snp1
+            python probeit.py snp -r sample/ref.fa -a sample/ref.gff -s sample/str.fa  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C,nt:A21716G" -o snp3
             
             echo [process] compare outputs
             echo posnegset 1
-            diff posnegset1/sorted1.fa sample/posnegset1.fasta -s
+            diff posnegset1/sorted1.fa sample/posnegset1.fa -s
             echo posnegset 2
-            diff posnegset1/sorted2.fa sample/posnegset2.fasta -s
+            diff posnegset1/sorted2.fa sample/posnegset2.fa -s
             echo snp aa 1
-            diff snp1/sorted1.fa sample/snp_aa1.fasta -s
+            diff snp1/sorted1.fa sample/snp_aa1.fa -s
             echo snp aa 2
-            diff snp1/sorted2.fa sample/snp_aa2.fasta -s
+            diff snp1/sorted2.fa sample/snp_aa2.fa -s
             echo snp nt 1
-            diff snp3/sorted1.fa sample/snp_nt1.fasta -s
+            diff snp3/sorted1.fa sample/snp_nt1.fa -s
             echo snp nt 2
-            diff snp3/sorted2.fa sample/snp_nt2.fasta -s
+            diff snp3/sorted2.fa sample/snp_nt2.fa -s
             exit 0
 - job: macOS
   timeoutInMinutes: 120
@@ -80,24 +80,24 @@ jobs:
             cd ..
             
             echo [process] run probeit posnegset
-            python probeit.py posnegset -p sample/positive.fasta -n sample/negative.fasta -o posnegset2
+            python probeit.py posnegset -p sample/positive.fa -n sample/negative.fa -o posnegset2
             echo [process] run probeit snp
-            python probeit.py snp -r sample/ref.fasta -a sample/ref.gff -s sample/str.fasta  -p "10,11,19,20,21,22" -m "aa:orf1ab:L4715F,aa:S:Q52R,aa:S:E484K,aa:S:Q677H,aa:S:F888L,aa:E:L21F,aa:M:I82T" -o snp2
-            python probeit.py snp -r sample/ref.fasta -a sample/ref.gff -s sample/str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C,nt:A21716G" -o snp4
+            python probeit.py snp -r sample/ref.fa -a sample/ref.gff -s sample/str.fa  -p "10,11,19,20,21,22" -m "aa:orf1ab:L4715F,aa:S:Q52R,aa:S:E484K,aa:S:Q677H,aa:S:F888L,aa:E:L21F,aa:M:I82T" -o snp2
+            python probeit.py snp -r sample/ref.fa -a sample/ref.gff -s sample/str.fa  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C,nt:A21716G" -o snp4
             
             echo [process] compare outputs
             echo posneget 1
-            diff posnegset2/sorted1.fa sample/posnegset1.fasta -s
+            diff posnegset2/sorted1.fa sample/posnegset1.fa -s
             echo posnegset 2
-            diff posnegset2/sorted2.fa sample/posnegset2.fasta -s
+            diff posnegset2/sorted2.fa sample/posnegset2.fa -s
             echo snp aa 1
-            diff snp2/sorted1.fa sample/snp_aa1.fasta -s
+            diff snp2/sorted1.fa sample/snp_aa1.fa -s
             echo snp aa 2
-            diff snp2/sorted2.fa sample/snp_aa2.fasta -s
+            diff snp2/sorted2.fa sample/snp_aa2.fa -s
             echo snp nt 1
-            diff snp4/sorted1.fa sample/snp_nt1.fasta -s
+            diff snp4/sorted1.fa sample/snp_nt1.fa -s
             echo snp nt 2
-            diff snp4/sorted2.fa sample/snp_nt2.fasta -s
+            diff snp4/sorted2.fa sample/snp_nt2.fa -s
             exit 0
 
 
