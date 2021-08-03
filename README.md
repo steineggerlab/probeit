@@ -9,6 +9,11 @@ Probeit provides 2 types of workflows: **posnegset** and **snp**.
 ## Publication
 
 ## Get started
+#### install **Probeit** with cond
+
+```
+conda install -c bioconda probeit
+```
 
 #### use **posnegset** workflow
 * It will generate a probe set with sequences included in the positive genome but not in the negative genome
@@ -60,6 +65,11 @@ diff snp_nt_output/sorted1.fa snp_nt1.fa
 diff snp_nt_output/sorted2.fa snp_nt2.fa
 ```
 
+## result
+**Probeit** produces two result files: **sorted1.fa** and **sorted2.fa**, **Probeit** desings two kinds of probes: **probe1** and **probe2**. **Probe1** is usually 40 nt long. **Probe1** covers a pattern of certain pathogen or strain so it can be used as a ligation probe in cRASL-seq. **Probe2** is usually 20nt long and covers **Probe1**. Usually, it is not more than 200 nt away from **probe1**, but does not overlap with probe1. When used for cRASL-seq, it is used as a capture probe.
+* **sorted1.fa** is a fasta fromat file and it contains **probe1**.
+* **sorted2.fa** is a fasta fromat file and it contains **probe2**.
+ 
 ## **posnegset** 
 For generating probes for detection **Probeit posnegset** is available. The posnegset  workflow finds sequences that are included in the positive genome but not included in the negative genome.
 #### Easy User's Guide
