@@ -1,11 +1,11 @@
 # Probeit: probes generator for pathogen detection and genotyping
 Probeit is a software to generate probes which are for pathogen detection and genotyping. Probeit is open source GPL-licensed software implemented in python for Linux and MacOS.
 
-### Publication
+## Publication
 
-### Get started
+## Get started
 
-#### use posnegset workflow
+### use posnegset workflow
 * It will generate a probe set with sequences included in the positive genome but not in the negative genome
 * It demands a positive genome(fasta) and a negative genome(fasta)
 
@@ -21,7 +21,7 @@ probeit.py posnegset -p sample/positive.fasta -n negative.fasta -o posnegset_out
 diff posnegset_output/sorted1.fa posnegset1.fa
 diff posnegset_output/sorted2.fa posnegset2.fa
 ```
-#### to use snp workflow with amino acid SNPs
+### to use snp workflow with amino acid SNPs
 * It will generate a probe set which detect input amino acid SNPs from strain genome.
 * It demands a reference genome(fasta), a strain genome(fasta), positions, SNPs and a reference annotation(gff).
 
@@ -38,7 +38,7 @@ probeit.py snp  -r ref.fasta -s str.fasta  -p "10,11,19,20,21,22" -m "aa:orf1ab:
 diff snp_aa_output/sorted1.fa snp_aa1.fa
 diff snp_aa_output/sorted2.fa snp_aa2.fa
 ```
-#### to use snp workflow with nucleotide SNPs
+### to use snp workflow with nucleotide SNPs
 * It will generate a probe set which detect input necleotide SNPs from strain genome.
 * It demands a reference genome(fasta), a strain genome(fasta), positions and SNPs.
 
@@ -55,27 +55,27 @@ diff snp_nt_output/sorted1.fa snp_nt1.fa
 diff snp_nt_output/sorted2.fa snp_nt2.fa
 ```
 
-### How to use
+## How to use
 We provide 2 types of workflows: posnegset for detection and snp for genotyping.
-#### Probes generating for detection
+### posnegset
 For generating probes for detection Probeit posnegset is available. The posnegset  workflow finds sequences that are included in the positive genome but not included in the negative genome.
-##### Easy User's Guide
+#### Easy User's Guide
 ```
 python probeit.py posnegset -p positive_genome -n negative_genome -o output_dir [additional opts]
 ```
-##### Required Options
+#### Required Options
 ###### **-p/--positive** FASTA file : Option for the genome which **MUST** be covered by the probes.
 ###### **-n/--negative** FASTA file: Option for the genome which **MUST NOT** to be covered by the probes. 
 ###### **-o/--output** Dir: Option for the output directory. Because Probeit posnegset workflow makes a new directory with given name, you don't have to create a directory. 
 
-#### Probes generating for genotyping 
+### Probes generating for genotyping 
 For genotyping Probeit snp is available. The snp workflow extracts sequences containing a snp from a strain genome.
-##### Easy User's Guide
+#### Easy User's Guide
 ```
 python probeit.py snp  -r reference_genome -s strain_genome  -p podition_list -m snp_list  -o output_dir -a reference_annotation [additional opts]
 ```
 
-##### Required Options
+#### Required Options
 ###### **-r/--reference** FASTA file: Option for the wildtype(reference) genome. 
 ###### **-s/--strain** FASTA fileOption for the strain genome.  format** as a parameter.
 ###### **-p/--positions** COMMA SEPARATED INT ARRAY: Option for The : position list. Positons in the position list indicate the positions of SNPs in the 1st Probes.  
@@ -83,8 +83,8 @@ python probeit.py snp  -r reference_genome -s strain_genome  -p podition_list -m
 ###### **-o/--output** DIR: Option for the output directory.Because Probeit snp workflow makes a new directory with given name, you don't have to create a directory. 
 ###### **-a/--annotation** GFF file : Option for wild-type genome annotation. Only required when using amino acid differences in the -m option.
 
-### Installation from source
-#### Dependency
+## Installation from source
+### Dependency
 
 * pandas
 * primer3-py
@@ -94,12 +94,14 @@ python probeit.py snp  -r reference_genome -s strain_genome  -p podition_list -m
 * genmap
 * biopython
 
-#### To get source code of Probeit
+### To get source code of Probeit
 ```
 # git clone https://github.com/steineggerlab/probeit.git
 ```
-#### To initiate setcover
-###### Setcover is a tool for minimizing probe sets.
+### To initiate setcover
+* Setcover is a tool for minimizing probe sets.
+* You must compile setcover before using probeit.
+
 ```
 cd probeit/setcover
 cd setcover
