@@ -69,7 +69,36 @@ diff snp_nt_output/sorted2.fa snp_nt2.fa
 **Probeit** produces two result files: **sorted1.fa** and **sorted2.fa**. **Probeit** desings two kinds of probes: **probe1** and **probe2**. **Probe1** is usually 40 nt long. **Probe1** covers a pattern of certain pathogen or strain so it can be used as a ligation probe in cRASL-seq. **Probe2** is usually 20nt long and covers **Probe1**. Usually, **probe2** is not more than 200 nt away from **probe1**, but does not overlap with **probe1**. When used for cRASL-seq, **probe2** is used as a capture probe.
 * **sorted1.fa** is a fasta fromat file and it contains **probe1**.
 * **sorted2.fa** is a fasta fromat file and it contains **probe2**.
- 
+
+#### result files of **posnegset**
+Headers of **sorted1.fa** have two columns, One for **names of probe1** and the other for  **coordinates of probe1**.  
+```
+col1 name of probe1. e.g. p1_0, p1_1 ...
+col2 source of the k-mer. e.g. NC3000:10101:10141;NC4000:10197:10137
+```
+Headers of **sorted2.fa** have two columns. One for **names of probe2** and the other for for **names of probe1 covered by probe2**.  
+```
+col1 name of probe2 e.g. p2_0
+col2 probe1 covered by probe2 e.g. p1_0;p1_1
+```
+#### result files of **snp**
+Headers of **sorted1.fa** contains 2 information: SNP and position. Those two information are connected by ';'. 
+```
+When Amino Acid SNPs are used.
+>A21716G=S:Q52R;10
+>A21716G=S:Q52R;11
+```
+
+```
+When Nucleotide SNPs are used.
+>T26766C;10
+>T26766C;11
+```
+Headers of **sorted2.fa** contains a SNP covered by **probe2**.
+```
+>A21716G
+>T26766C
+```
 ## **posnegset** 
 For generating probes for detection **Probeit posnegset** is available. The posnegset  workflow finds sequences that are included in the positive genome but not included in the negative genome.
 #### Easy User's Guide
