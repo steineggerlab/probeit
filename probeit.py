@@ -217,9 +217,12 @@ class ProbeitUtils:
                     newKmers.append(k)
             return '|'.join(newKmers)
 
-        def progressBar(done, total):
-            i = int(done / total * 20)
-            print('[INFO] Deduplicating Genmap Result: [' + '=' * i + ('>'if i<20 else '') + ' ' * (19 - i) + ']', end="\r")
+        # def progressBar(done, total):
+        #     i = int(done / total * 20)
+        #     print(
+        #         '[INFO] Deduplicating Genmap Result: [' + '=' * i + ('>'if i<20 else '') + ' ' * (19 - i) + ']',
+        #         end="\r"
+        #     )
 
         df = pd.read_csv(inputCSV, sep=';')
         df.columns = ['repKmer', 'kmers']
@@ -234,7 +237,7 @@ class ProbeitUtils:
         maskingKmers = set()
         p = re.compile('[0-9]+,[0-9]+')
         for i in range(len(kmerLists)):
-            progressBar(i + 1, len(kmerLists))
+            # progressBar(i + 1, len(kmerLists))
             kmerList = kmerLists[i]
             kmerSet = set(p.findall(kmerList))
             newKmerLists += [None] if kmerSet & maskingKmers else [kmerList]
