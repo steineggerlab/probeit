@@ -26,7 +26,7 @@ wget https://raw.githubusercontent.com/steineggerlab/probeit/master/sample/posit
 wget https://raw.githubusercontent.com/steineggerlab/probeit/master/sample/posnegset1.fa
 wget https://raw.githubusercontent.com/steineggerlab/probeit/master/sample/posnegset2.fa
 # to run Probeit
-probeit.py posnegset -p sample/positive.fasta -n negative.fasta -o posnegset_output
+probeit.py posnegset -p positive.fa -n negative.fa -o posnegset_output
 # to compare result files 
 diff posnegset_output/sorted1.fa posnegset1.fa
 diff posnegset_output/sorted2.fa posnegset2.fa
@@ -43,7 +43,7 @@ wget https://raw.githubusercontent.com/steineggerlab/probeit/master/sample/ref.g
 wget https://raw.githubusercontent.com/steineggerlab/probeit/master/sample/snp_aa1.fa
 wget https://raw.githubusercontent.com/steineggerlab/probeit/master/sample/snp_aa2.fa
 # to run Probeit
-probeit.py snp  -r ref.fasta -s str.fasta  -p "10,11,19,20,21,22" -m "aa:orf1ab:L4715F,aa:S:Q52R,aa:S:E484K,aa:S:Q677H,aa:S:F888L,aa:E:L21F,aa:M:I82T"  -o snp_aa_output -a ref.gff
+probeit.py snp  -r ref.fa -s str.fa  -p "10,11,19,20,21,22" -m "aa:orf1ab:L4715F,aa:S:Q52R,aa:S:E484K,aa:S:Q677H,aa:S:F888L,aa:E:L21F,aa:M:I82T"  -o snp_aa_output -a ref.gff
 # to compare result files
 diff snp_aa_output/sorted1.fa snp_aa1.fa
 diff snp_aa_output/sorted2.fa snp_aa2.fa
@@ -59,7 +59,7 @@ wget https://raw.githubusercontent.com/steineggerlab/probeit/master/sample/ref.f
 wget https://raw.githubusercontent.com/steineggerlab/probeit/master/sample/snp_nt1.fa
 wget https://raw.githubusercontent.com/steineggerlab/probeit/master/sample/snp_nt2.fa
 # to run Probeit
-probeit.py snp  -r ref.fasta -s str.fasta  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C"  -o snp_nt_output
+probeit.py snp  -r ref.fa -s str.fa  -p "10,11,19,20,21,22" -m "nt:A21716G,nt:G23011A,nt:G23592C,nt:T24223C,nt:C26304T,nt:T26766C"  -o snp_nt_output
 # to compare result files
 diff snp_nt_output/sorted1.fa snp_nt1.fa
 diff snp_nt_output/sorted2.fa snp_nt2.fa
