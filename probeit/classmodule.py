@@ -1,16 +1,10 @@
 #!/usr/bin/env python
-"""
-GENMAP
-seqkit
-logupdate/logupdate+print
-"""
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 from Bio.Seq import Seq
 from Bio.Seq import reverse_complement
 import pandas as pd
 import primer3
 import numpy as np
-import sys
 import os
 import shutil
 import getopt
@@ -447,6 +441,7 @@ class PosNegSet:
                 self.printUsage()
 
     def checkArgs(self):
+        # print("probeit posnegset")
         # print(self.threads)
         print("Your arguments: {}".format('posnegset ' + ProbeitUtils.getUserArgs(self.args)))
         message = "{}You didn't input a proper argument for '{}' parameter or missed it. "
@@ -1322,11 +1317,3 @@ class SNP:
         print("\t Early stop picking new probes if X% of sequences are covered at least N(--probe2-cover) times.")
         quit()
 
-def main(args):
-    probeit = Probeit(args)
-    probeit.checkArgs()
-    quit()
-
-
-if __name__ == '__main__':
-    main(sys.argv[1:])
