@@ -27,14 +27,9 @@ jobs:
             conda activate probeit
             conda info —envs
 
-            echo [process] build probeit
-            pip install -e .
+            bash install.sh
+            probeit -h
 
-            echo [process] make setcover
-            cd probeit/setcover
-            make
-            cd ../..
-            
             echo [process] run probeit posnegset
             probeit posnegset -p sample/positive.fa -n sample/negative.fa -o posnegset1
 
@@ -81,13 +76,8 @@ jobs:
             conda activate probeit
             conda info —envs
 
-            echo [process] build probeit
-            pip install -e .
-
-            echo [process] make setcover
-            cd probeit/setcover
-            make
-            cd ../..
+            bash install.sh
+            probeit -h
             
             echo [process] run probeit posnegset
             probeit posnegset -p sample/positive.fa -n sample/negative.fa -o posnegset2
