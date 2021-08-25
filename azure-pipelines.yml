@@ -27,6 +27,7 @@ jobs:
             conda activate probeit
             conda info —envs
 
+            echo [process] setup
             bash install.sh
             probeit -h
 
@@ -76,6 +77,7 @@ jobs:
             conda activate probeit
             conda info —envs
 
+            echo [process] setup
             bash install.sh
             probeit -h
             
