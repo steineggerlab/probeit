@@ -353,7 +353,7 @@ class Probeit:
     @staticmethod
     def printUsage():
         print("PROBEIT")
-        print('usage ./probeit.py <module> [<args>]')
+        print('probeit <workflow> [<args>]')
         print("WORKFLOWS")
         print("posnegset: make two-sets probes with positive and negative sets")
         print("snp: make two-sets probes with wildtype genome, strain genome and SNPs")
@@ -846,7 +846,7 @@ class PosNegSet:
     def printUsage():
         print("Probeit posnegset")
         print("It generates a probe set with sequences included in the positive genome but not in the negative genome")
-        print("probeit.py -p [POSITIVE GENOME]-n [NEGATIVE GENOME] -o [DIR]")
+        print("probeit -p [POSITIVE GENOME]-n [NEGATIVE GENOME] -o [DIR]")
 
         print("Usage")
         print(" -h|--help NONE")
@@ -1272,7 +1272,7 @@ class SNP:
     def printUsage():
         print("Probeit snp")
         print("It generates a probe set which detect input amino acid SNPs from strain genome.")
-        print("probeit.py snp -r [REF GENOME] -s [STR GENOME] -p [positions] -m [SNPs] -o [DIR] -a [REF ANNOTATION]")
+        print("probeit snp -r [REF GENOME] -s [STR GENOME] -p [positions] -m [SNPs] -o [DIR] -a [REF ANNOTATION]")
 
         print("Usage")
         print(" -h|--help NONE")
