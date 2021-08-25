@@ -19,9 +19,11 @@ jobs:
             echo HELLO FROM Linux
 
             echo [process] setup
+            pwd
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
             conda activate probeit
             bash install.sh
+            probeit -h
             
             echo [process] run probeit posnegset
             probeit posnegset -p sample/positive.fa -n sample/negative.fa -o posnegset1
@@ -60,9 +62,11 @@ jobs:
             echo HELLO FROM MacOS
 
             echo [process] setup
+            pwd
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
             conda activate probeit
             bash install.sh
+            probeit -h
             
             echo [process] run probeit posnegset
             probeit posnegset -p sample/positive.fa -n sample/negative.fa -o posnegset2
