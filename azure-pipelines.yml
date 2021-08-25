@@ -14,23 +14,10 @@ jobs:
   steps:
       - script: echo "##vso[task.prependpath]$CONDA/bin"
         displayName: Add conda to PATH
+
       - script: |
             echo HELLO FROM Linux
-#            echo [process] create env
-#            conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
-#
-#            echo [process] activate env
-#            eval "$(conda shell.bash hook)"
-#            conda activate probeit
-#            conda info —envs
-#
-#            echo [process] build probeit
-#            pip install -e .
-#
-#            echo [process] make setcover
-#            cd probeit/setcover
-#            make
-#            cd ../..
+
             echo [process] setup
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
             conda activate probeit
@@ -68,24 +55,9 @@ jobs:
 
       - script: sudo chown -R $USER $CONDA
         displayName: Take ownership of conda installation
+
       - script: |
- 
             echo HELLO FROM MacOS
-#            echo [process] create env
-#            conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
-#
-#            echo [process] activate env
-#            eval "$(conda shell.bash hook)"
-#            conda activate probeit
-#            conda info —envs
-#
-#            echo [process] build probeit
-#            pip install -e .
-#
-#            echo [process] make setcover
-#            cd probeit/setcover
-#            make
-#            cd ../..
 
             echo [process] setup
             conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
