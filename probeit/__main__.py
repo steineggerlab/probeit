@@ -6,6 +6,7 @@ def main():
     args = sys.argv[1:]
     probeitProcess = Probeit(args)
     probeitProcess.checkArgs()
+    return 0
     
 
 if __name__ == '__main__':
