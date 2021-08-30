@@ -2,16 +2,15 @@
 from .classmodule import Probeit
 import sys
 
-
 def main():
-    try:
-        args = sys.argv[1:]
-        probeit = Probeit(args)
-        probeit.checkArgs()
-        return 0
-    except:
-        return 1
-
+    args = sys.argv[1:]
+    probeitProcess = Probeit(args)
+    probeitProcess.checkArgs()
+    
 
 if __name__ == '__main__':
     main()
+    
+    
+    
+    
