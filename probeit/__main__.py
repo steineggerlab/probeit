@@ -3,15 +3,14 @@ from .classmodule import Probeit
 import sys
 
 
-def main():
+def main(argv):
     try:
-        args = sys.argv[1:]
-        probeit = Probeit(args)
-        probeit.checkArgs()
+        probeitProcess = Probeit(argv[1:])
+        probeitProcess.checkArgs()
         return 0
     except:
         return 1
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    main(sys.argv)
