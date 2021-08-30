@@ -8,7 +8,7 @@ import numpy as np
 import os
 import shutil
 import getopt
-# import subprocess
+import subprocess
 import re
 
 
@@ -49,11 +49,10 @@ class ProbeitUtils:
     def runCommand(command, verbose=False):
         print('[CLI] '+command)
         if verbose:
-            pass
-            # commandList = command.split()
-            # sp = subprocess.Popen(commandList, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            # stdout, stderr = sp.communicate()
-            # return stdout.decode('UTF-8'), stderr.decode('UTF-8')
+            commandList = command.split()
+            sp = subprocess.Popen(commandList, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = sp.communicate()
+            return stdout.decode('UTF-8'), stderr.decode('UTF-8')
         else:
             os.system(command)
             return
@@ -158,23 +157,18 @@ class ProbeitUtils:
         cmd2 = 'mmseqs createdb {} {}'
         cmd3 = 'mmseqs search {} {} {} {} --search-type 3 -k {}'
         cmd4 = 'mmseqs convertalis {} {} {} {} --format-output target,query,tseq,tstart,tend --search-type 3'
-        # out1, err1 = cls.runCommand(cmd1.format(inputFasta, searchdb), verbose=True)
-        # out2, err2 = cls.runCommand(cmd2.format(strGenomeFasta, strdb), verbose=True)
-        # out3, err3 = cls.runCommand(cmd3.format(searchdb, strdb, aln, tempDir, kmer, thread) + cmd0, verbose=True)
-        # out4, err4 = cls.runCommand(cmd4.format(searchdb, strdb, aln, resultTSV, thread) + cmd0, verbose=True)
-        cls.runCommand(cmd1.format(inputFasta, searchdb))
-        cls.runCommand(cmd2.format(strGenomeFasta, strdb))
-        cls.runCommand(cmd3.format(searchdb, strdb, aln, tempDir, kmer, thread) + cmd0)
-        cls.runCommand(cmd4.format(searchdb, strdb, aln, resultTSV, thread) + cmd0)
+        out1, err1 = cls.runCommand(cmd1.format(inputFasta, searchdb), verbose=True)
+        out2, err2 = cls.runCommand(cmd2.format(strGenomeFasta, strdb), verbose=True)
+        out3, err3 = cls.runCommand(cmd3.format(searchdb, strdb, aln, tempDir, kmer, thread) + cmd0, verbose=True)
+        out4, err4 = cls.runCommand(cmd4.format(searchdb, strdb, aln, resultTSV, thread) + cmd0, verbose=True)
         df = pd.read_csv(resultTSV, sep='\t', header=None)
         df.columns = ['substr', 'snp', 'strseq', 'start', 'end']
         df['aln'] = df.apply(lambda x: x[2][int(x[3]-1):int(x[4])], axis=1)
         df['len'] = df.aln.apply(lambda x: len(x)-1)
         df = df[['substr', 'snp', 'len', 'aln']]
         df.to_csv(resultTSV, header=False, index=False, sep='\t')
-        # print(err1 + err2 + err3 + err4)
-        # return resultTSV, out1 + out2 + out3 + out4
-        return ''
+        print(err1 + err2 + err3 + err4)
+        return resultTSV, out1 + out2 + out3 + out4
 
     @classmethod
     def clusterGenome(cls, inputFasta, outputFasta, outputDir, seqIdentity, thread=8):
@@ -185,10 +179,8 @@ class ProbeitUtils:
                 "--cov-mode 1 -c 0.95 --remove-tmp-files 0 --threads", str(thread)
             ]
         )
-        # stdout, stderr = cls.runCommand(command, verbose=True)
-        # return stdout, stderr
-        cls.runCommand(command)
-        return ''
+        stdout, stderr = cls.runCommand(command, verbose=True)
+        return stdout, stderr
 
     @classmethod
     def searchNegative(cls, output, negative, maskOutput, outputDir, seqInProbe, thread=8):
@@ -202,12 +194,10 @@ class ProbeitUtils:
 
             ]
         )
-        # stdOut, stdErr = cls.runCommand(command, verbose=True)
-        cls.runCommand(command)
-        # print(stdOut)
-        # print(stdErr)
-        # return stdOut, stdErr
-        return ''
+        stdOut, stdErr = cls.runCommand(command, verbose=True)
+        print(stdOut)
+        print(stdErr)
+        return stdOut, stdErr
 
     @classmethod
     def deDuplicateMapCSV(cls, inputCSV, outputCSV):
@@ -257,10 +247,8 @@ class ProbeitUtils:
         filePath = os.path.sep.join(os.path.realpath(__file__).split(os.path.sep)[:-1])
         setcoverPath = '{}{}{}{}{}'.format(filePath, os.path.sep, 'setcover', os.path.sep, 'setcover')
         command = " -c {} -l {} -p {} -d {} -i {} {} {}".format(coverage, length, eStop, dist, reps, mapCSV, genome)
-        # stdOut, stdErr = cls.runCommand(setcoverPath + command, verbose=True)
-        # return stdOut, stdErr
-        cls.runCommand(setcoverPath + command)
-        return ''
+        stdOut, stdErr = cls.runCommand(setcoverPath + command, verbose=True)
+        return stdOut, stdErr
 
     @classmethod
     def makeMinzProbeBed(cls, lookup, setcoverResult, setcoverResultBed, probeLen):
