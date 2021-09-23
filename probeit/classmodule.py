@@ -231,7 +231,6 @@ class ProbeitUtils:
         maskingKmers = set()
         p = re.compile('[0-9]+,[0-9]+')
         for i in range(len(kmerLists)):
-            # progressBar(i + 1, len(kmerLists))
             kmerList = kmerLists[i]
             kmerSet = set(p.findall(kmerList))
             newKmerLists += [None] if kmerSet & maskingKmers else [kmerList]
@@ -246,6 +245,7 @@ class ProbeitUtils:
     def setCover(cls, coverage, length, eStop, dist, reps, mapCSV, genome):
         filePath = os.path.sep.join(os.path.realpath(__file__).split(os.path.sep)[:-1])
         setcoverPath = '{}{}{}{}{}'.format(filePath, os.path.sep, 'setcover', os.path.sep, 'setcover')
+        setcoverPath = setcoverPath   if os.path.exists(setcoverPath) else 'setcover'
         command = " -c {} -l {} -p {} -d {} -i {} {} {}".format(coverage, length, eStop, dist, reps, mapCSV, genome)
         stdOut, stdErr = cls.runCommand(setcoverPath + command, verbose=True)
         return stdOut, stdErr
@@ -265,7 +265,6 @@ class ProbeitUtils:
                     genome = line.split(';')[0].split(',')[0]
                     pos = line.split(';')[0].split(',')[1]
                     w.write('\t'.join([genomeAndIdx[genome], pos, str(int(pos) + probeLen), matchedKmers]) + '\n')
-        # return setcoverResultBed
 
     @classmethod
     def getUserArgs(cls, args):
