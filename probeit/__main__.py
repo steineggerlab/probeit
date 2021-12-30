@@ -5,7 +5,7 @@ import sys
 def main():
     args = sys.argv[1:]
     probeitProcess = Probeit(args)
-    probeitProcess.checkArgs()
+    probeitProcess.do()
     return 0
     
 

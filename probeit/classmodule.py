@@ -331,19 +331,19 @@ class Probeit:
     def __init__(self, args):
         self.args = args
 
-    def checkArgs(self):
+    def do(self):
         if self.args == [] or self.args[0] == '-h' or self.args[0] == '--help':
             self.printUsage()
             return
         elif self.args[0] == 'posnegset':
             print('CURRENT: ', os.getcwd())
             self.subWork = PosNegSet(self.args[1:])
-            self.subWork.excute()
+            self.subWork.execute()
             return
         elif self.args[0] == 'snp':
             print('CURRENT: ', os.getcwd())
             self.subWork = SNP(self.args[1:])
-            self.subWork.excute()
+            self.subWork.execute()
             return
         else:
             self.printUsage()
@@ -368,7 +368,7 @@ class PosNegSet:
         # required
         'positive=', 'negative=', 'output=',
         # optional
-        'not-cluster', 'probe1-len=', 'probe2-len=', 'window-size=', 'threads=',
+        'not-make-probe2', 'not-cluster', 'probe1-len=', 'probe2-len=', 'window-size=', 'threads=',
         # genmap
         'probe1-error=', 'probe2-error=',
         # setcover
@@ -390,6 +390,7 @@ class PosNegSet:
     minzCovered1 = 1
     minzCovered2 = 1
     needCluster = True
+    needProbe2 = True
     windowSize = 200
     minzEarlyStop1 = 0.9
     minzSimScore1 = 11
@@ -414,6 +415,7 @@ class PosNegSet:
                 self.threads = int(val) if opt == '--threads' else self.threads
                 self.windowSize - int(val) if opt == '--window-size' else self.windowSize
                 self.needCluster = False if opt == '--not-cluster' else self.needCluster
+                self.needProbe2 = False if opt == '--not-make-probe2' else self.needProbe2
                 self.probeLen1 = int(val) if opt == '--probe1-len' else self.probeLen1
                 self.probeLen2 = int(val) if opt == '--probe2-len' else self.probeLen2
                 self.mapError1 = int(val) if opt == '--probe1-error' else self.mapError1
@@ -468,19 +470,20 @@ class PosNegSet:
         self.mapDir1 = self.workDir + 'mapping_probe1' + os.path.sep
         self.indexDir1 = self.workDir + 'index_probe1' + os.path.sep
         self.minzDir1 = self.workDir + 'setcover_probe1' + os.path.sep
-        self.inputDir2 = self.workDir + 'input_probe2' + os.path.sep
-        self.mapDir2 = self.workDir + 'mapping_probe2' + os.path.sep
-        self.indexDir2 = self.workDir + 'index_probe2' + os.path.sep
-        self.minzDir2 = self.workDir + 'setcover_probe2' + os.path.sep
-        self.log = self.workDir + 'log.txt'
         dirList = [
             self.workDir, self.inputDir, self.dedupDir, self.maskingDir,
-            self.thermoFilteringDir, self.mapDir1, self.minzDir1,
-            self.inputDir2, self.mapDir2, self.minzDir2
+            self.thermoFilteringDir, self.mapDir1, self.minzDir1
         ]
+        if self.needProbe2:
+            self.inputDir2 = self.workDir + 'input_probe2' + os.path.sep
+            self.mapDir2 = self.workDir + 'mapping_probe2' + os.path.sep
+            self.indexDir2 = self.workDir + 'index_probe2' + os.path.sep
+            self.minzDir2 = self.workDir + 'setcover_probe2' + os.path.sep
+            dirList += [self.inputDir2, self.mapDir2, self.minzDir2]
         for directory in dirList:
             if not os.path.exists(directory):
                 os.makedirs(directory)
+        self.log = self.workDir + 'log.txt'
         return
 
     def logUpdate(self, msg, doPrint=True):
@@ -781,13 +784,8 @@ class PosNegSet:
     def trimProbes(self):
         # MAKE PROBEs UNERSTANDABLE
         self.probe1 = self.workDir + 'probe1.fa'
-        self.probe2 = self.workDir + 'probe2.fa'
-
         with open(self.lookup1)as f:
             genomeKeys = {int(i.split()[1]):i.split()[0] for i in f}
-        with open(self.lookup2)as f:
-            probe1Keys = {int(i.split()[1]):i.split()[0] for i in f}
-
         cnt = 0
         namesForProbes1 = {}
         lines1 = []
@@ -801,7 +799,11 @@ class PosNegSet:
             cnt += 1
         with open(self.probe1, 'w') as w:
             w.writelines(lines1)
-
+        if not self.needProbe2:
+            return
+        self.probe2 = self.workDir + 'probe2.fa'
+        with open(self.lookup2)as f:
+            probe1Keys = {int(i.split()[1]):i.split()[0] for i in f}
         cnt = 0
         lines2 = []
         for h, s in SimpleFastaParser(open(self.tempProbe2)):
@@ -812,11 +814,18 @@ class PosNegSet:
         with open(self.probe2, 'w') as w:
             w.writelines(lines2)
 
-    def excute(self):
+    def sortProbes(self):        
+        ProbeitUtils.sortFasta(self.probe1, self.workDir + 'sorted1.fa')
+        if not self.needProbe2:
+            return
+        ProbeitUtils.sortFasta(self.probe2, self.workDir + 'sorted2.fa')
+
+    def execute(self):
         self.getPars()
         self.checkArgs()
         self.makeWorkDir()
         self.logUpdate('[INFO]Your arguments: ' + ' '.join(['{} {}'.format(i[0], i[1]).strip() for i in self.args]), False)
+        self.logUpdate("[INFO]make 1st probes")
         self.filterInputData()
         self.minzResult1 = self.minzDir1 + 'result'
         self.tempProbe1 = self.workDir + '{}mer.fa'.format(self.probeLen1)
@@ -827,6 +836,11 @@ class PosNegSet:
             selector='-S ' + self.thermoBed, thread=self.threads
         )
         self.logUpdate(msg, False)
+        if not self.needProbe2:
+            self.trimProbes()
+            self.sortProbes()
+            return
+        self.logUpdate("[INFO]make 2nd probes")
         self.make2ndWindow()
         self.tempProbe2 = self.workDir + '{}mer.fa'.format(self.probeLen2)
         self.minzResult2 = self.minzDir2 + 'result'
@@ -837,8 +851,7 @@ class PosNegSet:
         )
         self.logUpdate(msg, False)
         self.trimProbes()
-        ProbeitUtils.sortFasta(self.probe1, self.workDir + 'sorted1.fa')
-        ProbeitUtils.sortFasta(self.probe2, self.workDir + 'sorted2.fa')
+        self.sortProbes()
         return
 
     @staticmethod
@@ -864,11 +877,13 @@ class PosNegSet:
         print("\t number of CPU-cores used")
         print(" --window-size INT[200]")
         print("\t size of windows for 2nd probes")
-        print("--not-cluster NONE")
+        print(" --not-cluster NONE")
         print("\t Use it when you DO NOT need to cluster positive genome")
-        print("--probe1-len INT[40]")
+        print(" --not-make-probe2 NONE")
+        print("\t Use it when you DO NOT need to make 2nd probes")
+        print(" --probe1-len INT[40]")
         print("\t Length of 1st Probes")
-        print("--probe2-len INT[20]")
+        print(" --probe2-len INT[20]")
         print("\t Length of 2nd Probes")
 
         print("OPTIONS FOR GENMAP PART: Genmap calculates mappability by summarizing k-mers.")
@@ -902,7 +917,7 @@ class SNP:
         # required
         'reference=', 'strain=', 'positions=', 'mutations=', 'output=', 'annotation=',
         # optional
-        'max-window', 'window-size=', 'probe1-len=', 'probe2-len=', 'threads=',
+        'not-make-probe2', 'max-window', 'window-size=', 'probe1-len=', 'probe2-len=', 'threads=',
         # genmap
         'probe-error2=',
         # setcover
@@ -916,6 +931,7 @@ class SNP:
     posList = []
     snpList = []
     workDir = ''
+    needProbe2 = True
     isMaxWindow = False
     windowSize = 200
     probLen1 = 40
@@ -952,6 +968,7 @@ class SNP:
                 self.snpList = self.getArgList(val) if opt in ('-m', '--mutations') else self.snpList
                 self.refGenomeAnnot = val if opt in ('-a', '--annotation') else self.refGenomeAnnot
                 # optional
+                self.needProbe2 = False if opt == '--not-make-probe2' else self.needProbe2
                 self.threads = int(val) if opt == '--threads' else self.threads
                 self.isMaxWindow = True if opt == '--max-window' else self.isMaxWindow
                 self.windowSize = int(val) if opt == '--window-size' else self.windowSize
@@ -1023,17 +1040,18 @@ class SNP:
         self.indexDir = self.workDir + 'index'
         self.blastDir = self.workDir + 'blast' + os.path.sep
         self.probe1byPosDir = self.workDir + 'probe1byPos' + os.path.sep
-        self.input2Dir = self.workDir + 'input2' + os.path.sep
-        self.map2Dir = self.workDir + 'mapping2' + os.path.sep
-        self.minz2Dir = self.workDir + 'setcover2' + os.path.sep
         ProbeitUtils.delDir(self.workDir)
         os.makedirs(self.workDir)
         os.makedirs(self.tempDir)
         os.makedirs(self.blastDir)
         os.makedirs(self.probe1byPosDir)
-        os.makedirs(self.input2Dir)
-        os.makedirs(self.map2Dir)
-        os.makedirs(self.minz2Dir)
+        if self.needProbe2:
+            self.input2Dir = self.workDir + 'input2' + os.path.sep
+            self.map2Dir = self.workDir + 'mapping2' + os.path.sep
+            self.minz2Dir = self.workDir + 'setcover2' + os.path.sep
+            os.makedirs(self.input2Dir)
+            os.makedirs(self.map2Dir)
+            os.makedirs(self.minz2Dir)
 
     def getStrKmerNearSNP(self, mutation, seqWithSNP):
         searchProbe = '{}blast.fa'.format(self.blastDir)
@@ -1243,7 +1261,7 @@ class SNP:
             w.write('>{}\n'.format(':'.join(coveredSNPs)))
             w.write(s + '\n')
 
-    def excute(self):
+    def execute(self):
         self.getPars()
         self.checkArgs()
         self.makeWorkDir()
@@ -1251,6 +1269,9 @@ class SNP:
         self.logUpdate("[INFO]make 1st probes")
         self.makeProbesByPos()
         self.make1stProbe()
+        ProbeitUtils.sortFasta(self.probe1, self.workDir + 'sorted1.fa')
+        if not self.needProbe2:
+            return
         self.logUpdate("[INFO]make 2nd probes")
         self.make2ndWindow()
         ProbeitUtils.delDir(self.indexDir)
@@ -1263,7 +1284,6 @@ class SNP:
         )
         self.logUpdate(msg, False)
         self.trimProbes()
-        ProbeitUtils.sortFasta(self.probe1, self.workDir + 'sorted1.fa')
         ProbeitUtils.sortFasta(self.probe2, self.workDir + 'sorted2.fa')
         return
 
@@ -1302,6 +1322,8 @@ class SNP:
         print("\t Length of 1st Probes")
         print(" --probe2-len INT[20]")
         print("\t Length of 2nd Probes")
+        print(" --not-make-probe2 NONE")
+        print("\t Use it when you DO NOT need to make 2nd probes")
 
         print("OPTIONS FOR GENMAP PART: Genmap calculates mappability by summarizing k-mers.")
         print(" --probe2-error INT[1]")
