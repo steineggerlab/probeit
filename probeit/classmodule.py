@@ -200,7 +200,7 @@ class ProbeitUtils:
         return stdOut, stdErr
 
     @classmethod
-    def deDuplicateMapCSV(cls, inputCSV, outputCSV):
+    def deDuplicateMapCSV(cls, inputCSV, outputCSV, thermoProperProbes=[]):
         def deduplicate(kmers):
             prevIndex = []
             newKmers = []
@@ -210,13 +210,6 @@ class ProbeitUtils:
                     prevIndex.append(index)
                     newKmers.append(k)
             return '|'.join(newKmers)
-
-        # def progressBar(done, total):
-        #     i = int(done / total * 20)
-        #     print(
-        #         '[INFO] Deduplicating Genmap Result: [' + '=' * i + ('>'if i<20 else '') + ' ' * (19 - i) + ']',
-        #         end="\r"
-        #     )
 
         df = pd.read_csv(inputCSV, sep=';')
         df.columns = ['repKmer', 'kmers']
@@ -238,6 +231,8 @@ class ProbeitUtils:
         repKmers = [i if i else None for i in repKmers]
         newKmerLists = [i[1:-1] if i else None for i in newKmerLists]
         uniqGenmapDF = pd.DataFrame({'k-mer': repKmers, 'k-mers': newKmerLists})
+        if thermoProperProbes:
+            uniqGenmapDF = uniqGenmapDF[uniqGenmapDF['k-mer'].apply(lambda x: x in thermoProperProbes)]
         uniqGenmapDF.dropna().to_csv(outputCSV, header=False, index=False, sep=';')
         return outputCSV
 
@@ -287,7 +282,8 @@ class ProbeitUtils:
     @classmethod
     def makeProbe(
             cls, indexDir, mapDir, mapError, probLen, window, genome, lookup, probe, minzResult, minzBed,
-            minzCovered, minzLen, minzEarlyStop, minzSimScore, minzRepeats, selector='', thread=8,
+            minzCovered, minzLen, minzEarlyStop, minzSimScore, minzRepeats, 
+            selector='', thread=8, thermoProperProbes=[]
     ):
         # COMPUTEMAPPABILITY
         message = ''
@@ -295,7 +291,7 @@ class ProbeitUtils:
         comMap, msg = ProbeitUtils.computeMappability(window, indexDir, mapError, probLen, mapDir, selector, thread)
         message += msg
         message += '[INFO]deduplicate genmap result\n'
-        uniqComMap = ProbeitUtils.deDuplicateMapCSV(comMap, mapDir + 'uniq.genmap.csv')
+        uniqComMap = ProbeitUtils.deDuplicateMapCSV(comMap, mapDir + 'uniq.genmap.csv', thermoProperProbes)
         message += "[INFO]minimize probe set\n"
         message += "[CLI] setcover -c {} -l {} -p {} -d {} -i {} {} {}\n".format(minzCovered, minzLen, minzEarlyStop, minzSimScore, minzRepeats, uniqComMap, genome)
         msg, err = ProbeitUtils.setCover(
@@ -648,9 +644,16 @@ class PosNegSet:
         if doSaveUnfiltered:
             ligProbsAndThermos.to_csv((absOutput + '_uncut.tsv'), sep='\t')  # primer3_uncut.tsv
         self.logUpdate(outputStatement)
-        returnBed, msg = ProbeitUtils.getSubtractedBed(inputBed, absThermoProperOutput, directory + 'primer3.neg.bed')
-        self.logUpdate(msg, False)
-        return returnBed
+        # returnBed, msg = ProbeitUtils.getSubtractedBed(inputBed, absThermoProperOutput, thermoImproperOutput)
+        # self.logUpdate(msg, False)
+        # return returnBed
+        return absThermoProperOutput
+
+    def getThermoProperKmers(self):
+        genomeKeys = {i.split()[0]: int(i.split()[1]) for i in open(self.lookup1)}
+        df = pd.read_csv(self.thermoProperBed , sep='\t')
+        df.chrom = df.chrom.apply(lambda x: genomeKeys[x])
+        return list(df.apply(lambda x: f'{x[0]},{x[1]}', axis=1))
 
     def filterInputData(self):
         clustName = self.dedupDir + 'genomes.clu'
@@ -679,8 +682,10 @@ class PosNegSet:
         for title, seq in SimpleFastaParser(f):
             header = '>' + title.split()[0].strip()
             genomeLen = len(seq.strip())
-            lines = [header + '_' + str(i + 1) + '\n' + seq[i:i + self.probeLen1] + '\n' for i in
-                     range(genomeLen - self.probeLen1)]
+            # lines = [header + '_' + str(i + 1) + '\n' + seq[i:i + self.probeLen1] + '\n' for i in
+            #          range(genomeLen - self.probeLen1)]
+            lines = [header + '_' + str(i) + '\n' + seq[i:i + self.probeLen1] + '\n' for i in
+                     range(genomeLen - self.probeLen1+1)]
             w.writelines(lines)
         f.close()
         w.close()
@@ -699,7 +704,8 @@ class PosNegSet:
             with open(deDupGenomeCoords, 'w') as w:
                 for title, seq in SimpleFastaParser(f):
                     header = title.split()[0].strip()
-                    w.write(header + '\t1\t' + str(len(seq.strip())) + '\n')
+                    # w.write(header + '\t1\t' + str(len(seq.strip())) + '\n')
+                    w.write(header + '\t0\t' + str(len(seq.strip())) + '\n')
         
         # COPY 40MERS FROM THE NEGATIVE GENOME COORDINATE FILE(BED) TO FILTER DIR
         simpleNegProbesCoords = self.thermoFilteringDir + 'mmseqs.txt'
@@ -712,8 +718,11 @@ class PosNegSet:
                     w.write(c1 + '\t' + str(int(b) - 1) + '\t' + str(int(b) - 1 + self.probeLen1) + '\n')
         
         # MAKE NEGATIVE REMOVED COORDINATE FILE(BED)
-        negRemCoords, msg = ProbeitUtils.getSubtractedBed(
-            deDupGenomeCoords, simpleNegProbesCoords, self.thermoFilteringDir + 'crosstaxa.bed'
+        # negRemCoords, msg = ProbeitUtils.getSubtractedBed(
+        #     deDupGenomeCoords, simpleNegProbesCoords, self.thermoFilteringDir + 'crosstaxa.bed'
+        # )
+        self.negRemBed, msg = ProbeitUtils.getSubtractedBed(
+            deDupGenomeCoords, simpleNegProbesCoords, self.mapDir1 + 'crosstaxa.bed'
         )
         self.logUpdate(msg)
         
@@ -727,11 +736,12 @@ class PosNegSet:
                     w.write(seq + '\n')
                     
         # TO FILTER 40MERS by THERMODYNAMIC FEATURES
-        thermoImpCoords = self.thermoFilter(self.thermoFilteringDir, deDupGenomeCoords, probesForTheromFilter)
-        self.thermoBed, msg = ProbeitUtils.getSubtractedBed(
-            negRemCoords, thermoImpCoords, self.thermoFilteringDir + 'crosstaxa.primer3.bed'
-        )
-        self.logUpdate(msg, False)
+        # thermoImpCoords = self.thermoFilter(self.thermoFilteringDir, deDupGenomeCoords, probesForTheromFilter)
+        self.thermoProperBed = self.thermoFilter(self.thermoFilteringDir, deDupGenomeCoords, probesForTheromFilter)
+        # self.thermoBed, msg = ProbeitUtils.getSubtractedBed(
+        #     negRemCoords, thermoImpCoords, self.thermoFilteringDir + 'crosstaxa.primer3.bed'
+        # )
+        # self.logUpdate(msg, False)
 
         # MAKE SEQ.FA
         self.window1 = self.dedupDir + 'seq.fasta'
@@ -833,12 +843,12 @@ class PosNegSet:
             self.indexDir1, self.mapDir1, self.mapError1, self.probeLen1, self.window1, self.deDupGenome,
             self.lookup1, self.tempProbe1, self.minzResult1, self.minzResult1 + '.bed', self.minzCovered1,
             self.probeLen1, self.minzEarlyStop1, self.minzSimScore1, self.minzRepeats1,
-            selector='-S ' + self.thermoBed, thread=self.threads
+            selector='-S ' + self.negRemBed, thread=self.threads, thermoProperProbes=self.getThermoProperKmers()
         )
         self.logUpdate(msg, False)
         if not self.needProbe2:
             self.trimProbes()
-            self.sortProbes()
+            # self.sortProbes()
             return
         self.logUpdate("[INFO]make 2nd probes")
         self.make2ndWindow()
@@ -851,7 +861,7 @@ class PosNegSet:
         )
         self.logUpdate(msg, False)
         self.trimProbes()
-        self.sortProbes()
+        # self.sortProbes()
         return
 
     @staticmethod
@@ -1269,7 +1279,7 @@ class SNP:
         self.logUpdate("[INFO]make 1st probes")
         self.makeProbesByPos()
         self.make1stProbe()
-        ProbeitUtils.sortFasta(self.probe1, self.workDir + 'sorted1.fa')
+        # ProbeitUtils.sortFasta(self.probe1, self.workDir + 'sorted1.fa')
         if not self.needProbe2:
             return
         self.logUpdate("[INFO]make 2nd probes")
@@ -1284,7 +1294,7 @@ class SNP:
         )
         self.logUpdate(msg, False)
         self.trimProbes()
-        ProbeitUtils.sortFasta(self.probe2, self.workDir + 'sorted2.fa')
+        # ProbeitUtils.sortFasta(self.probe2, self.workDir + 'sorted2.fa')
         return
 
     @staticmethod

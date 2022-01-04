@@ -1,3 +1,0 @@
-[console_scripts]
-probeit = probeit.__main__:main
-
