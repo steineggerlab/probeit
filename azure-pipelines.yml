@@ -96,7 +96,7 @@ jobs:
             echo snp aa 1
             diff snp2/probe1.fa sample/snp_aa1.fa -s
             echo snp aa 2
-            diff snp2/probe.fa sample/snp_aa2.fa -s
+            diff snp2/probe2.fa sample/snp_aa2.fa -s
             echo snp nt 1
             diff snp4/probe1.fa sample/snp_nt1.fa -s
             echo snp nt 2
