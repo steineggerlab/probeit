@@ -40,9 +40,9 @@ jobs:
             
             echo [process] compare outputs
             echo posnegset 1
-            diff posnegset1/sorted1.fa sample/posnegset1.fa -s
+            diff posnegset1/probe1.fa sample/posnegset1.fa -s
             echo posnegset 2
-            diff posnegset1/sorted2.fa sample/posnegset2.fa -s
+            diff posnegset1/probe2.fa sample/posnegset2.fa -s
             echo snp aa 1
             diff snp1/probe1.fa sample/snp_aa1.fa -s
             echo snp aa 2
