@@ -66,15 +66,11 @@ class ProbeitUtils:
             print(f'[INFO] The directory named {dir} does not exist.')
 
     @classmethod
-    def sortFasta(cls, inputFasta, outputFasta, replace=False):
+    def sortFasta(cls, inputFasta):
         fastaList = []
-        for h, s in SimpleFastaParser(open(inputFasta)):
-            fastaList.append((h, s))
-        fastaList.sort()
-        fastaList = ['>{}\n{}\n'.format(i[0], i[1]) for i in fastaList]
-        if replace:
-            cls.delDir(inputFasta)
-        with open(outputFasta, 'w') as w:
+        fastaList = [(h,s) for h, s in SimpleFastaParser(open(inputFasta))]
+        fastaList = sorted(['>{}\n{}\n'.format(i[0], i[1]) for i in fastaList])
+        with open(inputFasta, 'w') as w:
             w.writelines(fastaList)
 
     # TO CALL SEQKIT MODULES
@@ -97,7 +93,14 @@ class ProbeitUtils:
         df.sort_values(by=list(df.columns), ignore_index=True).to_csv(positonsTSV, sep='\t', index=False)
         return '[CLI] {}\n'.format(command)
 
-    # TO CALL GENMAP MODULES
+    @staticmethod
+    def getFileName(file, keepFilenameExtension=True):
+        file = file.split(os.path.sep)[-1]
+        if keepFilenameExtension:
+            return file 
+        else:
+            return '.'.join(file.split('.')[:-1])
+
     # COMPUTE MAPPABILITY
     @classmethod
     def computeMappability(cls, genome, indexDir, error, len, outputDir, selCoords='', thread=8):
@@ -106,13 +109,11 @@ class ProbeitUtils:
         command0 = " > /dev/null"
         command1 = "genmap index -F {} -I {}".format(genome, indexDir)
         cls.runCommand(command1 + command0)
-        command2 = (
-            "genmap map --no-reverse-complement -E {} {} --csv -K {} -t -b --frequency-large -I {} -O {} -T {}"
-            .format(error, selector, len, indexDir, outputDir, thread)
-        )
+        command2 = "genmap map --no-reverse-complement -E {} {} --csv -K {} -t -b --frequency-large -I {} -O {} -T {}"
+        command2 = command2.format(error, selector, len, indexDir, outputDir, thread)
         cls.runCommand(command2 + command0)
         msg = '[CLI] {}{}\n[CLI] {}{}\n'.format(command1, command0, command2, command0)
-        return outputDir + '.'.join(genome.split(os.path.sep)[-1].split('.')[:-1] + ['genmap', 'csv']), msg
+        return cls.defineFile(outputDir, f'{cls.getFileName(genome, False)}.genmap.csv'), msg
 
     # TO CALL BEDTOOLS MODULES
     @classmethod
@@ -135,20 +136,19 @@ class ProbeitUtils:
     @classmethod
     def makeLookup(cls, windowFasta, lookup):
         with open(windowFasta) as f:
-            headers = [title.strip() for title, seq in SimpleFastaParser(f)]
+            headers = [title.strip() for title, _ in SimpleFastaParser(f)]
         lookupLines = [f'{i}\t{header}\n' for i, header in enumerate(headers)]
         with open(lookup, 'w') as w:
             w.writelines(lookupLines)
         return lookup
 
     @classmethod
-    def searchSNPs(cls, workDir, inputFasta, strGenomeFasta, resultTSV, kmer=12, thread=8):
-        searchDir = ProbeitUtils.defineDirectory('search', root=workDir, make=True)
-        tempDir = ProbeitUtils.defineDirectory('temp', root=searchDir, make=False)
-        resultTSV = workDir + resultTSV 
-        searchdb = searchDir + 'searchDB'
-        strdb = searchDir + 'strainDB'
-        aln = searchDir + 'mmseqs.aln'
+    def searchSNPs(cls, workDir, inputFasta, strGenomeFasta, result, kmer=12, thread=8):
+        searchDir = cls.defineDirectory('search', root=workDir, make=True)
+        tempDir = cls.defineDirectory('temp', root=searchDir, make=False)
+        searchdb = cls.defineFile(searchDir, 'searchDB' )
+        strdb =  cls.defineFile(searchDir, 'strainDB')
+        aln = cls.defineFile(searchDir , 'mmseqs.aln')
         cmd0 = ' --threads {}'.format(thread)
         cmd1 = 'mmseqs createdb {} {}'
         cmd2 = 'mmseqs createdb {} {}'
@@ -157,20 +157,27 @@ class ProbeitUtils:
         out1, err1 = cls.runCommand(cmd1.format(inputFasta, searchdb), verbose=True)
         out2, err2 = cls.runCommand(cmd2.format(strGenomeFasta, strdb), verbose=True)
         out3, err3 = cls.runCommand(cmd3.format(searchdb, strdb, aln, tempDir, kmer, thread) + cmd0, verbose=True)
-        out4, err4 = cls.runCommand(cmd4.format(searchdb, strdb, aln, resultTSV, thread) + cmd0, verbose=True)
-        df = pd.read_csv(resultTSV, sep='\t', header=None)
+        out4, err4 = cls.runCommand(cmd4.format(searchdb, strdb, aln, result, thread) + cmd0, verbose=True)
+        df = pd.read_csv(result, sep='\t', header=None)
         df.columns = ['substr', 'snp', 'strseq', 'start', 'end']
         df['aln'] = df.apply(lambda x: x[2][int(x[3]-1):int(x[4])], axis=1)
         df['len'] = df.aln.apply(lambda x: len(x)-1)
         df = df[['substr', 'snp', 'len', 'aln']]
-        df.to_csv(resultTSV, header=False, index=False, sep='\t')
+        df.to_csv(result, header=False, index=False, sep='\t')
         print(err1 + err2 + err3 + err4)
-        return resultTSV, out1 + out2 + out3 + out4
+        ProbeitUtils.delDir(searchDir)
+        return out1 + out2 + out3 + out4
+
+    @staticmethod
+    def copyFile(original, copy):
+            shutil.copy(original, copy)
 
     @classmethod
     def clusterGenome(cls, input, output, dir, seqIdentity, cluster=True, thread=8):
         if not cluster:
-            return output+'_rep_seq.fasta', '', ''
+            output = output+'_rep_seq.fasta'
+            cls.copyFile(input, output)
+            return output, '', ''
         command = (
             f'mmseqs easy-linclust {input} {output} {dir} -v 3 --kmer-per-seq-scale 0.5 --kmer-per-seq 1000 ' +
             f'--min-seq-id {seqIdentity} --cov-mode 1 -c 0.95 --remove-tmp-files 0 --threads {thread}' 
@@ -192,44 +199,26 @@ class ProbeitUtils:
         return stdOut, stdErr
 
     @classmethod
-    def deDuplicateMapCSV(
-        cls, inputCSV, outputCSV, 
-        thermoImproperProbes=[]
-        ):
-        def deduplicate(kmers):
-            prevIndex = []
-            newKmers = []
-            for k in kmers:
-                index = k.split(',')[0]
-                if index not in prevIndex:
-                    prevIndex.append(index)
-                    newKmers.append(k)
-            return '|'.join(newKmers)
+    def parseKmers(cls,line):
+        return re.findall(r'[0-9]+,[0-9]+', line)
 
-        df = pd.read_csv(inputCSV, sep=';')
-        df.columns = ['repKmer', 'kmers']
-        # DEDUPLICATE EACH ROW
-        df['kmers'] = df.kmers.apply(lambda x: x.split('|'))
-        df['kmers'] = df.kmers.apply(lambda x: deduplicate(x))
-        # DEDUPLICATE WHOLE ROWS
-        repKmers = list(df['repKmer'])
-        kmerLists = list(df['kmers'])
-        kmerLists = ['|{}|'.format(i) for i in kmerLists]
-        newKmerLists = []
-        maskingKmers = set()
-        p = re.compile('[0-9]+,[0-9]+')
-        for i in range(len(kmerLists)):
-            kmerList = kmerLists[i]
-            kmerSet = set(p.findall(kmerList))
-            newKmerLists += [None] if kmerSet & maskingKmers else [kmerList]
-            maskingKmers.add(repKmers[i])
-        repKmers = [i if i else None for i in repKmers]
-        newKmerLists = [i[1:-1] if i else None for i in newKmerLists]
-        uniqGenmapDF = pd.DataFrame({'k-mer': repKmers, 'k-mers': newKmerLists})
-        if thermoImproperProbes:
-            uniqGenmapDF = uniqGenmapDF[uniqGenmapDF['k-mer'].apply(lambda x: x not in thermoImproperProbes)]
-        uniqGenmapDF.dropna().to_csv(outputCSV, header=False, index=False, sep=';')
-        return outputCSV
+    @classmethod
+    def simplifyCMResult(cls, inputCSV, outputCSV, thermoImproperProbes=[]):        
+        print(inputCSV)
+        print('[INFO] Removing duplication from result of coumpute mappability.')
+        w = open(outputCSV, 'w')
+        with open(inputCSV) as f:
+            found = set()
+            for line in f:
+                kmers = cls.parseKmers(line)
+                if not kmers:
+                    continue
+                head = kmers[0]
+                tail = '|'.join(kmers[1:])
+                if not set(kmers)&found and head not in thermoImproperProbes:
+                    w.write(f'{head};{tail}\n')
+                found.add(kmers[0])
+        w.close()
 
     @classmethod
     def setCover(cls, coverage, length, eStop, dist, reps, mapCSV, genome):
@@ -283,7 +272,7 @@ class ProbeitUtils:
         scLen = 1 if overlap else probeLen 
         minzResult = cls.defineFile(scDir, 'result')
         minzBed = cls.defineFile(scDir, 'result.bed')
-        redundancyReducedGenmap = cls.defineFile(cmDir, 'uniq.genmap.csv')
+        uniqComMap = cls.defineFile(cmDir, 'uniq.genmap.csv')
         # COMPUTEMAPPABILITY
         message = ''
         message += '[INFO]compute mappability\n'
@@ -291,7 +280,7 @@ class ProbeitUtils:
         ProbeitUtils
         message += msg
         message += '[INFO]deduplicate genmap result\n'
-        uniqComMap = ProbeitUtils.deDuplicateMapCSV(comMap, redundancyReducedGenmap, improperKmers)
+        ProbeitUtils.simplifyCMResult(comMap, uniqComMap, improperKmers)
         message += "[INFO]minimize probe set\n"
         message += f"[CLI] setcover -c {scCoverage} -l {scLen} -p {scEarlyStop} -d {scScore} -i {scRepeats} {uniqComMap} {window}\n"
         # SETCOVER
@@ -318,7 +307,6 @@ class ProbeitUtils:
     @classmethod
     def defineDirectory(cls, dirName, root='', make=True):
         directory = f'{root}{dirName}{os.path.sep}'
-        cls.delDir(directory) 
         if make:
             os.makedirs(directory)
         return directory
@@ -468,9 +456,9 @@ class PosNegSet:
         if not self.workDir:
             print(message.format('[ERR]', '--output'))
             isBadArguments = True
-        # if os.path.isdir(self.workDir):
-        #     print('You cannot ')
-        #     self.printUsage()
+        if os.path.exists(self.workDir):
+            print(f'[ERR] The directory named {self.workDir} already exsits.')
+            isBadArguments = True
         if isBadArguments:
             self.printUsage()
         print('You input proper arguments.')
@@ -493,14 +481,14 @@ class PosNegSet:
         # FILES 
         self.log = ProbeitUtils.defineFile(self.workDir, 'log.txt')
         self.lookup1 = ProbeitUtils.defineFile(self.workDir, 'genome.lookup')
-        self.posKmers = self.maskingDir + 'probes.fa'
+        self.posKmers = ProbeitUtils.defineFile(self.maskingDir, 'probes.fa')
         self.deDupGenome  = ProbeitUtils.defineFile(self.dedupDir, 'dedup')  
         self.window1 = ProbeitUtils.defineFile(self.dedupDir, 'seq.fasta')
         self.negRemCoords = ProbeitUtils.defineFile(self.cmDir1, 'crosstaxa.bed')
-        self.thermoImpCoords = ProbeitUtils.defineFile(self.thermoFilteringDir, "primer3.neg.bed")
-        self.thermoCalcTSV = ProbeitUtils.defineFile(self.thermoFilteringDir, "primer3_uncut.tsv")
+        self.thermoImpCoords = ProbeitUtils.defineFile(self.thermoFilteringDir, "thermo_neg.bed")
+        self.thermoCalcTSV = ProbeitUtils.defineFile(self.thermoFilteringDir, "thermo_uncut.tsv")
         self.kmersForTheromFilter = ProbeitUtils.defineFile(self.thermoFilteringDir, 'probes.fa')
-        self.setcoverResult1 = ProbeitUtils.defineFile(self.scDir1, self.SETCOVER_RESULT)
+        self.scResult1 = ProbeitUtils.defineFile(self.scDir1, self.SETCOVER_RESULT)
         self.setcoverCoords1 = ProbeitUtils.defineFile(self.scDir1, self.SETCOVER_COORDS)       
         self.tempProbe1 = ProbeitUtils.defineFile(self.workDir, self.TEMP1)
         self.probe1 = ProbeitUtils.defineFile(self.workDir, 'probe1.fa')
@@ -639,7 +627,7 @@ class PosNegSet:
         tempDir = ProbeitUtils.defineDirectory('temp', make=False, root=self.dedupDir)
         self.deDupGenome, msg, err = ProbeitUtils.clusterGenome(self.inputGenome, self.deDupGenome, tempDir, self.cluIdentity, cluster=self.needCluster, thread=self.threads)
         self.logUpdate(msg + err)
-        ProbeitUtils.sortFasta(self.deDupGenome, self.deDupGenome, True)
+        ProbeitUtils.sortFasta(self.deDupGenome)
 
     def makeWindow1(self):
         ProbeitUtils.simplifyFastaHeaders(self.deDupGenome, self.window1)
@@ -681,6 +669,7 @@ class PosNegSet:
                         w.write(f'{header}\t{startPos}\t{startPos+self.pLen1}\n')
             self.logUpdate(ProbeitUtils.getSubtractedBed(deDupGenomeCoords, negKmerCoords, self.negRemCoords))
 
+    # TODO change name
     def getThermoImproperKmers(self):
         self.logUpdate('[INFO]filter probes with thermodynamic features') 
         with open(self.kmersForTheromFilter, 'w') as w:
@@ -692,44 +681,31 @@ class PosNegSet:
             self.thermoFilter()
         
     def makeWindow2(self):
-        with open(self.window1) as f1:
-            seqName = dict()
-            seqs = dict()
-            seqIdx = 0
-            for title, sequence in SimpleFastaParser(f1):             
-                seqName[seqIdx] = '>' + title.strip()
-                seqs[seqIdx] = sequence
-                seqIdx += 1
-        #
-        with open(self.setcoverResult1) as f2:  # 1st setcover result
-            probes = dict()
-            probIdx = 1
-            matchedKmers = sum([line.split(';')[1].split('|') for line in f2.readlines()], [])
-            for kmer in matchedKmers:
-                genome = int(kmer.split(',')[0])
-                probeStart = int(kmer.split(',')[1]) + 1
-                probeEnd = probeStart + self.pLen1
-                probes[probIdx] = [genome, probeStart, probeEnd]
-                probIdx += 1
-        #
-        with open(self.window2, 'w') as w:  
-            for key in probes:
-                seqIdx = probes[key][0]
-                probeStart = probes[key][1]
-                probeEnd = probes[key][2]
-                inputSeq = seqs[seqIdx].strip()
-                seqLen = len(inputSeq)
-                start = probeStart - self.windowSize if probeStart > self.windowSize else 1
-                end = probeStart + self.pLen1 + self.windowSize
-                end = end if end < seqLen else seqLen
-                maskMap = [list(range(probes[k][1] - 1, probes[k][2] - 1)) for k in probes if probes[k][0] == seqIdx]
-                maskMap = sum(maskMap, [])
-                outputSeq = ''.join(['N' if pos in maskMap else inputSeq[pos] for pos in range(start - 1, end)])
-                outputHeader = ':'.join([seqName[seqIdx], str(probeStart - 1), str(probeEnd - 1)])
-                outputHeader = '\t'.join([outputHeader, str(start), str(end), str(seqLen)])
-                w.write(outputHeader + '\n')
-                w.write(outputSeq + '\n')
-        ProbeitUtils.makeLookup(self.window2, self.workDir + 'probe1.lookup')
+        def _getScKmer(scKmer, window):
+            temp = scKmer.split(',')
+            g = int(temp[0])
+            s = int(temp[1])
+            e = s + self.pLen1
+            window[g] = window[g][0], window[g][1][:s]+'N'*40+window[g][1][e:]
+            return g, s, e
+        def _getWinSeq(kmer, lenList):
+            g = kmer[0] 
+            s = kmer[1]
+            e = kmer[2]
+            gLen = lenList[g]
+            ws = s - self.windowSize if s>self.windowSize else 0
+            we = e + self.windowSize 
+            we = gLen if we>gLen else we
+            genome, seq = window1List[g]
+            seq = seq[ws:we] 
+            return f'>{genome}:{s}:{e}\t{ws}\t{we}\t{gLen}\n{seq}\n'
+        window1List =[(h, s) for h, s in SimpleFastaParser(open(self.window1))]
+        genomeLens = [len(i[1]) for i in window1List]
+        scResultList = [_getScKmer(kmer, window1List) for l in open(self.scResult1) for kmer in ProbeitUtils.parseKmers(l)[1:]]
+        window2Lines = [_getWinSeq(kmer, genomeLens) for kmer in scResultList]
+        with open(self.window2, 'w') as w:
+            w.writelines(window2Lines)
+        ProbeitUtils.makeLookup(self.window2, self.lookup2)
 
     def trimProbes(self):
         # MAKE PROBEs UNERSTANDABLE
@@ -951,6 +927,9 @@ class SNP:
         if not self.workDir:
             print(message.format('[ERROR]', '--output'))
             isBadArguments = True
+        if os.path.exists(self.workDir):
+            print(f'[ERR] The directory named {self.workDir} already exsits.')
+            isBadArguments = True
         if isBadArguments:
             self.printUsage()
         print('You input proper arguments.' if self.refGenomeAnnot else message.format('[WARN]', '--annotation'))
@@ -970,14 +949,14 @@ class SNP:
         self.posProbeCSVs[-1] = ProbeitUtils.defineFile(self.probe1byPosDir, 'merged.csv')
         self.probe1 = ProbeitUtils.defineFile(self.workDir, 'probe1.fa')
         if self.needProbe2:
-            self.window1 = '{}masking.fasta'.format(self.inputDir2)
-            self.window1Coords = '{}masked.bed'.format(self.inputDir2)
+            self.window1 = ProbeitUtils.defineFile(self.inputDir2, 'masking.fasta')
+            self.window1Coords = ProbeitUtils.defineFile(self.inputDir2, 'masked.fasta')
             self.maskedGenome= ProbeitUtils.defineFile(self.inputDir2, 'masked.fa')
             self.window2Coords = ProbeitUtils.defineFile(self.inputDir2, 'window.bed')
             self.lookup2 = ProbeitUtils.defineFile(self.workDir, 'name.lookup')
             self.window2 = ProbeitUtils.defineFile(self.inputDir2, 'seq.fa')
             self.lookupTSV = ProbeitUtils.defineFile(self.workDir, 'lookup.tsv')
-            self.tempProbe2 = '{}{}mer.fasta'.format(self.workDir, self.probeLen2)
+            self.tempProbe2 = ProbeitUtils.defineFile(self.workDir, 'temp2.fa')
             self.probe2 = ProbeitUtils.defineFile(self.workDir, 'probe2.fa')
         self.logUpdate('[INFO]Your arguments: snp ' + ProbeitUtils.getUserArgs(args), False)
         # VARIABLES
@@ -996,20 +975,21 @@ class SNP:
         with open(self.log, 'a') as w:
             w.write(msg+'\n')
 
-    def getStrKmerNearSNP(self, mutation, seqWithSNP):
-        searchProbe = '{}blast.fa'.format(self.searchDir)
+    def _searchSnpFromStrGenome(self, mutation, seqWithSNP):
+        snpKmers = ProbeitUtils.defineFile(self.searchDir, f'search_{mutation}.tsv')
+        searchProbe = ProbeitUtils.defineFile(self.searchDir, f'search_{mutation}.fa')
         with open(searchProbe, 'w') as w:
             w.write('>{}\n{}\n'.format(mutation, seqWithSNP))
-        blastOutput, msg = ProbeitUtils.searchSNPs(
-            self.searchDir, searchProbe, self.strGenome, 'blast.tsv', self.searchKmer, thread=self.threads
+        self.logUpdate(
+            ProbeitUtils.searchSNPs(self.searchDir, searchProbe, self.strGenome, snpKmers, self.searchKmer, thread=self.threads)
         )
-        self.logUpdate(msg)
-        return blastOutput
+        return snpKmers
 
     @staticmethod
-    def parseBlastResult(blastResult):
+    def _parseSearcgResult(searchResult):
+        print(searchResult)
         found = -1
-        groupedDf = blastResult.groupby(['WTsequence', 'STsequence', 'locSNP', 'SNPbyNT'])
+        groupedDf = searchResult.groupby(['WTsequence', 'STsequence', 'locSNP', 'SNPbyNT'])
         wtSequence, stSequence, locSNP, ntSNP = '', '', '', ''
         for i in groupedDf:
             if len(i[1]) > found and i[0][1][i[0][2]] == i[0][3][-1]:
@@ -1056,6 +1036,46 @@ class SNP:
         except Exception:
             return False
 
+    def _trimSearchResult(self, result, wtSeq, muttype, maxPos, snp, startPos=-1, wtCodon=''):
+        result = pd.read_csv(result, sep='\t', header=None)
+        if muttype == 'aa':
+            aa2 = snp[-1]
+            print('AA')     
+            result.columns = ['subGenome', 'SNPbyAA', 'match', 'STsequence']
+            result = result[result.STsequence.apply(lambda x: len(x) == len(wtSeq))]
+            if result.empty:
+                return result
+            result['STcodon'] = result.STsequence.apply(lambda x: x[maxPos - 1:maxPos + 2])
+            result = result[result.STcodon.apply(lambda x: self.checkCodon(x))]
+            if result.empty:
+                return result
+            result = result[result.STcodon.apply(lambda x: Seq(x).translate() == aa2)]
+            if result.empty:
+                return result
+            result['WTcodon'] = wtCodon
+            result['diffNT'] = result.apply(lambda x: [i for i in range(len(x[4])) if x[4][i] != x[5][i]], axis=1)
+            result['diffNT'] = result.diffNT.apply(lambda x: x[0] if len(x) == 1 else -1)
+            result['locSNP'] = result['diffNT'].apply(lambda x: x + maxPos - 1)
+            result['SNPbyNT'] = result.apply(lambda x: '{}{}{}'.format(x[5][x[6]], startPos + x[6], x[4][x[6]]), axis=1)
+            result['WTsequence'] = wtSeq
+            return result 
+        elif muttype == 'nt':
+            print('NT')
+            nt2 = snp[-1]
+            result.columns = ['subGenome', 'SNPbyNT', 'match', 'STsequence']
+            result['WTsequence'] = wtSeq
+            result['locSNP'] = maxPos - 1
+            
+            result = result[result.STsequence.apply(lambda x: len(x) == len(wtSeq))]
+            if result.empty:
+                return result
+            result = result[result.STsequence.apply(lambda x: x[maxPos - 1] == nt2)]  
+            if result.empty:
+                return result
+            return result
+        else:
+            return pd.DataFrame()
+
     def findSNPs(self):    
         minPos = min(self.posList)
         maxPos = max(self.posList)
@@ -1066,9 +1086,6 @@ class SNP:
         for snp in self.snpList:
             self.logUpdate('[INFO]SNP {}'.format(snp))
             mutType, orf, mutation = self.parseMutation(snp)
-            if mutType not in ['aa', 'nt']:
-                self.logUpdate('[warn]SNP {} has a wrong format.'.format(snp))
-                continue
             if mutType == 'aa':
                 if self.refGenomeAnnot == '':
                     self.logUpdate('[warn]For Amino Acid based SNPs reference annotation needed.')
@@ -1080,67 +1097,49 @@ class SNP:
                 aa1, aa2, mutPos = mutation[0], mutation[-1], int(mutation[1:-1])
                 codonStartPos = orfStartPos + (mutPos - 1) * 3 - 1
                 codonEndPos = orfStartPos + mutPos * 3 - 1
+                
                 refCodon = refSeq[codonStartPos: codonEndPos]
                 if aa1 != Seq(refCodon).translate():
                     self.logUpdate('[warm]Failure to find SNP {} in reference genome'.format(snp))
                     continue
+                
                 seqWithSNP = refSeq[codonStartPos - (maxPos-1): codonEndPos + (self.probLen1 - minPos)]
-                strainKmerNearSNP = self.getStrKmerNearSNP(mutation, seqWithSNP)  # blast.fa
-                df = pd.read_csv(strainKmerNearSNP, sep='\t', header=None)
-                df.columns = ['subGenome', 'SNPbyAA', 'match', 'STsequence']
-                try:
-                    df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
-                    df['STcodon'] = df.STsequence.apply(lambda x: x[maxPos - 1:maxPos + 2])
-                    df = df[df.STcodon.apply(lambda x: self.checkCodon(x))]
-                    df = df[df.STcodon.apply(lambda x: Seq(x).translate() == aa2)]
-                    df['WTcodon'] = refCodon
-                    df['diffNT'] = df.apply(lambda x: [i for i in range(len(x[4])) if x[4][i] != x[5][i]], axis=1)
-                    df['diffNT'] = df.diffNT.apply(lambda x: x[0] if len(x) == 1 else -1)
-                    df['locSNP'] = df['diffNT'].apply(lambda x: x + maxPos - 1)
-                    df['SNPbyNT'] = df.apply(lambda x: '{}{}{}'.format(x[5][x[6]], codonStartPos + x[6], x[4][x[6]]), axis=1)
-                    df['WTsequence'] = seqWithSNP
-                    if df.empty:
-                        raise Exception
-                except:
-                    self.logUpdate('[warn]Failure to find snp {} in the strain genome or reference genome'.format(snp))
+                searchResult = self._searchSnpFromStrGenome(mutation, seqWithSNP)
+                trimmedResult = self._trimSearchResult(searchResult, seqWithSNP, mutType, maxPos, snp, codonStartPos, refCodon)
+                if trimmedResult.empty:
+                    self.logUpdate(f'[WARN] Problems occured searching snp {snp} in the strain genome or reference genome')
                     continue
-                wtSequence, stSequence, ntSNP, locSnp, found = self.parseBlastResult(blastResult=df)
+                wtSequence, stSequence, ntSNP, locSnp, found = self._parseSearcgResult(searchResult=trimmedResult)
                 self.logUpdate('[INFO]aa:{}:{} converted to nt:{}'.format(orf, mutation, ntSNP))
                 aaOrf = '{}:{}'.format(orf, mutation)
                 mutSeqs = ParaSeqs(ntSNP, aaOrf, wtSequence, stSequence, mutLoc=locSnp, probLen=self.probLen1)
-            else:
+            elif mutType == 'nt':
                 nt1, nt2, snpPos = mutation[0], mutation[-1], int(mutation[1:-1])
                 refNT = refSeq[snpPos]
                 if nt1 != refNT:
                     self.logUpdate('[warn]Failure to find SNP {} in reference genome'.format(snp))
                     continue
                 seqWithSNP = refSeq[snpPos - (maxPos - 1):snpPos + 1 + (self.probLen1 - minPos)]
-                blastOutput = self.getStrKmerNearSNP(mutation, seqWithSNP)
-                df = pd.read_csv(blastOutput, sep='\t', header=None)
-                df.columns = ['subGenome', 'SNPbyNT', 'match', 'STsequence']
-                try:
-                    df['WTsequence'] = seqWithSNP
-                    df['locSNP'] = maxPos - 1
-                    df = df[df.STsequence.apply(lambda x: len(x) == len(seqWithSNP))]
-                    df = df[df.STsequence.apply(lambda x: x[maxPos - 1] == nt2)]
-                    if df.empty:
-                        self.logUpdate('[info] length of probe1 could be too long, trt to reduce.')
-                        raise Exception
-                except:
-                    self.logUpdate(
-                        '[warn] Problems occured searching snp {} in the strain genome or reference genome'.format(snp)
-                    )
+                searchResult = self._searchSnpFromStrGenome(mutation, seqWithSNP)
+                trimmedResult = self._trimSearchResult(searchResult, seqWithSNP, mutType, maxPos, snp)
+                if trimmedResult.empty:
+                    self.logUpdate(f'[WARN] Problems occured searching snp {snp} in the strain genome or reference genome')
                     continue
-                wtSequence, stSequence, ntSNP, locSnp, found = self.parseBlastResult(blastResult=df)
+                wtSequence, stSequence, ntSNP, locSnp, found = self._parseSearcgResult(searchResult=trimmedResult)
                 mutSeqs = ParaSeqs(ntSNP, '', wtSequence, stSequence, mutLoc=locSnp, probLen=self.probLen1)
+            print('DONE')
             if found < 0 or not found:
-                self.logUpdate('[warn]Failure to find SNP {} in strain genome'.format(snp))
+                self.logUpdate('[WARN]Failure to find SNP {} in strain genome'.format(snp))
                 continue
             self.probesByPos[-1].append(mutSeqs)
             for pos in self.posList:
                 wtProbe, stProbe = mutSeqs.getProbesWithPos(pos)
                 paraSeq = ParaSeqs(mutSeqs.ntSnp, mutSeqs.aaSnp, wtProbe, stProbe, found=found, probLen=self.probLen1)
                 self.probesByPos[pos].append(paraSeq)
+            else:
+                self.logUpdate('[warn]SNP {} has a wrong format.'.format(snp))
+                continue
+                
 
     def makeProbe1(self):
         probeLines = []
@@ -1162,6 +1161,7 @@ class SNP:
         inputDF.to_csv(outputBed, sep='\t', header=False, index=False)
 
     def makeWindows(self):
+        print( self.probesByPos[-1])
         window1 = [f'>{p.ntSnp}{ "=" + p.aaSnp if p.aaSnp else ""}\n{p.stSeq}\n' for p in self.probesByPos[-1]]
         if not window1:
             self.logUpdate('[ERROR] Cannot find any SNP in strain genomes')
