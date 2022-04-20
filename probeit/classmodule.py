@@ -5,8 +5,7 @@ from sys import stderr
 from defusedxml import DTDForbidden
 from pandas.core.accessor import DirNamesMixin
 from Bio.SeqIO.FastaIO import SimpleFastaParser
-from Bio.Seq import Seq
-from Bio.Seq import reverse_complement
+from Bio.Seq import Seq, reverse_complement
 import pandas as pd
 import primer3
 import numpy as np
@@ -47,8 +46,8 @@ class ParaSeqs:
         end = self.mutLoc - pos + self.probLen + 1
         return self.wtSeq[start:end], self.stSeq[start:end] 
 
-
-class ProbeitUtils:
+class ProbeitUtils:    
+    # RUN COMMANDLINE
     @staticmethod
     def runCommand(command, verbose=False):
         print('[CLI] '+command)
@@ -61,41 +60,22 @@ class ProbeitUtils:
             os.system(command)
             return
 
+    # ARGUMENTS PARSING
     @classmethod
-    def delDir(cls, directory):
-        if os.path.isdir(directory):
-            print(f'[INFO] The directory named {directory} is removed not.')
-            shutil.rmtree(directory)
-        else:
-            print(f'[INFO] The directory named {directory} does not exist.')
+    def getUserArgs(cls, args):
+        return ' '.join(['{} {}'.format(i[0], i[1]) if len(i) == 2 else i for i in args])
+
+    # FILES AND DIRCTORIES RELATED
+    @staticmethod
+    def defineFile(directory, fileName):
+        return directory + fileName
 
     @classmethod
-    def sortFasta(cls, inputFasta):
-        fastaList = []
-        fastaList = [(h,s) for h, s in SimpleFastaParser(open(inputFasta))]
-        fastaList = sorted(['>{}\n{}\n'.format(i[0], i[1]) for i in fastaList])
-        with open(inputFasta, 'w') as w:
-            w.writelines(fastaList)
-
-    # TO CALL SEQKIT MODULES
-    @classmethod
-    def renameFasta(cls, oldFasta, newFasta):
-        command = "seqkit rename {} > {} -w 0".format(oldFasta, newFasta)
-        cls.runCommand(command)
-
-    @classmethod
-    def getSubseqFasta(cls, coordinateBed, inputFasta, outputFasta):
-        command1 = "seqkit subseq --quiet --bed {} {} > {}".format(coordinateBed, inputFasta, outputFasta)
-        cls.runCommand(command1)
-        return '[CLI] '+command1+'\n'
-
-    @classmethod
-    def getPatternPosition(cls, patternFasta, genomeFasta, positonsTSV):
-        command = "seqkit locate -f {} {} > {}".format(patternFasta, genomeFasta, positonsTSV)
-        cls.runCommand(command)
-        df = pd.read_csv(positonsTSV, sep='\t')
-        df.sort_values(by=list(df.columns), ignore_index=True).to_csv(positonsTSV, sep='\t', index=False)
-        return '[CLI] {}\n'.format(command)
+    def defineDirectory(cls, dirName, root='', make=True):
+        directory = f'{root}{dirName}{os.path.sep}'
+        if make:
+            os.makedirs(directory)
+        return directory
 
     @staticmethod
     def getFileName(file, keepFilenameExtension=True):
@@ -105,9 +85,100 @@ class ProbeitUtils:
         else:
             return '.'.join(file.split('.')[:-1])
 
+    @classmethod
+    def delDir(cls, directory):
+        if os.path.isdir(directory):
+            print(f'[INFO] The directory named {directory} is removed not.')
+            shutil.rmtree(directory)
+        else:
+            print(f'[INFO] The directory named {directory} does not exist.')
+
+    # FASTA FILES RELATED
+    @classmethod
+    def sortFasta(cls, inputFasta):
+        fastaList = []
+        fastaList = [(h,s) for h, s in SimpleFastaParser(open(inputFasta))]
+        fastaList = sorted(['>{}\n{}\n'.format(i[0], i[1]) for i in fastaList])
+        with open(inputFasta, 'w') as w:
+            w.writelines(fastaList)
+
+    @classmethod
+    def getSubseqFasta(cls, coordinateBed, inputFasta, outputFasta):
+        command1 = "seqkit subseq --quiet --bed {} {} > {}".format(coordinateBed, inputFasta, outputFasta)
+        cls.runCommand(command1)
+        return '[CLI] '+command1+'\n'
+
+    @classmethod
+    def getWindowFasta(cls, genomeFasta, maskingBed, maskedGenomeFasta, windowBed, windowFasta, windowSize):
+        command1 = "bedtools maskfasta -fi {} -bed {} -fo {}".format(genomeFasta, maskingBed, maskedGenomeFasta)
+        cls.runCommand(command1)
+        inputDF = pd.read_csv(maskingBed, sep='\t', header=None)
+        inputDF[1] = inputDF[1].apply(lambda x: x - windowSize)
+        inputDF[2] = inputDF[2].apply(lambda x: x + windowSize)
+        inputDF.to_csv(windowBed, sep='\t', header=False, index=False)
+
+        command2 = "bedtools getfasta -fi {} -bed {} > {}".format(maskedGenomeFasta, windowBed, windowFasta)
+        cls.runCommand(command2)
+
+    @staticmethod
+    def simplifyFastaHeaders(inputFasta, outputFasta):
+        with open(inputFasta) as f:
+            with open(outputFasta, 'w') as w:
+                for title, seq in SimpleFastaParser(f):
+                    w.write(('>' + title).split()[0].strip() + '\n')
+                    w.write(seq + '\n')
+
+    @staticmethod
+    def extractKmers(genomeFasta, kmersFasta, pLen):
+            kmers = {}
+            genomeIdx = 0
+            for _, s in SimpleFastaParser(open(genomeFasta)):
+                l = len(s)
+                for pos in range(l-pLen+1):
+                    name = f'{genomeIdx},{pos}'
+                    seq = s[pos:pos+pLen].upper()
+                    kmers.setdefault(seq,[])
+                    kmers[seq].append(name)
+                genomeIdx += 1
+            w = open(kmersFasta, 'w')
+            for s, names in kmers.items():
+                rep = names[0]
+                w.write(f'>{rep};{"|".join(names)}\n{s}\n')
+            w.close()
+
+    @classmethod
+    def getPatternPosition(cls, patternFasta, genomeFasta, positonsTSV):
+        command = "seqkit locate -f {} {} > {}".format(patternFasta, genomeFasta, positonsTSV)
+        cls.runCommand(command)
+        df = pd.read_csv(positonsTSV, sep='\t')
+        df.sort_values(by=list(df.columns), ignore_index=True).to_csv(positonsTSV, sep='\t', index=False)
+        return '[CLI] {}\n'.format(command)
+
+    @classmethod
+    def clusterGenome(cls, input, output, directory, seqIdentity, threads=8):
+        cmd = 'mmseqs easy-linclust {} {} {} -v 3 --kmer-per-seq-scale 0.5 --kmer-per-seq 1000 --min-seq-id {} --cov-mode 1 -c 0.95 --remove-tmp-files 0 --threads {}' 
+        cmd.format(input, output, directory, seqIdentity, threads)
+        stdout, stderr = cls.runCommand(cmd, verbose=True)
+        msg = stdout + stderr
+        output += '_rep_seq.fasta'
+        return msg, output
+
+    @classmethod
+    def ridNegKmers(cls, posKmers, negative, output, outputDir, seqInProbe, thread=8):
+        tempDir = cls.defineDirectory("tmp", root=outputDir)
+        command = (
+            f'mmseqs easy-search {posKmers} {negative} {output} {tempDir} -v 3 --spaced-kmer-mode 0 -k 13 --mask 0 ' +
+            f'--format-output query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue ' +
+            f'-c 0.9 --min-seq-id {seqInProbe} --cov-mode 2 --alignment-mode 4 --search-type 3 --threads {thread}' + ' --remove-tmp-files 0'
+        )
+        stdOut, stdErr = cls.runCommand(command, verbose=True)
+        print(stdOut)
+        print(stdErr)
+        return f'[CLI] {command}\n' + stdOut + stdErr
+
     # COMPUTE MAPPABILITY
     @classmethod
-    def simpleComputeMappability(cls, genome, lookup, positionBED, outputCSV, pLen):
+    def simpleComputeMappability(cls, genome, lookup, positionBED, outputCSV, pLen, impKmers=set()):
         positive = set()
         genomeNames = [i.split()[1].strip() for i in open(lookup)]
         for line in open(positionBED):
@@ -133,13 +204,14 @@ class ProbeitUtils:
         for s, names in kmers.items():
             rep = names[0]
             isPositive = {rep}&positive!=set()
-            if isPositive:
+            isThermoImproper = kmers&impKmers
+            if isPositive and not isThermoImproper:
                 w.write(f'{rep};{"|".join(names)}\n')
         w.close()
         return
 
     @classmethod
-    def computeMappability(cls, genome, indexDir, error, len, outputDir, outputCSV, positiveCoords='', threads=8,  thermoImpKmers=set()):
+    def computeMappability(cls, genome, indexDir, error, len, outputDir, outputCSV, positiveCoords='', threads=8,  impKmers=set()):
         selector = f'-S {positiveCoords}' if positiveCoords else ''
         cls.delDir(indexDir)
         command0 = " > /dev/null"
@@ -152,30 +224,20 @@ class ProbeitUtils:
         w = open(outputCSV, 'w')
         for line in open(inputCSV):
             [header, first] = line.split('|')[0].strip().split(';')
-            if header == first and not {header}&thermoImpKmers:
+            # print(type({header}), type(impKmers))
+            if header == first and not {header}&impKmers:
                 w.write(line)
         w.close()
         return '[CLI] {}{}\n[CLI] {}{}\n'.format(command1, command0, command2, command0)
 
-    # TO CALL BEDTOOLS MODULES
+    # BED FILES RELATED
     @classmethod
     def getSubtractedBed(cls, positiveBed, negativeBed, bedFileName):
         command = "bedtools subtract -a {} -b {} > {}".format(positiveBed, negativeBed, bedFileName)
         cls.runCommand(command)
         return '[CLI] '+command
 
-    @classmethod
-    def getWindowFasta(cls, genomeFasta, maskingBed, maskedGenomeFasta, windowBed, windowFasta, windowSize):
-        command1 = "bedtools maskfasta -fi {} -bed {} -fo {}".format(genomeFasta, maskingBed, maskedGenomeFasta)
-        cls.runCommand(command1)
-        inputDF = pd.read_csv(maskingBed, sep='\t', header=None)
-        inputDF[1] = inputDF[1].apply(lambda x: x - windowSize)
-        inputDF[2] = inputDF[2].apply(lambda x: x + windowSize)
-        inputDF.to_csv(windowBed, sep='\t', header=False, index=False)
-
-        command2 = "bedtools getfasta -fi {} -bed {} > {}".format(maskedGenomeFasta, windowBed, windowFasta)
-        cls.runCommand(command2)
-
+    # LOOKUP FILES RELATED
     @classmethod
     def makeLookup(cls, windowFasta, lookup, genomePos=''):
         headers = [header.strip() for header, _ in SimpleFastaParser(open(windowFasta))] 
@@ -187,9 +249,8 @@ class ProbeitUtils:
             w = open(genomePos, 'w')
             for i, length in enumerate(lengths):
                 w.write(f'{i}\t0\t{length}\n')
-    
-        
 
+    # SNPs RELATED
     @classmethod
     def searchSNPs(cls, workDir, inputFasta, strGenomeFasta, result, kmer=12, threads=8):
         searchDir = cls.defineDirectory('search', root=workDir, make=True)
@@ -216,32 +277,26 @@ class ProbeitUtils:
         ProbeitUtils.delDir(searchDir)
         return out1 + out2 + out3 + out4
 
-    @classmethod
-    def clusterGenome(cls, input, output, directory, seqIdentity, threads=8):
-        command = (
-            f'mmseqs easy-linclust {input} {output} {directory} -v 3 --kmer-per-seq-scale 0.5 --kmer-per-seq 1000 ' +
-            f'--min-seq-id {seqIdentity} --cov-mode 1 -c 0.95 --remove-tmp-files 0 --threads {threads}' 
-        )
-        stdout, stderr = cls.runCommand(command, verbose=True)
-        return output+'_rep_seq.fasta',  stdout + stderr
-
-    @classmethod
-    def ridNegKmers(cls, posKmers, negative, output, outputDir, seqInProbe, thread=8):
-        tempDir = cls.defineDirectory("tmp", root=outputDir)
-        command = (
-            f'mmseqs easy-search {posKmers} {negative} {output} {tempDir} -v 3 --spaced-kmer-mode 0 -k 13 --mask 0 ' +
-            f'--format-output query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue ' +
-            f'-c 0.9 --min-seq-id {seqInProbe} --cov-mode 2 --alignment-mode 4 --search-type 3 --threads {thread}' + ' --remove-tmp-files 0'
-        )
-        stdOut, stdErr = cls.runCommand(command, verbose=True)
-        print(stdOut)
-        print(stdErr)
-        return f'[CLI] {command}\n' + stdOut + stdErr
-
+    # PARSE GENMAP KMER PATTERNS 
     @staticmethod
     def parseKmers(line):
         return re.findall(r'[0-9]+,[0-9]+', line)
 
+    @staticmethod
+    def parseGenmapPattern(header):
+        p1 = re.compile('[0-9]+,')
+        p2 = re.compile(',[0-9]+')
+        return [int(i[:-1]) for i in p1.findall(header)], [int(i[1:]) for i in p2.findall(header)]
+
+    # ARGUMENTS PARSING
+    @staticmethod
+    def getArgList(value, isInt=False):
+        if isInt:
+            return [int(i.strip()) for i in value.split(',')]
+        else:
+            return value.split(',')
+
+    # OTHERS
     @classmethod
     def setCover(cls, coverage, length, eStop, dist, reps, mapCSV, genome, lookup, setcoverResultBed, probeLen):
         filePath = os.path.sep.join(os.path.realpath(__file__).split(os.path.sep)[:-1])
@@ -264,53 +319,126 @@ class ProbeitUtils:
         return f'{setcoverPath}{command}\n{stdOut}{stdErr}'    
 
     @classmethod
-    def getUserArgs(cls, args):
-        return ' '.join(['{} {}'.format(i[0], i[1]) if len(i) == 2 else i for i in args])
-
-    @classmethod
-    def sortFile(cls, inputFile, outputFile):
-        command = 'sort {} > {}'.format(inputFile, outputFile)
-        cls.runCommand(command)
-        cls.runCommand(command)
-
-    @staticmethod
-    def simplifyFastaHeaders(inputFasta, outputFasta):
-        with open(inputFasta) as f:
-            with open(outputFasta, 'w') as w:
-                for title, seq in SimpleFastaParser(f):
-                    w.write(('>' + title).split()[0].strip() + '\n')
-                    w.write(seq + '\n')
-
-    @classmethod
-    def makeProbe(
-            cls, output, scResultBed, window, lookup, probeLen, 
-            scCoverage, scEarlyStop, scScore, scRepeats, uniqComMap, 
-            overlap=False, 
-    ):
+    def makeProbe(cls, output, scResultBed, window, lookup, probeLen, scCoverage, scEarlyStop, scScore, scRepeats, uniqComMap, overlap=False, ):
         scLen = 1 if overlap else probeLen 
         # SETCOVER
         message = "[INFO] minimize probe set\n"
-        message += ProbeitUtils.setCover(scCoverage, scLen, scEarlyStop, scScore, scRepeats, uniqComMap, window, lookup, scResultBed, probeLen)
+        message += cls.setCover(scCoverage, scLen, scEarlyStop, scScore, scRepeats, uniqComMap, window, lookup, scResultBed, probeLen)
         # MAKE PROBEs
-        message += ProbeitUtils.getSubseqFasta(scResultBed, window, output)
+        message += cls.getSubseqFasta(scResultBed, window, output)
         return message
 
-    @staticmethod
-    def parseGenmapPattern(header):
-        p1 = re.compile('[0-9]+,')
-        p2 = re.compile(',[0-9]+')
-        return [int(i[:-1]) for i in p1.findall(header)], [int(i[1:]) for i in p2.findall(header)]
+class ThermoFilter:
+    def __init__(self, kmersFASTA, pLen, outputTSV, isLigational=False):
+        self.kmersFASTA = kmersFASTA
+        self.pLen = pLen
+        self.outputTSV = outputTSV
+        self.isLigational = isLigational
+        self.minGC = Config.getMinGC()
+        self.maxGC = Config.getMaxGC()
+        self.maxHomoDimerTm = Config.getMaxhomoDimerTm()
+        self.maxHairpinTm = Config.getMaxhairpinTm()
+        self.minProbeTm = Config.getMinProbeTm()
+        maxRepeat = Config.getMaxRepeat()
+        self.problematicSeqs = ['A' * maxRepeat, 'T' * maxRepeat, 'C' * maxRepeat, 'G' * maxRepeat]
+        self.kmerList = []
+        self.query = ['p1_intrinsic_probs', f'p1_tm<{self.minProbeTm}', f'p1_GC_perc<{self.minGC}', f'p1_GC_perc>{self.maxGC}', f'p1_homodimer_tm>{self.maxHomoDimerTm}', f'p1_hairpin_tm>{self.maxHairpinTm}']
+        self.sorder = ['p1_hairpin_tm', 'p1_homodimer_tm']
+        self.ascending = [True, True, True, True] if self.isLigational else [True, True]
+        if self.isLigational:   
+            self.query += ['p2_intrinsic_probs', f'p2_tm<{self.minProbeTm}', f'p2_GC_perc<{self.minGC}', f'p2_GC_perc>{self.maxGC}', f'p2_homodimer_tm>{self.maxHomoDimerTm}', f'p2_hairpin_tm>{self.maxHairpinTm}']
+            self.sorder += ['p2_hairpin_tm', 'p2_homodimer_tm']
+
+    def makeLogMessage(self, numKmers, numImpKmers):
+        msg = '[INFO]filter probes with thermodynamic features\n' 
+        msg += f"\tMinimum Tm: {self.minProbeTm}\n"
+        msg += f"\tMinimum GC percentage: {self.minGC }\n"
+        msg += f"\tMaximum GC percentage: {self.maxGC}\n"
+        msg += f"\tHomodimer maximum Tm: {self.maxHomoDimerTm}\n"
+        msg += f"\tHairpin maximum Tm: {self.maxHairpinTm}\n"
+        msg += f"[INFO] {numKmers} ligation probe candidate sets inputted.\n"
+        msg += f'[INFO] Improper Ligation probe candidates are removed: {numImpKmers}\n'
+        return msg
 
     @staticmethod
-    def defineFile(directory, fileName):
-        return directory + fileName
+    def getContentGC(oligo):
+        gcCount = oligo.count('G') + oligo.count('C')
+        return gcCount / len(oligo)
+   
+    def hasLowComplexity(self, candidate_oligo):
+        for s in self.problematicSeqs:
+            if s in candidate_oligo:
+                return True
+        return False
+        
+    @staticmethod
+    def getImpKmersSet(impKmers):
+        return set(sum(impKmers['id'].apply(lambda x: ProbeitUtils.parseKmers(x)[1:]), []))
 
-    @classmethod
-    def defineDirectory(cls, dirName, root='', make=True):
-        directory = f'{root}{dirName}{os.path.sep}'
-        if make:
-            os.makedirs(directory)
-        return directory
+    def getKmersDF(self):
+        with open(self.kmersFASTA) as f:
+            identity = []
+            posStartList = []
+            posEndList = []
+            kmers = []
+            rc = []
+            p1 = []
+            p2 = []
+            for title, kmer in SimpleFastaParser(f):
+                split_name = title.split('\t', 2)
+                identity.append(split_name[0])
+                if len(split_name) > 1:
+                    pStart = int(split_name[1])
+                else:
+                    pStart = 0
+                pEnd = pStart + self.pLen
+                posStartList.append(pStart)
+                posEndList.append(pEnd)
+                kmers.append(kmer)
+                rcKmer = str(reverse_complement(Seq(kmer)))
+                rc.append(rcKmer)
+                if self.isLigational:
+                    mid_pos = round(self.pLen / 2)
+                    p1.append(rcKmer[0:mid_pos])
+                    p2.append(rcKmer[mid_pos : self.pLen])
+                else:
+                    p1.append(rcKmer)
+        self.kmerList = p1 + p2  
+        cols = ['id', 'chromStart', 'chromEnd', 'genome_segment', 'rc', 'p1']      
+        outputDF = pd.DataFrame(list(zip(identity, posStartList, posEndList, kmers, rc, p1)), columns=cols)
+        if self.isLigational:
+            outputDF['p2'] = p2
+        return outputDF
+
+    def getThermoFeaturesDF(self):
+        thermoFeatures = pd.DataFrame(list(set(self.kmerList)), columns=['p'])
+        thermoFeatures = thermoFeatures.assign(ultimate_base=thermoFeatures['p'].str[-1])
+        thermoFeatures = thermoFeatures.assign(penultimate_base=thermoFeatures['p'].str[-2])
+        thermoFeatures = thermoFeatures.assign(tm=np.vectorize(primer3.calcTm)(thermoFeatures['p']))
+        thermoFeatures['hairpin_tm'] = list(map(primer3.calcHairpinTm, thermoFeatures['p']))
+        thermoFeatures = thermoFeatures.assign(homodimer_tm=np.vectorize(primer3.calcHomodimerTm)(thermoFeatures['p']))
+        thermoFeatures = thermoFeatures.assign(intrinsic_probs=np.vectorize(self.hasLowComplexity)(thermoFeatures['p']))
+        thermoFeatures = thermoFeatures.assign(GC_perc=np.vectorize(self.getContentGC)(thermoFeatures['p']))
+        return thermoFeatures
+
+    def getThermoFeaturedKmersDF(self, kmersDF, thermoFeaturesDF):
+        joinedDF = pd.merge(kmersDF, thermoFeaturesDF.add_prefix('p1_'), how='left', left_on='p1', right_on='p1_p')
+        if self.isLigational:   
+            joinedDF = pd.merge(joinedDF, thermoFeaturesDF.add_prefix('p2_'), how='left', left_on='p2', right_on='p2_p')
+        return joinedDF
+    
+    @staticmethod
+    def dfFilter(df, query, sorder, ascending):
+        filtered = df.query(' | '.join(query))  
+        return filtered.sort_values(by=sorder, ascending=ascending)
+    
+    def run(self):
+        kmersDF = self.getKmersDF()
+        thermoFeaturesDF = self.getThermoFeaturesDF()        
+        thermoFeaturedKmersDF = self.getThermoFeaturedKmersDF(kmersDF, thermoFeaturesDF)
+        thermoFeaturedKmersDF.to_csv(self.outputTSV, sep='\t')
+        impKmers = self.dfFilter(thermoFeaturedKmersDF, self.query, self.sorder, self.ascending)
+        return self.makeLogMessage(len(kmersDF), len(impKmers)), self.getImpKmersSet(impKmers)
 
 
 class Probeit:
@@ -323,7 +451,6 @@ class Probeit:
     def do(self):
         if self.args == [] or self.args[0] == '-h' or self.args[0] == '--help':
             self.printUsage()
-            return
         elif self.args[0] == 'posnegset':
             print('CURRENT: ', os.getcwd())
             subWork = PosNegSet(self.args[1:])
@@ -334,9 +461,14 @@ class Probeit:
             subWork = SNP(self.args[1:])
             subWork.run()
             return
+        elif self.args[0] == 'primer':
+            print('CURRENT: ', os.getcwd())
+            subWork = Primer(self.args[1:])
+            subWork.run()
+            return
         else:
             self.printUsage()
-            return
+            
 
     @staticmethod
     def printUsage():
@@ -378,8 +510,9 @@ class PosNegSet:
     scCoverage1 = 1
     scCoverage2 = 1
     doRemoveRedundancy = False
-    doDesignProbe2 = True
-    doThermoFilter = True # thermofilter
+    needProbe2 = True
+    doThermoFilter1 = True # thermofilter
+    doThermoFilter2 = True
     isLigationProbe = False # thermofilter
     windowSize = 200
     scEarlyStop1 = 0.9
@@ -389,10 +522,13 @@ class PosNegSet:
     scScore2 = 20
     scRepeats2 = 10
     threads = 8
+    impKmers1 = set()
+    impKmers2 = set()
+    probe1Index = []
 
     def __init__(self, args):
         args = getopt.getopt(args, self.shortParams, self.longParams)[0]
-        print(f"Your arguments: posnegset {ProbeitUtils.getUserArgs(args)}")
+        print(f"Your arguments: probeit posnegset {ProbeitUtils.getUserArgs(args)}")
         # PARSE PARAMETERS
         for opt, val in args:
             if opt in ('-h', '--help'):
@@ -405,8 +541,9 @@ class PosNegSet:
                 self.threads = int(val) if opt == '--threads' else self.threads
                 self.windowSize = int(val) if opt == '--window-size' else self.windowSize
                 self.doRemoveRedundancy = True if opt == '--remove-reduncancy' else self.doRemoveRedundancy
-                self.doDesignProbe2 = False if opt == '--not-make-probe2' else self.doDesignProbe2
-                self.doThermoFilter = False if opt == '--not-thermo-filter' else self.doThermoFilter
+                self.needProbe2 = False if opt == '--not-make-probe2' else self.needProbe2
+                self.doThermoFilter1 = False if opt == '--not-thermo-filter' else self.doThermoFilter1
+                self.doThermoFilter2 = False if opt == '--not-thermo-filter' else self.doThermoFilter2
                 self.isLigationProbe = True if opt == '--ligation-probe' else self.isLigationProbe
                 self.pLen1 = int(val) if opt == '--probe1-len' else self.pLen1
                 self.pLen2 = int(val) if opt == '--probe2-len' else self.pLen2
@@ -428,7 +565,32 @@ class PosNegSet:
                 self.scScore2 = int(val) if opt == '--probe2-dist' else self.scScore2
             except Exception as e:
                 self.printUsage()
-        
+
+        # FOR DEBUGING
+        print(f'inputGenome: {self.inputGenome}')
+        print(f'negGenome: {self.negGenome}')
+        print(f'workDir: {self.workDir}')
+        print(f'threads: {self.threads}')
+        print(f'windowSize: {self.windowSize}')
+        print(f'doRemoveRedundancy: {self.doRemoveRedundancy}')
+        print(f'doDesignProbe2: {self.needProbe2}')
+        print(f'doThermoFilter: {self.doThermoFilter1}')
+        print(f'isLigationProbe: {self.isLigationProbe}')
+        print(f'pLen1: {self.pLen1}')
+        print(f'pLen2: {self.pLen2}')
+        print(f'cmError1: {self.cmError1}')
+        print(f'cmError2: {self.cmError2}')
+        print(f'scCoverage1: {self.scCoverage1}')
+        print(f'scCoverage2: {self.scCoverage2}')
+        print(f'scRepeats1: {self.scRepeats1}')
+        print(f'scRepeats2: {self.scRepeats2}')
+        print(f'scEarlyStop1: {self.scEarlyStop1}')
+        print(f'scEarlyStop2: {self.scEarlyStop2}')
+        print(f'cluIdentity: {self.cluIdentity}')
+        print(f'ridNegId: {self.ridNegId}')
+        print(f'scScore1: {self.scScore1}')
+        print(f'scScore2: {self.scScore2}')
+
         # CHECK USER"S ARGUMENTS
         message = "{}You didn't input a proper argument for '{}' parameter or missed it."
         isBadArguments = False
@@ -451,12 +613,13 @@ class PosNegSet:
         self.workDir = ProbeitUtils.defineDirectory(self.workDir.split(os.path.sep)[0], make=True)
         self.inputDir1 = ProbeitUtils.defineDirectory('input1', make=True, root=self.workDir)
         self.maskingDir = ProbeitUtils.defineDirectory('neg_filter', make=True, root=self.workDir)
-        self.thermoFilteringDir = ProbeitUtils.defineDirectory('thermo_filter', make=True, root=self.workDir)
+        self.thermoFiltering1Dir = ProbeitUtils.defineDirectory('thermo_filter1', make=True, root=self.workDir)
         self.cmDir1 = ProbeitUtils.defineDirectory('mapping_probe1', make=True, root=self.workDir)
         self.idxDir1 = ProbeitUtils.defineDirectory('index_probe1', make=False, root=self.workDir)
         self.scDir1 = ProbeitUtils.defineDirectory('setcover_probe1', make=True, root=self.workDir)
-        if self.doDesignProbe2:
+        if self.needProbe2:
             self.inputDir2 = ProbeitUtils.defineDirectory('input2', make=True, root=self.workDir)
+            self.thermoFilterin21Dir = ProbeitUtils.defineDirectory('thermo_filter2', make=True, root=self.workDir)
             self.cmDir2 = ProbeitUtils.defineDirectory('mapping_probe2', make=True, root=self.workDir)
             self.idxDir2 = ProbeitUtils.defineDirectory('index_probe2', make=False, root=self.workDir)
             self.scDir2 = ProbeitUtils.defineDirectory('setcover_probe2', make=True, root=self.workDir)
@@ -464,23 +627,26 @@ class PosNegSet:
         # FILES 
         self.log = ProbeitUtils.defineFile(self.workDir, Config.log)
         self.lookup1 = ProbeitUtils.defineFile(self.workDir, 'genome.lookup')
-        self.genome  = self.inputGenome 
+        self.genomeFASTA  = self.inputGenome 
         self.window1FASTA = ProbeitUtils.defineFile(self.inputDir1, Config.window)
         self.window1PosBED = ProbeitUtils.defineFile(self.inputDir1, 'window.bed') 
-        self.posKmers = ProbeitUtils.defineFile(self.inputDir1, 'kmers.fa')
+        self.posKmers1FASTA = ProbeitUtils.defineFile(self.inputDir1, 'kmers.fa')
         self.negRemPosBED = ProbeitUtils.defineFile(self.maskingDir, 'negRemPos.bed')
-        self.thermoImpPosBED = ProbeitUtils.defineFile(self.thermoFilteringDir, "thermo_neg.bed")
-        self.thermoCalcTSV = ProbeitUtils.defineFile(self.thermoFilteringDir, "thermo_uncut.tsv")
+        self.thermoCalc1TSV = ProbeitUtils.defineFile(self.thermoFiltering1Dir, "thermo_uncut.tsv")
         self.scPosBed1 = ProbeitUtils.defineFile(self.scDir1, 'result.bed')       
         self.tempProbe1 = ProbeitUtils.defineFile(self.workDir, 'temp1.fa')
         self.probe1 = ProbeitUtils.defineFile(self.workDir, Config.probe1)
-        if self.doDesignProbe2:
+        self.rcprobe1 = ProbeitUtils.defineFile(self.workDir, Config.rcprobe1)
+        if self.needProbe2:
             self.window2FASTA = ProbeitUtils.defineFile(self.inputDir2, Config.window)
             self.window2PosBED = ProbeitUtils.defineFile(self.inputDir1, 'window.bed') 
             self.lookup2 = ProbeitUtils.defineFile(self.workDir, 'probe1.lookup')
+            self.kmers2FASTA = ProbeitUtils.defineFile(self.inputDir2, 'kmers.fa')
+            self.thermoCalc2TSV = ProbeitUtils.defineFile(self.thermoFilterin21Dir, 'thermo_uncut.tsv')
             self.tempProbe2 = ProbeitUtils.defineFile(self.workDir, 'temp2.fa')
             self.probe2 = ProbeitUtils.defineFile(self.workDir, Config.probe2)
-        self.logUpdate('[INFO]Your arguments: ' + ' '.join(['{} {}'.format(i[0], i[1]).strip() for i in args]), False)
+            self.rcprobe2 = ProbeitUtils.defineFile(self.workDir, Config.rcprobe2)
+        self.logUpdate('[INFO]Your arguments: probeit posnegset ' + ' '.join(['{} {}'.format(i[0], i[1]).strip() for i in args]), False)
         
     def logUpdate(self, msg, doPrint=True):
         if doPrint:
@@ -488,151 +654,12 @@ class PosNegSet:
         with open(self.log, 'a') as w:
             w.write(msg + '\n')
 
-    def thermoFilter(self):
-        self.logUpdate('[INFO]filter probes with thermodynamic features') 
-        probeLen = self.pLen1
-        minGC = Config.getMinGC()
-        maxGC = Config.getMaxGC()
-        maxHomoDimerTm = Config.getMaxhomoDimerTm()
-        maxHairpinTm = Config.getMaxhairpinTm()
-        minProbeTm = Config.getMinProbeTm()
-        problematicSeqs = ['A' * 5, 'T' * 5, 'C' * 5, 'G' * 5]
-
-        # method for calculating gc ratio
-        def getContentGC(oligo):
-            gcs = oligo.count('G') + oligo.count('C')
-            return gcs / len(oligo)
-
-        # method for calculating complexity
-        def hasLowComplexity(candidate_oligo):
-            for s in problematicSeqs:
-                if s in candidate_oligo:
-                    return True
-            return False
-        self.logUpdate("filter probes based on primer3")
-        # PRINTOUT CUT-OFF VALUES
-        self.logUpdate("Minimum Tm: " + str(minProbeTm))
-        self.logUpdate("Minimum GC percentage: " + str(minGC))
-        self.logUpdate("Maximum GC percentage: " + str(maxGC))
-        self.logUpdate("Homodimer maximum Tm: " + str(maxHomoDimerTm))
-        self.logUpdate("Hairpin maximum Tm: " + str(maxHairpinTm))
-        
-        #  TO MAKE LIGATION PROBE CANDIDATES DF
-        with open(self.posKmers) as f:
-            identity = []
-            posStart = []
-            posEnd = []
-            seqs = []
-            rc = []
-            p1 = []
-            p2 = []
-            for title, kmer in SimpleFastaParser(f):
-                split_name = title.split('\t', 2)
-                identity.append(split_name[0])
-                if len(split_name) > 1:
-                    this_posStart = int(split_name[1])
-                else:
-                    this_posStart = 0
-                this_posEnd = this_posStart + probeLen
-                posStart.append(this_posStart)
-                posEnd.append(this_posEnd)
-                seqs.append(kmer)
-                rcKmer = str(reverse_complement(Seq(kmer)))
-                rc.append(rcKmer)
-                if self.isLigationProbe:
-                    mid_pos = round(probeLen / 2)
-                    p1.append(rcKmer[0:mid_pos])
-                    p2.append(rcKmer[mid_pos:probeLen])
-                else:
-                    p1.append(rcKmer)
-                    # p2.append(rcKmer)
-        ligCands = pd.DataFrame(
-            list(zip(identity, posStart, posEnd, seqs, rc, p1, p2)),
-            columns=['id', 'chromStart', 'chromEnd', 'genome_segment', 'rc', 'p1', 'p2'],
-        )
-        self.logUpdate(str(len(ligCands)) + " ligation probe candidate sets inputted")
-        
-        # TO MAKE THERMO FEATURES DF
-        thermos = pd.DataFrame(list(set(p1 + p2)), columns=['p'])
-        self.logUpdate("There were " + str(len(thermos)) + " unique probes")
-        thermos = thermos.assign(ultimate_base=thermos['p'].str[-1])
-        thermos = thermos.assign(penultimate_base=thermos['p'].str[-2])
-        self.logUpdate("Ultimate and penultimate bases assigned")
-        thermos = thermos.assign(tm=np.vectorize(primer3.calcTm)(thermos['p']))
-        thermos['hairpin_tm'] = list(map(primer3.calcHairpinTm, thermos['p']))
-        thermos = thermos.assign(homodimer_tm=np.vectorize(primer3.calcHomodimerTm)(thermos['p']))
-        thermos = thermos.assign(intrinsic_probs=np.vectorize(hasLowComplexity)(thermos['p']))
-        self.logUpdate("Thermodynamic calculations complete")
-        thermos = thermos.assign(GC_perc=np.vectorize(getContentGC)(thermos['p']))
-        self.logUpdate("GC perc assigned")
-       
-        # TO MAKE ligProbsAndThermos
-        ligCandsAndThermos = pd.merge(
-            ligCands, thermos.add_prefix('p1_'), how='left', left_on='p1', right_on='p1_p'
-        )
-        ligCandsAndThermos = (
-            pd.merge(ligCandsAndThermos, thermos.add_prefix('p2_'), how='left', left_on='p2', right_on='p2_p')
-        )
-        
-        # FILTERING
-        sorder = ['p1_hairpin_tm', 'p2_hairpin_tm', 'p1_homodimer_tm', 'p2_homodimer_tm']
-        ascending = [True, True, True, True]
-        query = ['p1_intrinsic_probs', f'p1_tm<{minProbeTm}', f'p1_GC_perc<{minGC}', f'p1_GC_perc>{maxGC}', f'p1_homodimer_tm>{maxHomoDimerTm}', f'p1_hairpin_tm>{maxHairpinTm}']
-        query2 = ['p2_intrinsic_probs', f'p2_tm<{minProbeTm}', f'p2_GC_perc<{minGC}', f'p2_GC_perc>{maxGC}', f'p2_homodimer_tm>{maxHomoDimerTm}', f'p2_hairpin_tm>{maxHairpinTm}']
-        query = query + query2 if self.isLigationProbe else query
-        impLigProbs = ligCandsAndThermos.query(' | '.join(query))  
-        self.logUpdate('Improper Ligation probe candidates are removed: ' + str(len(impLigProbs)))
-        impLigProbs = impLigProbs.sort_values(by=sorder, ascending=ascending)
-        impLigProbs.rename(columns={'id': 'chrom'})[['chrom', 'chromStart', 'chromEnd']].to_csv(self.thermoImpPosBED, index=False, sep='\t')
-        ligCandsAndThermos.to_csv((self.thermoCalcTSV), sep='\t')
-
-    def getImproperKmers(self):
-        if not self.doThermoFilter:
-            return set()
-        temp = set()
-        for line in open(self.thermoImpPosBED):
-            for kmer in ProbeitUtils.parseKmers(line)[1:]:
-                temp.add(kmer)
-        return temp
-
-    def removeRedundancy(self):
-        self.logUpdate('[INFO]deduplicate positive fasta')
-        clusteredGenome = ProbeitUtils.defineFile(self.inputDir1, 'dedup') 
-        tempDir = ProbeitUtils.defineDirectory('temp', make=False, root=self.inputDir1)
-        self.genome, msg = ProbeitUtils.clusterGenome(self.inputGenome, clusteredGenome, tempDir, self.cluIdentity, threads=self.threads)
-        self.logUpdate(msg)
-
-    def makeWindow1(self):
-        ProbeitUtils.simplifyFastaHeaders(self.genome, self.window1FASTA)
-        ProbeitUtils.makeLookup(self.window1FASTA, self.lookup1, self.window1PosBED)
-        
-    def extractKmers(self):
-        self.logUpdate('[INFO]get {}mer probes from positive genome'.format(self.pLen1))
-        f = open(self.window1FASTA)
-        kmers = {}
-        genomeIdx = 0
-        self.logUpdate('[INFO] extracts all possible kmers from the input genome')
-        for _, s in SimpleFastaParser(open(self.window1FASTA)):
-            l = len(s)
-            for pos in range(l-self.pLen1+1):
-                name = f'{genomeIdx},{pos}'
-                seq = s[pos:pos+self.pLen1].upper()
-                kmers.setdefault(seq,[])
-                kmers[seq].append(name)
-            genomeIdx += 1
-        w = open(self.posKmers, 'w')
-        for s, names in kmers.items():
-            rep = names[0]
-            w.write(f'>{rep};{"|".join(names)}\n{s}\n')
-        w.close()
-        f.close()
-
     def negFilter(self):
         negKmerResult = ProbeitUtils.defineFile(self.maskingDir, 'search.tsv')
         negKmerPosBED = ProbeitUtils.defineFile(self.maskingDir, 'search.bed') 
         # REMOVE NEGATIVE K-MERS
         self.logUpdate('[INFO]remove probes found in negative genome')
-        self.logUpdate(ProbeitUtils.ridNegKmers(self.posKmers, self.negGenome, negKmerResult, self.maskingDir, self.ridNegId, self.threads))
+        self.logUpdate(ProbeitUtils.ridNegKmers(self.posKmers1FASTA, self.negGenome, negKmerResult, self.maskingDir, self.ridNegId, self.threads))
         
         # MAKE DEDUPLICATED POSITIVE GENOME COORDINATE FILE(BED)
         with open(self.window1FASTA) as f:
@@ -650,41 +677,9 @@ class PosNegSet:
                 g, s = [int(i) for i in kmer.split(',')]
                 w.write(f'{g}\t{s}\t{s+40}\n')       
         w.close()
-        self.logUpdate(ProbeitUtils.getSubtractedBed(self.window1PosBED, negKmerPosBED, self.negRemPosBED))
-    
-    def makeWindow2(self):
-        def _getScKmer(scKmer, window):
-            temp = scKmer.split(',')
-            g = int(temp[0])
-            s = int(temp[1])
-            e = s + self.pLen1
-            window[g] = window[g][0], window[g][1][:s]+'N'*40+window[g][1][e:]
-            return g, s, e
-        
-        def _getWinSeq(kmer, lenList, header):
-            g = kmer[0] 
-            s = kmer[1]
-            e = kmer[2]
-            gLen = lenList[g]
-            ws = s - self.windowSize if s>self.windowSize else 0
-            we = e + self.windowSize 
-            we = gLen if we>gLen else we
-            genome, seq = window1Seqs[g]
-            seq = seq[ws:we] 
-            return f'>{header}:{genome}:{s}\n{seq}\n'
-        
-        window1Seqs =[(h, s) for h, s in SimpleFastaParser(open(self.window1FASTA))]
-        window1Lens = [len(i[1]) for i in window1Seqs]
-        probe1List = [[_getScKmer(kmer, window1Seqs) for kmer in ProbeitUtils.parseKmers(line)] for line in open(self.scPosBed1)]
-        w = open(self.window2FASTA, 'w')
-        for i, kmers in enumerate(probe1List):
-            for j, kmer in enumerate(kmers):
-                w.write(_getWinSeq(kmer, window1Lens, f'p1_{i}'))
-        w.close()
-        ProbeitUtils.makeLookup(self.window2FASTA, self.lookup2, self.window2PosBED)
+        self.logUpdate(ProbeitUtils.getSubtractedBed(self.window1PosBED, negKmerPosBED, self.negRemPosBED), False)
 
     def easyComMap(self, uniqComMap):
-        impKmers = self.getImproperKmers()
         w = open(uniqComMap, 'w')
         alphabets = {'A', 'C', 'G', 'T'}
         lenSeq = dict()
@@ -714,9 +709,9 @@ class PosNegSet:
             for i in range(prevEnd, lenSeq[prevGenome]):
                 negativeKmers.add(f'{prevGenome},{i}')
 
-        for h, s in SimpleFastaParser(open(self.posKmers)):
+        for h, s in SimpleFastaParser(open(self.posKmers1FASTA)):
             kmers = set(ProbeitUtils.parseKmers(h))
-            isThermoImproper = kmers&impKmers
+            isThermoImproper = kmers&self.impKmers1
             notOnlyATGC = set(s) != alphabets&set(s)
             # TODO
             # isNegative = kmers&negativeKmers
@@ -725,6 +720,43 @@ class PosNegSet:
                 continue
             w.write(h+'\n')
         w.close()
+    
+    def makeWindow1(self):
+        ProbeitUtils.sortFasta(self.genomeFASTA)
+        ProbeitUtils.simplifyFastaHeaders(self.genomeFASTA, self.window1FASTA)
+        ProbeitUtils.makeLookup(self.window1FASTA, self.lookup1, self.window1PosBED)
+
+    def makeWindow2(self):
+        def _getScKmer(scKmer, window):
+            temp = scKmer.split(',')
+            g = int(temp[0])
+            s = int(temp[1])
+            e = s + self.pLen1
+            window[g] = window[g][0], window[g][1][:s]+ 'N'*self.pLen1 + window[g][1][e:]
+            return g, s, e
+        
+        def _getWinSeq(kmer, lenList, header):
+            g = kmer[0] 
+            s = kmer[1]
+            e = kmer[2]
+            gLen = lenList[g]
+            ws = s - self.windowSize if s>self.windowSize else 0
+            we = e + self.windowSize 
+            we = gLen if we>gLen else we
+            genome, seq = window1Seqs[g]
+            seq = seq[ws:we] 
+            return f'>{header}:{genome}:{s}\n{seq}\n'
+        
+        window1Seqs =[(h, s) for h, s in SimpleFastaParser(open(self.window1FASTA))]
+        window1Lens = [len(i[1]) for i in window1Seqs]
+        probe1List = [[_getScKmer(kmer, window1Seqs) for kmer in ProbeitUtils.parseKmers(line)] for line in open(self.scPosBed1)]
+        w = open(self.window2FASTA, 'w')
+        for i, kmers in enumerate(probe1List):
+            for j, kmer in enumerate(kmers):
+                w.write(_getWinSeq(kmer, window1Lens, f'probe_{i}_{j}'))
+        w.close()
+        ProbeitUtils.makeLookup(self.window2FASTA, self.lookup2, self.window2PosBED)
+
 
     def makeProbe1(self):
         uniqComMap = ProbeitUtils.defineFile(self.cmDir1, 'uniq.genmap.csv')
@@ -736,59 +768,101 @@ class PosNegSet:
         self.logUpdate(msg, False)
         with open(self.lookup1)as f:
             genomeKeys = {int(i.split()[0]):i.split()[1] for i in f}
+
+        
+        probe1Writer = open(self.probe1, 'w')
+        rcprobe1Writer = open(self.rcprobe1, 'w')
         probeIdx = 0
-        # probeNames1 = {}
-        w = open(self.probe1, 'w')
-        for h, s in sorted([(h,s) for h,s in SimpleFastaParser(open(self.tempProbe1))]):
-            keys, pos = ProbeitUtils.parseGenmapPattern(h)
-            keys = [genomeKeys[k] for k in keys]
-            probes = ['{}:{}:{}'.format(keys[i], pos[i], pos[i] + self.pLen1) for i in range(len(keys))]
-            w.write('>p1_{}\t{}\n{}\n'.format(probeIdx, ';'.join(probes), s))
+        for seq, kmers in {s:ProbeitUtils.parseKmers(h) for h, s in SimpleFastaParser(open(self.tempProbe1))}.items():
+            rcSeq = Seq(seq).reverse_complement()
+            parsedKmers = []
+            for kmerIdx, kmer in enumerate(kmers):
+                [genome,pos] = kmer.split(',')
+                genome = genomeKeys[int(genome)]
+                parsedKmers.append(f'probe_{probeIdx}_{kmerIdx}:{genome}:{pos}')
+                kmerIdx += 1
+            self.probe1Index += [kmer.split(':')[0] for kmer in parsedKmers]
+            probe1Writer.write(  f">probe_{probeIdx}\t{'|'.join(parsedKmers)}\n{seq}\n"  )
+            rcprobe1Writer.write(f">probe_{probeIdx}\t{'|'.join(parsedKmers)}\n{rcSeq}\n")
             probeIdx += 1
-        w.close()
+        probe1Writer.close()
+        rcprobe1Writer.close()
+        # print(self.probe1Index)
 
     def makeProbe2(self):
         uniqComMap = ProbeitUtils.defineFile(self.cmDir2, 'uniq.genmap.csv')
         if self.cmError2 == 0:
-            ProbeitUtils.simpleComputeMappability(self.window2FASTA, self.lookup2, self.window2PosBED, uniqComMap, self.pLen2)
+            ProbeitUtils.simpleComputeMappability(self.window2FASTA, self.lookup2, self.window2PosBED, uniqComMap, self.pLen2, impKmers=self.impKmers2)
         else:
-            ProbeitUtils.computeMappability(self.window2FASTA, self.idxDir2, self.cmError2, self.pLen2, self.cmDir2, uniqComMap, threads=self.threads)
+            ProbeitUtils.computeMappability(self.window2FASTA, self.idxDir2, self.cmError2, self.pLen2, self.cmDir2, uniqComMap, threads=self.threads, impKmers=self.impKmers2)
         scBed = ProbeitUtils.defineFile(self.scDir2, 'result.bed')
         msg = ProbeitUtils.makeProbe(
             self.tempProbe2, scBed, self.window2FASTA, self.lookup2, self.pLen2,
-            self.scCoverage2, self.scEarlyStop2, self.scScore2, self.scRepeats2,  uniqComMap, 
+            self.scCoverage2, self.scEarlyStop2, self.scScore2, self.scRepeats2, uniqComMap, 
             overlap=True
         )
         self.logUpdate(msg, False)
-        with open(self.lookup2)as f:
-            probe1Keys = {int(i.split()[0]):i.split()[1] for i in f}
         probeIdx = 0
-        w = open(self.probe2, 'w')
-        for h, s in sorted([(h,s) for h, s in SimpleFastaParser(open(self.tempProbe2))]):
+        probe2Writer = open(self.probe2, 'w')
+        rcprobe2Writer = open(self.rcprobe2, 'w')
+        for h, seq in sorted([(h,s) for h, s in SimpleFastaParser(open(self.tempProbe2))]):
+            rcSeq = Seq(seq).reverse_complement()
             keys, _ = ProbeitUtils.parseGenmapPattern(h)           
-            keys = set([probe1Keys[k] for k in keys])
-            w.write('>p2_{}\t{}\n{}\n'.format(probeIdx, ';'.join([p for p in keys]), s) )
+            # print(keys)
+            keys = [self.probe1Index[k] for k in sorted(keys)]
+            probe2Writer.write(  '>cap_{}\t|{}\n{}\n'.format(probeIdx, '|'.join(keys), seq) )
+            rcprobe2Writer.write('>cap_{}\t|{}\n{}\n'.format(probeIdx, '|'.join(keys), rcSeq) )
             probeIdx += 1
-        w.close()
+        probe2Writer.close()
+        rcprobe2Writer.close()
     
     def run(self):
-        # MAKE 1st probe
+        # MAKE PROBE1
         self.logUpdate("[INFO] make 1st probes")
+        
+        # REMOVE REDUNDANCY FROM INPUT GENOME
         if self.doRemoveRedundancy:
-            self.removeRedundancy()
-        ProbeitUtils.sortFasta(self.genome)
+            self.logUpdate('[INFO]deduplicate positive fasta')
+            clusteredGenome = ProbeitUtils.defineFile(self.inputDir1, 'dedup') 
+            tempDir = ProbeitUtils.defineDirectory('temp', make=False, root=self.inputDir1)
+            msg, self.genomeFASTA= ProbeitUtils.clusterGenome(self.inputGenome, clusteredGenome, tempDir, self.cluIdentity, threads=self.threads)
+            self.logUpdate(msg)
+          
+        # MAKE WINDOW and KMERS FOR PROBE1 
         self.makeWindow1()
-        self.extractKmers()
+        ProbeitUtils.extractKmers(self.window1FASTA, self.posKmers1FASTA, self.pLen1)
+
+        # DO NEG FILTER FOR PROBE1
         if self.negGenome:
             self.negFilter()
-        if self.doThermoFilter:
-            self.thermoFilter()
+        
+        # DO THERMO FILTER FOR PROBE1
+        if self.doThermoFilter1:
+            thermoFilter1 = ThermoFilter(self.posKmers1FASTA, self.pLen1, self.thermoCalc1TSV, self.isLigationProbe)
+            msg, self.impKmers1 = thermoFilter1.run()
+            self.logUpdate(msg)
+        
+        # COMPLETE MAKE PROBE1
         self.makeProbe1()
-        # MAKE 2nd PROBES
-        if self.doDesignProbe2:
-            self.logUpdate("[INFO] make 2nd probes")
-            self.makeWindow2()
-            self.makeProbe2()
+        if not self.needProbe2:
+            print('COMPLETE!!!')
+            return
+        
+        # MAKE PROBE2
+        self.logUpdate("[INFO] make 2nd probes")
+            
+        # MAKE WINODW FOR PROBE2
+        self.makeWindow2()
+            
+        # THERMO RILTER FOR PROBE2
+        if self.doThermoFilter2: 
+            ProbeitUtils.extractKmers(self.window2FASTA, self.kmers2FASTA, self.pLen2)
+            thermoFilter2 = ThermoFilter(self.kmers2FASTA, self.pLen2, self.thermoCalc2TSV)
+            msg, self.impKmers2 = thermoFilter2.run()
+            self.logUpdate(msg)
+
+        # COMPLETE MAKE PROBE2
+        self.makeProbe2()
         print('COMPLETE!!!')
         return
 
@@ -859,7 +933,7 @@ class SNP:
         # required
         'reference=', 'strain=', 'positions=', 'mutations=', 'output=', 'annotation=',
         # optional
-        'not-make-probe2', 'max-window', 'window-size=', 'probe1-len=', 'probe2-len=', 'threads=',
+        'not-make-probe2', 'not-thermo-filter', 'max-window', 'window-size=', 'probe1-len=', 'probe2-len=', 'threads=', 
         # genmap
         'probe-error2=',
         # setcover
@@ -876,8 +950,8 @@ class SNP:
     needProbe2 = True
     isMaxWindow = False
     windowSize = 200
-    probLen1 = 40
-    probeLen2 = 20
+    pLen1 = 40
+    pLen2 = 20
     scCoverage2 = 1
     scEarlyStop2 = 0.99
     scScore2 = 20
@@ -885,11 +959,12 @@ class SNP:
     cmError2 = 1
     searchKmer = 12
     threads = 8
-
+    doThermoFilter2 = True
+    impKmers2 = set()
 
     def __init__(self, args):
         args = getopt.getopt(args, self.shortParams, self.longParams)[0]
-        print(f"Your arguments: posnegset {ProbeitUtils.getUserArgs(args)}")
+        print(f"Your arguments: probeit snp {ProbeitUtils.getUserArgs(args)}")
         # PARSE PARAMETERS
         for opt, val in args:
             if opt in ('-h', '--help'):
@@ -899,16 +974,17 @@ class SNP:
                 self.refGenome = val if opt in ('-r', '--reference') else self.refGenome
                 self.strGenome = val if opt in ('-s', '--strain') else self.strGenome
                 self.workDir = val if opt in ('-o', '--output') else self.workDir
-                self.posList = self.getArgList(val, isInt=True) if opt in ('-p', '--positions') else self.posList
-                self.snpList = self.getArgList(val) if opt in ('-m', '--mutations') else self.snpList
+                self.posList = ProbeitUtils.getArgList(val, isInt=True) if opt in ('-p', '--positions') else self.posList
+                self.snpList = ProbeitUtils.getArgList(val) if opt in ('-m', '--mutations') else self.snpList
                 self.refGenomeAnnot = val if opt in ('-a', '--annotation') else self.refGenomeAnnot
                 # optional
                 self.needProbe2 = False if opt == '--not-make-probe2' else self.needProbe2
+                self.doThermoFilter2 = False if opt == '--not-thermo-filter' else self.doThermoFilter2
                 self.threads = int(val) if opt == '--threads' else self.threads
                 self.isMaxWindow = True if opt == '--max-window' else self.isMaxWindow
                 self.windowSize = int(val) if opt == '--window-size' else self.windowSize
-                self.probLen1 = int(val) if opt == '--probe1-len' else self.probLen1
-                self.probeLen2 = int(val) if opt == '--probe2-len' else self.probeLen2
+                self.pLen1 = int(val) if opt == '--probe1-len' else self.pLen1
+                self.pLen2 = int(val) if opt == '--probe2-len' else self.pLen2
                 self.cmError2 = int(val) if opt == '--probe2-error' else self.cmError2
                 self.scCoverage2 = int(val) if opt == '--probe2-cover' else self.scCoverage2
                 self.scEarlyStop2 = float(val)/100 if opt == '--probe2-earlystop' else self.scEarlyStop2
@@ -918,18 +994,40 @@ class SNP:
                 self.searchKmer = int(val) if opt == '--search-kmer' else self.searchKmer
             except Exception as e:
                 print(e)
-                print("Your arguments: snp {}".format(ProbeitUtils.getUserArgs(args)))
+                # print("Your arguments: probeit snp {}".format(ProbeitUtils.getUserArgs(args)))
                 self.printUsage() 
-        self.snpList = list(set(self.snpList))
+        #
+        self.snpList = sorted(list(set(self.snpList)))
+
+        # FOR DEBUGING
+        print(f'refGenome: {self.refGenome}')
+        print(f'strGenome: {self.strGenome}')
+        print(f'workDir: {self.workDir}')
+        print(f'posList: {self.posList}')
+        print(f'snpList: {self.snpList}')
+        print(f'refGenomeAnnot: {self.refGenomeAnnot}')
+        print(f'needProbe2: {self.needProbe2}')
+        print(f'threads: {self.threads}')
+        print(f'isMaxWindow: {self.isMaxWindow}')
+        print(f'windowSize: {self.windowSize}')
+        print(f'probLen1: {self.pLen1}')
+        print(f'probeLen2: {self.pLen2}')
+        print(f'cmError2: {self.cmError2}')
+        print(f'scCoverage2: {self.scCoverage2}')
+        print(f'scEarlyStop2: {self.scEarlyStop2}')
+        print(f'scRepeats2: {self.scRepeats2}')
+        print(f'scScore2: {self.scScore2}')
+        print(f'searchKmer: {self.searchKmer}')
+    
         validPosList = []
         for p in self.posList:
-            if 0 < p <= self.probLen1:
+            if 0 < p <= self.pLen1:
                 validPosList.append(int(p))
             else:
                 print('[ERROR] {} is not proper for position list.')
         self.posList = validPosList
         
-        print("Your arguments: {}".format('snp ' + ProbeitUtils.getUserArgs(args)))
+        # print("Your arguments: {}".format('snp ' + ProbeitUtils.getUserArgs(args)))
         # CHECK USER"S ARGUMENTS
         message = "{}You didn't input a proper argument for '{}' parameter or missed it. "
         isBadArguments = False
@@ -962,6 +1060,7 @@ class SNP:
         self.inputDir1 = ProbeitUtils.defineDirectory('input1', make=True, root=self.workDir)
         if self.needProbe2:
             self.inputDir2 = ProbeitUtils.defineDirectory('input2', make=True, root=self.workDir)
+            self.thermoFilterDir2 = ProbeitUtils.defineDirectory('thermo_filter2', make=True, root=self.workDir)
             self.idxDir2 = ProbeitUtils.defineDirectory('index', make=False, root=self.workDir)
             self.cmDir2 = ProbeitUtils.defineDirectory('mapping2', make=True, root=self.workDir)
             self.scDir2 = ProbeitUtils.defineDirectory('setcover2', make=True, root=self.workDir)
@@ -970,6 +1069,7 @@ class SNP:
         self.posProbeCSVs = {pos: ProbeitUtils.defineFile(self.inputDir1, f'pos{pos}.csv') for pos in self.posList}
         self.posProbeCSVs[-1] = ProbeitUtils.defineFile(self.inputDir1, 'merged.csv')
         self.probe1 = ProbeitUtils.defineFile(self.workDir, Config.probe1)
+        self.rcprobe1 = ProbeitUtils.defineFile(self.workDir, Config.rcprobe1)
         if self.needProbe2:
             self.window1FASTA = ProbeitUtils.defineFile(self.inputDir1, Config.window)
             self.lookup = ProbeitUtils.defineFile(self.workDir, 'probe1.lookup')
@@ -978,18 +1078,14 @@ class SNP:
             self.maskedGenomeFASTA= ProbeitUtils.defineFile(self.inputDir2, 'masked.fa')
             self.window2PosBED = ProbeitUtils.defineFile(self.inputDir2, 'window2.bed')
             self.window2FASTA = ProbeitUtils.defineFile(self.inputDir2, Config.window)
+            self.kmers2FASTA = ProbeitUtils.defineFile(self.thermoFilterDir2, 'kmers.fa' )
+            self.thermoCalcTSV2 = ProbeitUtils.defineFile(self.thermoFilterDir2, 'thermo_uncut.tsv')
             self.tempProbe2 = ProbeitUtils.defineFile(self.workDir, 'temp2.fa')
             self.probe2 = ProbeitUtils.defineFile(self.workDir, Config.probe2)
-        self.logUpdate('[INFO]Your arguments: snp ' + ProbeitUtils.getUserArgs(args), False)
+            self.rcprobe2 = ProbeitUtils.defineFile(self.workDir, Config.rcprobe2)
+        self.logUpdate('[INFO]Your arguments: probeit snp ' + ProbeitUtils.getUserArgs(args), False)
         # VARIABLES
         self.probesByPos = {pos: [] for pos in self.posList + [-1]}        
-
-    @staticmethod
-    def getArgList(value, isInt=False):
-        if isInt:
-            return [int(i.strip()) for i in value.split(',')]
-        else:
-            return value.split(',')
 
     def logUpdate(self, msg, doPrint=True):
         if doPrint:
@@ -997,6 +1093,7 @@ class SNP:
         with open(self.log, 'a') as w:
             w.write(msg+'\n')
 
+    # ============================================
     def _searchSnpFromStrGenome(self, mutation, seqWithSNP):
         snpKmers = ProbeitUtils.defineFile(self.searchDir, f'search_{mutation}.tsv')
         searchProbe = ProbeitUtils.defineFile(self.searchDir, f'search_{mutation}.fa')
@@ -1096,60 +1193,61 @@ class SNP:
         else:
             return pd.DataFrame()
 
+    def findSNPsAA(self, orf, mutation, snp, refSeq, maxPos, minPos):
+        # DO NOT EXIST REFERENCE GENOME ANNOTATION
+        if self.refGenomeAnnot == '':
+            self.logUpdate('[warn]For Amino Acid based SNPs reference annotation needed.')
+            return  -1, None
+        
+        # NOT A VALID SNP 
+        orfStartPos = self.getOrfStartPos(self.refGenomeAnnot, orf)
+        if orfStartPos == -1:
+            self.logUpdate('[warn]Failure to find snp {} in reference annotaion.'.format(snp))
+            return -1, None
+        aa1, aa2, mutPos = mutation[0], mutation[-1], int(mutation[1:-1])
+        codonStartPos = orfStartPos + (mutPos - 1) * 3 - 1
+        codonEndPos = orfStartPos + mutPos * 3 - 1
+        refCodon = refSeq[codonStartPos: codonEndPos]
+        if aa1 != Seq(refCodon).translate():
+            self.logUpdate('[warm]Failure to find SNP {} in reference genome'.format(snp))
+            return -1, None
+        
+        # SEARCH
+        seqWithSNP = refSeq[codonStartPos - (maxPos-1): codonEndPos + (self.pLen1 - minPos)]
+        searchResult = self._searchSnpFromStrGenome(mutation, seqWithSNP)
+        trimmedResult = self._trimSearchResult(searchResult, seqWithSNP, 'aa', maxPos, snp, codonStartPos, refCodon)
+        if trimmedResult.empty:
+            self.logUpdate(f'[WARN] Problems occured searching snp {snp} in the strain genome or reference genome')
+            return -1, None
+        
+        # RETURN RESULT
+        wtSequence, stSequence, ntSNP, locSnp, found = self._parseSearcgResult(searchResult=trimmedResult)
+        self.logUpdate('[INFO]aa:{}:{} converted to nt:{}'.format(orf, mutation, ntSNP))
+        aaOrf = '{}:{}'.format(orf, mutation)
+        return found, ParaSeqs(ntSNP, aaOrf, wtSequence, stSequence, mutLoc=locSnp, probLen=self.pLen1)
+
+    def findSNPsNT(self, orf, mutation, snp, refSeq, maxPos, minPos):
+        nt1, nt2, snpPos = mutation[0], mutation[-1], int(mutation[1:-1])
+        refNT = refSeq[snpPos]
+        # NOT A VALID SNP
+        if nt1 != refNT:
+            self.logUpdate('[warn]Failure to find SNP {} in reference genome'.format(snp))
+            return -1, None
+        
+        #  SEARCH
+        seqWithSNP = refSeq[snpPos - (maxPos - 1):snpPos + 1 + (self.pLen1 - minPos)]
+        searchResult = self._searchSnpFromStrGenome(mutation, seqWithSNP)
+        trimmedResult = self._trimSearchResult(searchResult, seqWithSNP, 'nt', maxPos, snp)
+        if trimmedResult.empty:
+            self.logUpdate(f'[WARN] Problems occured searching snp {snp} in the strain genome or reference genome')
+            return -1, None
+        
+        # RETURN RESULT
+        wtSequence, stSequence, ntSNP, locSnp, found = self._parseSearcgResult(searchResult=trimmedResult)
+        return found, ParaSeqs(ntSNP, '', wtSequence, stSequence, mutLoc=locSnp, probLen=self.pLen1)
+    # ==================================================
+
     def findSNPs(self): 
-        def _findSNPsAA(orf, mutation):
-            # DO NOT EXIST REFERENCE GENOME ANNOTATION
-            if self.refGenomeAnnot == '':
-                self.logUpdate('[warn]For Amino Acid based SNPs reference annotation needed.')
-                return  -1, None
-            
-            # NOT A VALID SNP 
-            orfStartPos = self.getOrfStartPos(self.refGenomeAnnot, orf)
-            if orfStartPos == -1:
-                self.logUpdate('[warn]Failure to find snp {} in reference annotaion.'.format(snp))
-                return -1, None
-            aa1, aa2, mutPos = mutation[0], mutation[-1], int(mutation[1:-1])
-            codonStartPos = orfStartPos + (mutPos - 1) * 3 - 1
-            codonEndPos = orfStartPos + mutPos * 3 - 1
-            refCodon = refSeq[codonStartPos: codonEndPos]
-            if aa1 != Seq(refCodon).translate():
-                self.logUpdate('[warm]Failure to find SNP {} in reference genome'.format(snp))
-                return -1, None
-            
-            # SEARCH
-            seqWithSNP = refSeq[codonStartPos - (maxPos-1): codonEndPos + (self.probLen1 - minPos)]
-            searchResult = self._searchSnpFromStrGenome(mutation, seqWithSNP)
-            trimmedResult = self._trimSearchResult(searchResult, seqWithSNP, mutType, maxPos, snp, codonStartPos, refCodon)
-            if trimmedResult.empty:
-                self.logUpdate(f'[WARN] Problems occured searching snp {snp} in the strain genome or reference genome')
-                return -1, None
-            
-            # RETURN RESULT
-            wtSequence, stSequence, ntSNP, locSnp, found = self._parseSearcgResult(searchResult=trimmedResult)
-            self.logUpdate('[INFO]aa:{}:{} converted to nt:{}'.format(orf, mutation, ntSNP))
-            aaOrf = '{}:{}'.format(orf, mutation)
-            return found, ParaSeqs(ntSNP, aaOrf, wtSequence, stSequence, mutLoc=locSnp, probLen=self.probLen1)
-
-        def _findSNPsNT(orf, mutation):
-            nt1, nt2, snpPos = mutation[0], mutation[-1], int(mutation[1:-1])
-            refNT = refSeq[snpPos]
-            # NOT A VALID SNP
-            if nt1 != refNT:
-                self.logUpdate('[warn]Failure to find SNP {} in reference genome'.format(snp))
-                return -1, None
-            
-            #  SEARCH
-            seqWithSNP = refSeq[snpPos - (maxPos - 1):snpPos + 1 + (self.probLen1 - minPos)]
-            searchResult = self._searchSnpFromStrGenome(mutation, seqWithSNP)
-            trimmedResult = self._trimSearchResult(searchResult, seqWithSNP, mutType, maxPos, snp)
-            if trimmedResult.empty:
-                self.logUpdate(f'[WARN] Problems occured searching snp {snp} in the strain genome or reference genome')
-                return -1, None
-            
-            # RETURN RESULT
-            wtSequence, stSequence, ntSNP, locSnp, found = self._parseSearcgResult(searchResult=trimmedResult)
-            return found, ParaSeqs(ntSNP, '', wtSequence, stSequence, mutLoc=locSnp, probLen=self.probLen1)
-
         minPos = min(self.posList)
         maxPos = max(self.posList)
         refSeq = self.getReferenceSeq(self.refGenome)
@@ -1159,14 +1257,14 @@ class SNP:
         for snp in self.snpList:
             self.logUpdate('[INFO]SNP {}'.format(snp))
             mutType, orf, mutation = self.parseMutation(snp)
-            found, mutSeqs = _findSNPsAA(orf, mutation) if mutType == 'aa' else _findSNPsNT(orf, mutation)
+            found, mutSeqs = self.findSNPsAA(orf, mutation, snp, refSeq, maxPos, minPos) if mutType == 'aa' else self.findSNPsNT(orf, mutation, snp, refSeq, maxPos, minPos)
             if found <= 0 or not found:
                 self.logUpdate('[WARN] Failure to find SNP {} in strain genome'.format(snp))
                 continue
             self.probesByPos[-1].append(mutSeqs)
             for pos in self.posList:
                 wtProbe, stProbe = mutSeqs.getProbesWithPos(pos)
-                paraSeq = ParaSeqs(mutSeqs.ntSnp, mutSeqs.aaSnp, wtProbe, stProbe, found=found, probLen=self.probLen1)
+                paraSeq = ParaSeqs(mutSeqs.ntSnp, mutSeqs.aaSnp, wtProbe, stProbe, found=found, probLen=self.pLen1)
                 self.probesByPos[pos].append(paraSeq)
 
     @staticmethod
@@ -1176,25 +1274,34 @@ class SNP:
 
     def makeProbe1(self):
         probeLines = []
+        rcprobeLines = []
+        kmerIdx = 0
         for pos in self.posList + [-1]:
             probeCSV = self.posProbeCSVs[pos]
             csvWriter = open(probeCSV, 'w')
             csvWriter.write('WT sequence,ST sequence,found,ntSNP,aaSNP\n')
+            probeIdx = 0
             for p in self.probesByPos[pos]:
                 csvWriter.write(f'{p.wtSeq},{p.stSeq},{p.found},{p.ntSnp},{p.aaSnp}\n')
                 if pos != -1:
-                    probeLines.append(f'>{p.ntSnp}{"=" + p.aaSnp if p.aaSnp else ""};{pos}\n{p.stSeq}\n')
+                    seq = p.stSeq
+                    rcseq = Seq(seq).reverse_complement()
+                    probeLines.append(f'>probe{probeIdx}_{kmerIdx};{p.ntSnp}{"=" + p.aaSnp if p.aaSnp else ""};pos={pos}\n{seq}\n')
+                    rcprobeLines.append(f'>probe{probeIdx}_{kmerIdx};{p.ntSnp}{"=" + p.aaSnp if p.aaSnp else ""};pos={pos}\n{rcseq}\n')
+                probeIdx += 1
+            kmerIdx += 1
             csvWriter.close()
         if not probeLines:
             self.logUpdate('[ERROR] Cannot find any SNP in strain genomes')
             self.printUsage()
         with open(self.probe1, 'w') as w:
             w.writelines(sorted(probeLines))
-        
-    # TODO
+        with open(self.rcprobe1, 'w') as w:
+            w.writelines(sorted(rcprobeLines))
+    
     def makeWindows(self):
         # MAKE WINDOW1
-        window1 = [f'>snp1_{i}_{p.ntSnp}{ "=" + p.aaSnp if p.aaSnp else ""}\n{p.stSeq}\n' for i, p in enumerate(self.probesByPos[-1])]           
+        window1 = [f'>probe{i}_{p.ntSnp}{ "=" + p.aaSnp if p.aaSnp else ""}\n{p.stSeq}\n' for i, p in enumerate(self.probesByPos[-1])]           
         with open(self.window1FASTA, 'w') as w:
             w.writelines(window1)
         
@@ -1212,32 +1319,61 @@ class SNP:
         uniqComMap = ProbeitUtils.defineFile(self.cmDir2, 'uniq.genmap.csv')
         message = '[INFO] compute mappability\n'
         if self.cmError2 == 0:
-            ProbeitUtils.simpleComputeMappability(self.window2FASTA, self.lookup, self.window2PosBED, uniqComMap, self.probeLen2)
+            ProbeitUtils.simpleComputeMappability(self.window2FASTA, self.lookup, self.window2PosBED, uniqComMap, self.pLen2, impKmers=self.impKmers2)
         else:
-            message += ProbeitUtils.computeMappability(self.window2FASTA, self.idxDir2, self.cmError2, self.probeLen2, self.cmDir2, uniqComMap, threads=self.threads)
+            message += ProbeitUtils.computeMappability(self.window2FASTA, self.idxDir2, self.cmError2, self.pLen2, self.cmDir2, uniqComMap, threads=self.threads, impKmers=self.impKmers2)
         scBed = ProbeitUtils.defineFile(self.scDir2, 'result.bed')
-        msg = ProbeitUtils.makeProbe(self.tempProbe2, scBed, self.window2FASTA, self.lookup, self.probeLen2, self.scCoverage2, self.scEarlyStop2, self.scScore2, self.scRepeats2, uniqComMap, overlap=True)
+        msg = ProbeitUtils.makeProbe(self.tempProbe2, scBed, self.window2FASTA, self.lookup, self.pLen2, self.scCoverage2, self.scEarlyStop2, self.scScore2, self.scRepeats2, uniqComMap, overlap=True)
         self.logUpdate(msg, False)
         maskDF = pd.read_csv(self.window1TSV, sep='\t')
         kmers = list(maskDF['patternName'])  
-        probe2lines = []
-        for h, s in SimpleFastaParser(open(self.tempProbe2)):
+        probe2Lines = []
+        rcprobe2Lines = []
+        for h, seq in SimpleFastaParser(open(self.tempProbe2)):
+            rcSeq = Seq(seq).reverse_complement()
             kmerIndex = ProbeitUtils.parseGenmapPattern(h)[0]
             coveredSNPs = list((set([kmers[i] for i in kmerIndex])))
-            probe2lines.append(f'>{":".join(coveredSNPs)}\n{s}\n')
+            probe2Lines.append(f'{":".join(coveredSNPs)}\n{seq}\n')
+            rcprobe2Lines.append(f'{":".join(coveredSNPs)}\n{rcSeq}\n')
         with open(self.probe2, 'w') as w:
-            w.writelines(sorted(probe2lines))
-    
+            for i, line in enumerate(sorted(probe2Lines)):
+                w.write(f'>cap{i}\t{line}')
+        with open(self.rcprobe2, 'w') as w:
+            for i, line in enumerate(sorted(rcprobe2Lines)):
+                w.write(f'>cap{i}\t{line}')
+        
     def run(self):
-        # MAKE 1st PROBEs
+        # START MAKING 1st PROBEs
         self.logUpdate("[INFO]make 1st probes")
+        
+        # FIND SNPs FROM STRAIN GENOME
         self.findSNPs()
+        
+        # MAKE PROBE1
         self.makeProbe1()
-        if self.needProbe2:
-            # MAKE 2ND PROBEs
-            self.logUpdate("[INFO]make 2nd probes")
-            self.makeWindows()
+        
+        # COMPLETE MAKING PROBE1
+        if not self.needProbe2:
+            print('COMPLETE!!!')
+            return
+        
+        # START MAKING 2ND PROBEs
+        self.logUpdate("[INFO]make 2nd probes")
+        
+        # MAKE WINODW FOR PROBE2
+        self.makeWindows()
+        
+        # THERMO FILTER
+        if self.doThermoFilter2:
+            ProbeitUtils.extractKmers(self.window2FASTA, self.kmers2FASTA, self.pLen2)
+            thermoFilter2 = ThermoFilter(self.kmers2FASTA, self.pLen2, self.thermoCalcTSV2)
+            msg, self.impKmers2 = thermoFilter2.run()
+            self.logUpdate(msg)
+
+        # MAKE PROBE2
         self.makeProbe2()
+        
+        # COMPLETE MAKING PROBE2
         print('COMPLETE!!!')
         return
 
@@ -1293,4 +1429,377 @@ class SNP:
         print(" --probe2-earlystop INT[99]")
         print("\t Early stop picking new probes if X% of sequences are covered at least N(--probe2-cover) times.")
         quit()
+
+
+class Primer:
+    args = []
+    shortParams = 'hp:n:o:'
+    longParams = [
+        # usage
+        'help',
+        # required
+        'positive=', 'negative=', 'output=',
+        # optional
+        'remove-reduncancy', 'not-thermo-filter', 'primer-len=', 'max-amp-len=', 'min-amp-len=' 'threads=', 'primer-cover=',
+        # genmap
+        'error=', 
+        # hidden
+        'probe1-cover=', 'probe1-repeat=', 
+
+        'dedup-id=', 'rid-neg-id=', 'probe1-dist=', 
+    ]
+    inputGenome = ''
+    negGenome = ''
+    workDir = ''
+    pLen1 = 20
+    maxAmpLen = 200
+    minAmpLen = 100
+    primerCoverage = 3
+    cluIdentity = 0.97  # for mmseqs linclust
+    ridNegId = 0.90   # for mmseqs easy-search
+    cmError1 = 0
+    scCoverage1 = 30
+    doRemoveRedundancy = False
+    doThermoFilter1 = True # thermofilter
+    isLigationProbe = False # thermofilter
+    scEarlyStop1 = 0.9
+    scScore1 = 11
+    scRepeats1 = 1
+    threads = 8
+    impKmers1 = set()
+    probe1Index = []
+
+    def __init__(self, args):
+        args = getopt.getopt(args, self.shortParams, self.longParams)[0]
+        print(f"Your arguments: probeit posnegset {ProbeitUtils.getUserArgs(args)}")
+        # PARSE PARAMETERS
+        for opt, val in args:
+            if opt in ('-h', '--help'):
+                self.printUsage()
+            try:
+                self.inputGenome = str(val) if opt in ('-p', '--positive') else self.inputGenome
+                self.negGenome = str(val) if opt in ('-n', '--negative') else self.negGenome
+                self.workDir = str(val) if opt in ('-o', '--output') else self.workDir
+                # optional args
+                self.threads = int(val) if opt == '--threads' else self.threads
+                self.doRemoveRedundancy = True if opt == '--remove-reduncancy' else self.doRemoveRedundancy
+                self.doThermoFilter1 = False if opt == '--not-thermo-filter' else self.doThermoFilter1
+                self.pLen1 = int(val) if opt == '--primer-len' else self.pLen1
+                self.maxAmpLen = int(val) if opt == '--max-amp-len' else self.maxAmpLen
+                self.minAmpLen = int(val) if opt == '--min-amp-len' else self.minAmpLen
+                self.primerCoverage = int(val) if opt == '--primer-cover' else self.primerCoverage
+                self.cmError1 = int(val) if opt == '--error' else self.cmError1
+                # HIDDEN args
+                self.scCoverage1 = int(val) if opt == '--probe1-cover' else self.scCoverage1
+                self.scRepeats1 = int(val) if opt == '--probe1-repeat' else self.scRepeats1
+                self.scEarlyStop1 = float(val)/100 if opt == '--probe1-earlystop' else self.scEarlyStop1
+                # identity in mmseqs cluster
+                self.cluIdentity = float(val) if opt == '--dedup-id' else self.cluIdentity
+                # identity in mmeqs seqrch
+                self.ridNegId = float(val) if opt == '--rid-neg-id' else self.ridNegId
+                # setcover similarity
+                self.scScore1 = int(val) if opt == '--probe1-dist' else self.scScore1
+            except Exception as e:
+                self.printUsage()
+
+        # FOR DEBUGING
+        print(f'inputGenome: {self.inputGenome}')
+        print(f'negGenome: {self.negGenome}')
+        print(f'workDir: {self.workDir}')
+        print(f'threads: {self.threads}')
+        print(f'doRemoveRedundancy: {self.doRemoveRedundancy}')
+        print(f'doThermoFilter: {self.doThermoFilter1}')
+        print(f'pLen1: {self.pLen1}')
+        print(f'cmError1: {self.cmError1}')
+        print(f'scCoverage1: {self.scCoverage1}')
+        print(f'scRepeats1: {self.scRepeats1}')
+        print(f'scEarlyStop1: {self.scEarlyStop1}')
+        print(f'cluIdentity: {self.cluIdentity}')
+        print(f'ridNegId: {self.ridNegId}')
+        print(f'scScore1: {self.scScore1}')
+  
+        # CHECK USER"S ARGUMENTS
+        message = "{}You didn't input a proper argument for '{}' parameter or missed it."
+        isBadArguments = False
+        if not self.inputGenome:
+            print(message.format('[ERR]', '--positive'))
+            isBadArguments = True
+        if not self.negGenome:
+            print('[INFO] Probeit posnegset without negative genomes.')
+        if not self.workDir:
+            print(message.format('[ERR]', '--output'))
+            isBadArguments = True
+        if os.path.exists(self.workDir):
+            print(f'[ERR] The directory named {self.workDir} already exsits.')
+            isBadArguments = True
+        if isBadArguments:
+            self.printUsage()
+        print('You input proper arguments.')
+        
+        # DIRECTORIES
+        self.workDir = ProbeitUtils.defineDirectory(self.workDir.split(os.path.sep)[0], make=True)
+        self.inputDir1 = ProbeitUtils.defineDirectory('input1', make=True, root=self.workDir)
+        self.maskingDir = ProbeitUtils.defineDirectory('neg_filter', make=True, root=self.workDir)
+        self.thermoFiltering1Dir = ProbeitUtils.defineDirectory('thermo_filter1', make=True, root=self.workDir)
+        self.cmDir1 = ProbeitUtils.defineDirectory('mapping_probe1', make=True, root=self.workDir)
+        self.idxDir1 = ProbeitUtils.defineDirectory('index_probe1', make=False, root=self.workDir)
+        self.scDir1 = ProbeitUtils.defineDirectory('setcover_probe1', make=True, root=self.workDir)
+
+        # FILES 
+        self.log = ProbeitUtils.defineFile(self.workDir, Config.log)
+        self.lookup1 = ProbeitUtils.defineFile(self.workDir, 'genome.lookup')
+        self.genomeFASTA  = self.inputGenome 
+        self.window1FASTA = ProbeitUtils.defineFile(self.inputDir1, Config.window)
+        self.window1PosBED = ProbeitUtils.defineFile(self.inputDir1, 'window.bed') 
+        self.posKmers1FASTA = ProbeitUtils.defineFile(self.inputDir1, 'kmers.fa')
+        self.negRemPosBED = ProbeitUtils.defineFile(self.maskingDir, 'negRemPos.bed')
+        self.thermoCalc1TSV = ProbeitUtils.defineFile(self.thermoFiltering1Dir, "thermo_uncut.tsv")
+        self.scPosBed1 = ProbeitUtils.defineFile(self.scDir1, 'result.bed')       
+        self.tempProbe1 = ProbeitUtils.defineFile(self.workDir, 'temp1.fa')
+        self.primerFASTA = ProbeitUtils.defineFile(self.workDir, Config.primer)
+        # self.rcprobe1 = ProbeitUtils.defineFile(self.workDir, Config.rcprobe1)
+        self.logUpdate('[INFO]Your arguments: probeit primer ' + ' '.join(['{} {}'.format(i[0], i[1]).strip() for i in args]), False)
+        
+    def logUpdate(self, msg, doPrint=True):
+        if doPrint:
+            print(msg)
+        with open(self.log, 'a') as w:
+            w.write(msg + '\n')
+
+    def negFilter(self):
+        negKmerResult = ProbeitUtils.defineFile(self.maskingDir, 'search.tsv')
+        negKmerPosBED = ProbeitUtils.defineFile(self.maskingDir, 'search.bed') 
+        # REMOVE NEGATIVE K-MERS
+        self.logUpdate('[INFO]remove probes found in negative genome')
+        self.logUpdate(ProbeitUtils.ridNegKmers(self.posKmers1FASTA, self.negGenome, negKmerResult, self.maskingDir, self.ridNegId, self.threads))
+        
+        # MAKE DEDUPLICATED POSITIVE GENOME COORDINATE FILE(BED)
+        with open(self.window1FASTA) as f:
+            with open(self.window1PosBED, 'w') as w:
+                idx = 0
+                for _, seq in SimpleFastaParser(f):
+                    w.write(f'{idx}\t0\t{str(len(seq.strip()))}\n')
+                    idx += 1
+        
+        # EXTRACT NEGATIVE REMOVED POSITIONs BED
+        w = open(negKmerPosBED, 'w')
+        for i in open(negKmerResult):
+            kmers = ProbeitUtils.parseKmers(i)[1:]
+            for kmer in kmers:
+                g, s = [int(i) for i in kmer.split(',')]
+                w.write(f'{g}\t{s}\t{s+40}\n')       
+        w.close()
+        self.logUpdate(ProbeitUtils.getSubtractedBed(self.window1PosBED, negKmerPosBED, self.negRemPosBED), False)
+
+    def easyComMap(self, uniqComMap):
+        w = open(uniqComMap, 'w')
+        alphabets = {'A', 'C', 'G', 'T'}
+        lenSeq = dict()
+        idx = 0
+        for h, s in SimpleFastaParser(open(self.window1FASTA)) :
+            lenSeq[str(idx)] = len(s)
+            idx += 1     
+        negativeKmers = set()
+        prevGenome = '0'
+        prevEnd = 0
+        for line in open(self.negRemPosBED):
+            g, s, e = line.strip().split()
+            s = int(s)
+            e = int(e)
+            if g == prevGenome:
+                for i in range(prevEnd,s):
+                    negativeKmers.add(f'{g},{i}')
+                prevEnd = e
+            else:
+                for i in range(prevEnd, lenSeq[prevGenome]):
+                    negativeKmers.add(f'{prevGenome},{i}')
+                prevGenome = g
+                prevEnd = e
+                for i in range(0,s):
+                    negativeKmers.add(f'{g},{i}')
+        else:
+            for i in range(prevEnd, lenSeq[prevGenome]):
+                negativeKmers.add(f'{prevGenome},{i}')
+
+        for h, s in SimpleFastaParser(open(self.posKmers1FASTA)):
+            kmers = set(ProbeitUtils.parseKmers(h))
+            isThermoImproper = kmers&self.impKmers1
+            notOnlyATGC = set(s) != alphabets&set(s)
+            # TODO
+            # isNegative = kmers&negativeKmers
+            isNegative = set([ProbeitUtils.parseKmers(h)[0]])&negativeKmers
+            if isNegative or isThermoImproper or notOnlyATGC:
+                continue
+            w.write(h+'\n')
+        w.close()
+    
+    def makeWindow1(self):
+        ProbeitUtils.sortFasta(self.genomeFASTA)
+        ProbeitUtils.simplifyFastaHeaders(self.genomeFASTA, self.window1FASTA)
+        ProbeitUtils.makeLookup(self.window1FASTA, self.lookup1, self.window1PosBED)
+
+    def makePrimers(self):
+        def kmerParser(kmer):
+            [g,p] = kmer.split(',')
+            return int(g),int(p)
+
+        def counter(l, key, cov):
+            cnt = 0
+            while cnt<cov:
+                p = -1
+                try:
+                    p = l.index(key)
+                except ValueError:
+                    return False
+                l = l[p+1:]
+                cnt +=1
+            else:
+                return True
+
+        uniqComMap = ProbeitUtils.defineFile(self.cmDir1, 'uniq.genmap.csv')
+        self.easyComMap(uniqComMap)
+        msg = ProbeitUtils.makeProbe(
+            self.tempProbe1, self.scPosBed1, self.window1FASTA, self.lookup1, self.pLen1, 
+            self.scCoverage1, self.scEarlyStop1, self.scScore1, self.scRepeats1, uniqComMap,  
+        )
+        self.logUpdate(msg, False)        
+
+        # PRIMER
+        numGenomes = int([i.split()[0] for i in open(self.lookup1)][-1]) + 1
+        genomeAndPairs = {i:[] for i in range(numGenomes)}
+        kmers = dict()
+        seqs = dict()
+        idx = 0
+        for h, s in SimpleFastaParser(open(self.tempProbe1)):
+            for kmer in h.split()[1].split('|'):
+                kmers[kmerParser(kmer)] = idx
+                seqs[idx] = s
+            idx += 1
+        
+        for i in range(numGenomes):
+            primerCands = sorted([(g,p) for g,p in kmers.keys() if g==i])
+            for j, cand1 in enumerate(primerCands):
+                pos1 = cand1[1]
+                for cand2 in primerCands[j+1:]:
+                    pos2 = cand2[1]
+                    ampLen = pos2 - pos1 + self.pLen1
+                    if self.minAmpLen <= ampLen and ampLen <= self.maxAmpLen:
+                        genomeAndPairs[i].append((kmers[cand1],kmers[cand2]))
+                  
+        # primers
+        with open(self.lookup1)as f:
+            genomeKeys = {int(i.split()[0]):i.split()[1] for i in f}
+        pairsAndCoveredGenomes = dict()
+        for genome, pairs in genomeAndPairs.items():
+            for pair in pairs:
+                pairsAndCoveredGenomes.setdefault(pair, [])
+                pairsAndCoveredGenomes[pair].append(genome)
+        pairsCoverage = dict()
+        for k, v in pairsAndCoveredGenomes.items():
+            pairsCoverage.setdefault(len(v), [])
+            pairsCoverage[len(v)].append(k)
+        coveredGenomes = []
+        primerPairsSet = set()
+        for size in sorted(pairsCoverage)[::-1]:
+            for pair in pairsCoverage[size]:
+                genomes = pairsAndCoveredGenomes[pair]
+                for g in genomes:
+                    if not counter(coveredGenomes, g, self.primerCoverage):
+                        coveredGenomes.append(g)
+                        primerPairsSet.add(pair)
+                    if len(coveredGenomes)==numGenomes:
+                        break
+        idx = 0
+        with open(self.primerFASTA, 'w') as w:
+            for i, j in primerPairsSet:
+                # primer1 = [k for k, v in keys.items() if v==i]
+                # primer2 = [k for k, v in keys.items() if v==j] 
+                genomes = [genome for genome, primerList in genomeAndPairs.items() if (i,j) in primerList]
+                # print(genomes)
+                genomes = [genomeKeys[i] for i in genomes]
+                genomes = ';'.join(genomes)
+                # w.write(f'>primer_pair{idx}\n{seqs[i]}\n{reverse_complement(seqs[j])}\n>primer_pair{idx}\n{seqs[j]}\n{reverse_complement(seqs[i])}\n') 
+                w.write(f'>primer_pair{idx}\t{genomes}\n{seqs[i]}\n{reverse_complement(seqs[j])}\n') 
+                idx += 1
+
+    def run(self):
+        # MAKE PROBE1
+        self.logUpdate("[INFO] make 1st probes")
+        
+        # REMOVE REDUNDANCY FROM INPUT GENOME
+        if self.doRemoveRedundancy:
+            self.logUpdate('[INFO]deduplicate positive fasta')
+            clusteredGenome = ProbeitUtils.defineFile(self.inputDir1, 'dedup') 
+            tempDir = ProbeitUtils.defineDirectory('temp', make=False, root=self.inputDir1)
+            msg, self.genomeFASTA= ProbeitUtils.clusterGenome(self.inputGenome, clusteredGenome, tempDir, self.cluIdentity, threads=self.threads)
+            self.logUpdate(msg)
+          
+        # MAKE WINDOW and KMERS FOR PROBE1 
+        self.makeWindow1()
+        ProbeitUtils.extractKmers(self.window1FASTA, self.posKmers1FASTA, self.pLen1)
+
+        # DO NEG FILTER FOR PROBE1
+        if self.negGenome:
+            self.negFilter()
+    
+        # DO THERMO FILTER FOR PROBE1
+        if self.doThermoFilter1:
+            thermoFilter1 = ThermoFilter(self.posKmers1FASTA, self.pLen1, self.thermoCalc1TSV, self.isLigationProbe)
+            msg, self.impKmers1 = thermoFilter1.run()
+            self.logUpdate(msg)
+        
+        # COMPLETE MAKE PROBE1
+        self.makePrimers()
+        
+        print('COMPLETE!!!')
+        return
+        
+    @staticmethod
+    def printUsage():
+        print("Probeit primer")
+        print("It generates primer pairs with sequences included in the positive genome but not in the negative genome")
+        print("probeit primer -p [POSITIVE GENOME]-n [NEGATIVE GENOME] -o [DIR]")
+
+        print("Usage")
+        print(" -h|--help NONE")
+        print("\t Show usage")
+
+        print("REQUIRED OPTIONS")
+        print(" -p|--positive FASTA file")
+        print("\t The genome which MUST be covered by the probes.")
+        print(" -o|--output DIR")
+        print("\t Output directory The Directory is automatically created by Probeit.")
+
+        print("ADDITIONAL OPTIONS")
+        print(" -n|--negative FASTA file")
+        print("\t The genome which MUST NOT be covered by the probes.")
+        print(" --threads INT[8]")
+        print("\t number of CPU-cores used")
+        print(" --remove-reduncancy NONE")
+        print("\t Use it when you NEED to cluster positive genome")
+        print(" --not-thermo-filter NONE")
+        print("\t Use it when you DO NOT need the thermodynamic filter")       
+        print(" --primer-len INT[20]")
+        print("\t Length of 1st Probes")
+        print(" --max-amp-len INT[200]")
+        print("\t Maximum length of primers")
+        print(" --min-amp-len INT[100]")
+        print("\t Minimum length of primers")
+        print("--primer-cover INT[3]")
+        print("\t The number of times each Seqs from positive genome should be covered by primer pairs")        
+        print("ADDITIONAL OPTIONS FOR GENMAP PART: Genmap calculates mappability by summarizing k-mers.")
+        print(" --error INT[0]")
+        print("\t The number of error allowed in primers")
+        
+        # print("ADDITIONAL OPTIONS FOR SETCOVER PART: Setcover makes probesets cover targets with the minimum number of probes.")
+        # print("--probe1-cover INT[1]")
+        # print("\t The number of times each Seqs from positive genome should be covered by 1st Probes")
+        # print("--probe1-repeat INT[1]")
+        # print("\t The number of random iterations when minimizing 1st Probes")
+        # print("--probe1-earlystop INT[90]")
+        # print("\t Early stop picking new probes if X% of sequences are covered at least N(--probe1-cover) times")
+
+        quit()
+
+    
 

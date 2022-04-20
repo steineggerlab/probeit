@@ -6,12 +6,16 @@ class Config:
     maxHomoDimerTm = 60
     maxHairpinTm = 60
     minProbeTm = 40
+    maxRepeat = 5
     
     # file name
     log = 'log.txt'
     window = 'window.fa'
     probe1 = 'probe1.fa'
     probe2 = 'probe2.fa'
+    rcprobe1 = 'rcprobe1.fa'
+    rcprobe2 = 'rcprobe2.fa'
+    primer = 'primer.fa'
     
     @classmethod
     def getMinGC(cls):
@@ -32,6 +36,10 @@ class Config:
     @classmethod
     def getMinProbeTm(cls):
         return cls.minProbeTm
+
+    @classmethod
+    def getMaxRepeat(cls):
+        return cls.maxRepeat
         
 
         
