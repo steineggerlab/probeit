@@ -1440,7 +1440,7 @@ class Primer:
         # required
         'positive=', 'negative=', 'output=',
         # optional
-        'remove-reduncancy', 'not-thermo-filter', 'primer-len=', 'max-amp-len=', 'min-amp-len=' 'threads=', 'primer-cover=',
+        'remove-reduncancy', 'not-thermo-filter', 'primer-len=', 'max-amp-len=', 'min-amp-len=', 'threads=', 'primer-cover=',
         # genmap
         'error=', 
         # hidden
