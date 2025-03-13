@@ -244,12 +244,16 @@ class ProbeitUtils:
         w = open(lookup, 'w')
         for i, header in enumerate(headers):
             w.write(f'{i}\t{header}\n')
-        if genomePos: 
-            lengths = [len(seq) for _, seq in SimpleFastaParser(open(windowFasta))]
-            w = open(genomePos, 'w')
-            for i, length in enumerate(lengths):
-                w.write(f'{i}\t0\t{length}\n')
-
+        w.close()
+        if !genomePos:
+            return
+            
+        lengths = [len(seq) for _, seq in SimpleFastaParser(open(windowFasta))]
+        w = open(genomePos, 'w')
+        for i, length in enumerate(lengths):
+            w.write(f'{i}\t0\t{length}\n')
+        w.close()
+        
     # SNPs RELATED
     @classmethod
     def searchSNPs(cls, workDir, inputFasta, strGenomeFasta, result, kmer=12, threads=8):
