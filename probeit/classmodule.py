@@ -720,7 +720,7 @@ class PosNegSet:
             # TODO
             # isNegative = kmers&negativeKmers
             isNegative = self.negGenome and set([ProbeitUtils.parseKmers(h)[0]])&negativeKmers
-            if isNegative or isThermoImproper or notOnlyATGC:
+            if isNegGenome or isThermoImproper or notOnlyATGC:
                 continue
             w.write(h+'\n')
         w.close()
