@@ -719,7 +719,7 @@ class PosNegSet:
         negativeKmers = set()
         prevGenome = '0'
         prevEnd = 0
-        negativeKmers = getNegativeKmers()
+        negativeKmers = self.getNegativeKmers()
         for h, s in SimpleFastaParser(open(self.posKmers1FASTA)):
             kmers = set(ProbeitUtils.parseKmers(h))
             isThermoImproper = kmers&self.impKmers1
