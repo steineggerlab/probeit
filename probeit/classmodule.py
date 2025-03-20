@@ -157,7 +157,7 @@ class ProbeitUtils:
     @classmethod
     def clusterGenome(cls, input, output, directory, seqIdentity, threads=8):
         cmd = 'mmseqs easy-linclust {} {} {} -v 3 --kmer-per-seq-scale 0.5 --kmer-per-seq 1000 --min-seq-id {} --cov-mode 1 -c 0.95 --remove-tmp-files 0 --threads {}' 
-        cmd.format(input, output, directory, seqIdentity, threads)
+        cmd = cmd.format(input, output, directory, seqIdentity, threads)
         stdout, stderr = cls.runCommand(cmd, verbose=True)
         msg = stdout + stderr
         output += '_rep_seq.fasta'
@@ -719,7 +719,7 @@ class PosNegSet:
             notOnlyATGC = set(s) != alphabets&set(s)
             # TODO
             # isNegative = kmers&negativeKmers
-            isNegative = set([ProbeitUtils.parseKmers(h)[0]])&negativeKmers
+            isNegative = self.negGenome and set([ProbeitUtils.parseKmers(h)[0]])&negativeKmers
             if isNegative or isThermoImproper or notOnlyATGC:
                 continue
             w.write(h+'\n')
