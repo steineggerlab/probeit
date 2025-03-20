@@ -683,17 +683,11 @@ class PosNegSet:
         w.close()
         self.logUpdate(ProbeitUtils.getSubtractedBed(self.window1PosBED, negKmerPosBED, self.negRemPosBED), False)
 
-    def easyComMap(self, uniqComMap):
-        w = open(uniqComMap, 'w')
-        alphabets = {'A', 'C', 'G', 'T'}
-        lenSeq = dict()
-        idx = 0
-        for h, s in SimpleFastaParser(open(self.window1FASTA)) :
-            lenSeq[str(idx)] = len(s)
-            idx += 1     
+    def getNegativeKmers(self): 
         negativeKmers = set()
-        prevGenome = '0'
-        prevEnd = 0
+        if not self.negGenome:
+            return negativeKmers
+            
         for line in open(self.negRemPosBED):
             g, s, e = line.strip().split()
             s = int(s)
@@ -712,14 +706,27 @@ class PosNegSet:
         else:
             for i in range(prevEnd, lenSeq[prevGenome]):
                 negativeKmers.add(f'{prevGenome},{i}')
-
+        return negativeKmers
+        
+    def easyComMap(self, uniqComMap):
+        w = open(uniqComMap, 'w')
+        alphabets = {'A', 'C', 'G', 'T'}
+        lenSeq = dict()
+        idx = 0
+        for h, s in SimpleFastaParser(open(self.window1FASTA)) :
+            lenSeq[str(idx)] = len(s)
+            idx += 1     
+        negativeKmers = set()
+        prevGenome = '0'
+        prevEnd = 0
+        negativeKmers = getNegativeKmers()
         for h, s in SimpleFastaParser(open(self.posKmers1FASTA)):
             kmers = set(ProbeitUtils.parseKmers(h))
             isThermoImproper = kmers&self.impKmers1
             notOnlyATGC = set(s) != alphabets&set(s)
             # TODO
             # isNegative = kmers&negativeKmers
-            isNegative = self.negGenome and set([ProbeitUtils.parseKmers(h)[0]])&negativeKmers
+            isNegative = set([ProbeitUtils.parseKmers(h)[0]])&negativeKmers
             if isNegGenome or isThermoImproper or notOnlyATGC:
                 continue
             w.write(h+'\n')
