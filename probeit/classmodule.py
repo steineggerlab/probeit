@@ -245,7 +245,7 @@ class ProbeitUtils:
         for i, header in enumerate(headers):
             w.write(f'{i}\t{header}\n')
         w.close()
-        if !genomePos:
+        if not genomePos:
             return
             
         lengths = [len(seq) for _, seq in SimpleFastaParser(open(windowFasta))]
