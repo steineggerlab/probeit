@@ -493,7 +493,7 @@ class PosNegSet:
         # required
         'positive=', 'negative=', 'output=',
         # optional
-        'not-make-probe2', 'remove-reduncancy', 'not-thermo-filter', 'ligation-probe', 'probe1-len=', 'probe2-len=', 'window-size=', 'threads=',
+        'not-make-probe2', 'remove-redundancy', 'not-thermo-filter', 'ligation-probe', 'probe1-len=', 'probe2-len=', 'window-size=', 'threads=',
         # genmap
         'probe1-error=', 'probe2-error=',
         # setcover
@@ -544,7 +544,7 @@ class PosNegSet:
                 # optional args
                 self.threads = int(val) if opt == '--threads' else self.threads
                 self.windowSize = int(val) if opt == '--window-size' else self.windowSize
-                self.doRemoveRedundancy = True if opt == '--remove-reduncancy' else self.doRemoveRedundancy
+                self.doRemoveRedundancy = True if opt == '--remove-redundancy' else self.doRemoveRedundancy
                 self.needProbe2 = False if opt == '--not-make-probe2' else self.needProbe2
                 self.doThermoFilter1 = False if opt == '--not-thermo-filter' else self.doThermoFilter1
                 self.doThermoFilter2 = False if opt == '--not-thermo-filter' else self.doThermoFilter2
@@ -900,7 +900,7 @@ class PosNegSet:
         print("\t number of CPU-cores used")
         print(" --window-size INT[200]")
         print("\t size of windows for 2nd probes")
-        print(" --remove-reduncancy NONE")
+        print(" --remove-redundancy NONE")
         print("\t Use it when you NEED to cluster positive genome")
         print(" --not-make-probe2 NONE")
         print("\t Use it when you DO NOT need to make 2nd probes")
@@ -1451,7 +1451,7 @@ class Primer:
         # required
         'positive=', 'negative=', 'output=',
         # optional
-        'remove-reduncancy', 'not-thermo-filter', 'primer-len=', 'max-amp-len=', 'min-amp-len=', 'threads=', 'primer-cover=',
+        'remove-redundancy', 'not-thermo-filter', 'primer-len=', 'max-amp-len=', 'min-amp-len=', 'threads=', 'primer-cover=',
         # genmap
         'error=', 
         # hidden
@@ -1493,7 +1493,7 @@ class Primer:
                 self.workDir = str(val) if opt in ('-o', '--output') else self.workDir
                 # optional args
                 self.threads = int(val) if opt == '--threads' else self.threads
-                self.doRemoveRedundancy = True if opt == '--remove-reduncancy' else self.doRemoveRedundancy
+                self.doRemoveRedundancy = True if opt == '--remove-redundancy' else self.doRemoveRedundancy
                 self.doThermoFilter1 = False if opt == '--not-thermo-filter' else self.doThermoFilter1
                 self.pLen1 = int(val) if opt == '--primer-len' else self.pLen1
                 self.maxAmpLen = int(val) if opt == '--max-amp-len' else self.maxAmpLen
@@ -1786,7 +1786,7 @@ class Primer:
         print("\t The genome which MUST NOT be covered by the probes.")
         print(" --threads INT[8]")
         print("\t number of CPU-cores used")
-        print(" --remove-reduncancy NONE")
+        print(" --remove-redundancy NONE")
         print("\t Use it when you NEED to cluster positive genome")
         print(" --not-thermo-filter NONE")
         print("\t Use it when you DO NOT need the thermodynamic filter")       
