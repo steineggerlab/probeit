@@ -688,6 +688,7 @@ class PosNegSet:
         if not self.negGenome:
             return negativeKmers
         prevGenome=0
+        prevEnd=0
         for line in open(self.negRemPosBED):
             g, s, e = line.strip().split()
             s = int(s)
