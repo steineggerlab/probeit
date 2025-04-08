@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-import re
-
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 from Bio.Seq import Seq, reverse_complement
 from pandas import read_csv, merge, DataFrame
@@ -13,8 +11,12 @@ from re import compile, findall
 from .config import Config
 
 class Kmer:
-    def __init__(self, commaSepNum):
-        self.idx, self.sPos = map(int, commaSepNum.split(','))
+    def __init__(self, line="", idx=-1, sPos=-1):
+        if line:
+            self.idx, self.sPos = map(int, line.split(','))
+            return
+        self.idx = idx
+        self.sPos = sPos
 
     def getIdx(self):
         return self.idx
@@ -59,6 +61,7 @@ class Kmer:
         if self.sPos > other:
             return False
         return True
+
     def __gt__(self, other):
         if self.idx <= other.idx:
             return False
@@ -73,13 +76,35 @@ class Kmer:
             return False
         return True
 
-
-
     def __hash__(self):
         return hash((self.idx, self.sPos))
 
     def __str__(self):
         return f'{self.idx},{self.sPos}'
+
+    def getStr(self):
+        return f'{self.idx},{self.sPos}'
+
+class BedLine:
+    def __init__(self, idx, sPos, ePos):
+        self.idx = idx
+        self.sPos = sPos
+        self.ePos = ePos
+
+    def getLine(self):
+        return f'{self.idx}\t{self.sPos}\t{self.ePos}\n'
+
+# To implement increment operator like i++ in C.
+class Incrementer:
+    def __init__(self, start=-1):
+        self.value = start
+        
+    def get(self):
+        self.value += 1
+        return self.value
+
+    def reset(self, val=-1):
+        self.value = val
 
 class ParaSeqs:
     probLen = -1
@@ -110,13 +135,10 @@ class ParaSeqs:
             return False
         return True
 
-
-
     def getProbesWithPos(self, pos):
         start = self.mutLoc - pos + 1
         end = self.mutLoc - pos + self.probLen + 1
         return self.wtSeq[start:end], self.stSeq[start:end]
-
 
 class ProbeitUtils:
     # RUN COMMANDLINE
@@ -167,13 +189,6 @@ class ProbeitUtils:
 
     # FASTA FILES RELATED
     @classmethod
-    def sortFasta(cls, inputFasta):
-        fastaList = sorted([f'>{h}\n{s}\n' for h, s in SimpleFastaParser(open(inputFasta))])
-
-        with open(inputFasta, 'w') as w:
-            w.writelines(fastaList)
-
-    @classmethod
     def getSubseqFasta(cls, coordinateBed, inputFasta, outputFasta):
         command1 = "seqkit subseq --quiet --bed {} {} > {}".format(coordinateBed, inputFasta, outputFasta)
         cls.runCommand(command1)
@@ -202,22 +217,23 @@ class ProbeitUtils:
 
     @staticmethod
     def extractKmers(genomeFasta, kmersFasta, pLen):
-        def writeKmer(kmer):
-            seq = kmer[0]
-            names = kmer[1]
-            repName = names[0]
-            return f'>{repName};{"|".join(names)}\n{seq}\n'
+        def writeKmer(seqAndKmers):
+            seq = seqAndKmers[0]
+            kmers = seqAndKmers[1]
+            repKmer = kmers[0]
+            strKmers = [kmer.getStr() for kmer in kmers]
+            return f'>{repKmer.getStr()};{"|".join(strKmers)}\n{seq}\n'
 
         kmers = {}
-        genomeIdx = 0
+        genomeIdx = Incrementer()
         for _, s in SimpleFastaParser(open(genomeFasta)):
             l = len(s)
             for pos in range(l - pLen + 1):
-                name = f'{genomeIdx},{pos}'
+                kmer = Kmer(idx=genomeIdx.get(), sPos=pos)
                 seq = s[pos:pos + pLen].upper()
                 kmers.setdefault(seq, [])
-                kmers[seq].append(name)
-            genomeIdx += 1
+                kmers[seq].append(kmer)
+
         with open(kmersFasta, 'w') as w:
             w.writelines(map(writeKmer, kmers.items()))
 
@@ -241,12 +257,7 @@ class ProbeitUtils:
     @classmethod
     def ridNegKmers(cls, posKmers, negative, output, outputDir, seqInProbe, thread):
         tempDir = cls.defineDirectory("tmp", root=outputDir)
-        command = (
-                f'mmseqs easy-search {posKmers} {negative} {output} {tempDir} -v 3 --spaced-kmer-mode 0 -k 13 --mask 0 ' +
-                f'--format-output query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue ' +
-                f'-c 0.9 --min-seq-id {seqInProbe} --cov-mode 2 --alignment-mode 4 --search-type 3 --threads {thread}' +
-                ' --remove-tmp-files 0'
-        )
+        command = f"mmseqs easy-search {posKmers} {negative} {output} {tempDir} -v 3 --spaced-kmer-mode 0 -k 13 --mask 0 --format-output query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue -c 0.9 --min-seq-id {seqInProbe} --cov-mode 2 --alignment-mode 4 --search-type 3 --threads {thread} --remove-tmp-files 0"
         stdOut, stdErr = cls.runCommand(command, verbose=True)
         print(stdOut)
         print(stdErr)
@@ -256,34 +267,32 @@ class ProbeitUtils:
     @classmethod
     def simpleComputeMappability(cls, genome, lookup, positionBED, outputCSV, pLen, improperKmers):
         positiveKmers = set()
-        genomeIndecies = [int(i.split()[1]) for i in open(lookup)]
-        print("!!!!!", genomeIndecies)
         w = open(outputCSV, 'w')
         for line in open(positionBED):
             gIdx, sPos, ePos = map(int, line.split())
-            genomeIdx = genomeIndecies.index(gIdx)
-            for i in range(sPos, ePos):
-                positiveKmers.add(Kmer(genomeIdx, i))
 
-        kmerAndNames = {}
-        idx = 0
-        for h, kmerSeq in SimpleFastaParser(open(genome)):
-            l = len(kmerSeq)
+            for i in range(sPos, ePos):
+                positiveKmers.add(Kmer(idx=gIdx, sPos=i))
+
+        seqAndKmers = {}
+        idx = Incrementer()
+        for h, seq in SimpleFastaParser(open(genome)):
+            l = len(seq)
             for i in range(l - pLen + 1):
-                kmerName = Kmer(idx, i)
-                seq = kmerSeq[i:i + pLen].upper()
+                kmer = Kmer(idx=idx.get(), sPos=i)
+                seq = seq[i:i + pLen].upper()
                 if set(seq) - Config.nucleotideSet:
                     continue
-                kmerAndNames.setdefault(seq, [])
-                kmerAndNames[seq].append(kmerName)
-            idx += 1
+                seqAndKmers.setdefault(seq, [])
+                seqAndKmers[seq].append(kmer)
 
-        for kmerSeq, kmerNames in kmerAndNames.items():
-            repName = kmerNames[0]
-            isPositive = repName in positiveKmers
-            isImproper = kmerSeq in improperKmers
+        for seq, kmers in seqAndKmers.items():
+            repKmer = kmers[0]
+            isPositive = repKmer in positiveKmers
+            isImproper = seq in improperKmers
             if isPositive and not isImproper:
-                w.write(f'{repName};{"|".join(kmerNames)}\n')
+                kmerStr = '|'.join([kmer.getStr() for kmer in kmers])
+                w.write(f'{repKmer};{kmerStr}\n')
         w.close()
 
     @classmethod
@@ -299,8 +308,8 @@ class ProbeitUtils:
             parsedKmers = findall(r'[0-9]+,[0-9]+',line)
             if not parsedKmers:
                 continue
-            repKmer = Kmer(parsedKmers[0])
-            firstKmer = Kmer(parsedKmers[1])
+            repKmer = Kmer(line=parsedKmers[0])
+            firstKmer = Kmer(line=parsedKmers[1])
             if repKmer == firstKmer and repKmer not in improperKmers:
                 w.write(line)
         w.close()
@@ -316,19 +325,16 @@ class ProbeitUtils:
     # LOOKUP FILES RELATED
     @classmethod
     def makeLookup(cls, windowFasta, lookup, genomePos=''):
-        w = open(lookup, 'w')
-        headers = [header.strip() for header, _ in SimpleFastaParser(open(windowFasta))]
-        for i, header in enumerate(headers):
-            w.write(f'{i}\t{header}\n')
-        w.close()
+        i = Incrementer()
+        with open(lookup, 'w') as w:
+            w.writelines([f'{i.get()}\t{header.strip()}\n' for header, _ in SimpleFastaParser(open(windowFasta))])
+
         if not genomePos:
             return
 
-        w = open(genomePos, 'w')
-        lengths = [len(seq) for _, seq in SimpleFastaParser(open(windowFasta))]
-        for i, length in enumerate(lengths):
-            w.write(f'{i}\t0\t{length}\n')
-        w.close()
+        i.reset()
+        with open(genomePos, 'w') as w:
+            w.writelines([BedLine(i.get(), 0, len(seq)).getLine() for _, seq in SimpleFastaParser(open(windowFasta))])
 
     # SNPs RELATED
     @classmethod
@@ -338,15 +344,14 @@ class ProbeitUtils:
         searchDB = cls.defineFile(searchDir, 'searchDB')
         strainDB = cls.defineFile(searchDir, 'strainDB')
         aln = cls.defineFile(searchDir, 'mmseqs.aln')
-        cmd0 = ' --threads {}'.format(threads)
-        cmd1 = 'mmseqs createdb {} {}'
-        cmd2 = 'mmseqs createdb {} {}'
-        cmd3 = 'mmseqs search {} {} {} {} --search-type 3 -k {}'
-        cmd4 = 'mmseqs convertalis {} {} {} {} --format-output target,query,tseq,tstart,tend --search-type 3'
-        out1, err1 = cls.runCommand(cmd1.format(inputFasta, searchDB), verbose=True)
-        out2, err2 = cls.runCommand(cmd2.format(strGenomeFasta, strainDB), verbose=True)
-        out3, err3 = cls.runCommand(cmd3.format(searchDB, strainDB, aln, tempDir, kmer, threads) + cmd0, verbose=True)
-        out4, err4 = cls.runCommand(cmd4.format(searchDB, strainDB, aln, result, threads) + cmd0, verbose=True)
+        cmd1 = f'mmseqs createdb {inputFasta} {searchDB}'
+        cmd2 = f'mmseqs createdb {strGenomeFasta} {strainDB}'
+        cmd3 = f'mmseqs search {searchDB} {strainDB} {aln} {tempDir} --search-type 3 -k {kmer} --threads {threads}'
+        cmd4 = f'mmseqs convertalis {searchDB} {strainDB} {aln} {result} --format-output target,query,tseq,tstart,tend --search-type 3 --threads {threads}'
+        out1, err1 = cls.runCommand(cmd1, verbose=True)
+        out2, err2 = cls.runCommand(cmd2, verbose=True)
+        out3, err3 = cls.runCommand(cmd3, verbose=True)
+        out4, err4 = cls.runCommand(cmd4, verbose=True)
         df = read_csv(result, sep='\t', header=None)
         df.columns = ['substr', 'snp', 'strseq', 'start', 'end']
         df['aln'] = df.apply(lambda x: x[2][int(x[3] - 1):int(x[4])], axis=1)
@@ -384,11 +389,11 @@ class ProbeitUtils:
     @classmethod
     def setCover(cls, coverage, length, eStop, dist, reps, mapCSV, genome, lookup, setcoverResultBed, probeLen):
         def writeSetcoverResult(line):
+            repKmer = ProbeitUtils.parseKmers(line)[0]
             matchedKmers = line.split(';')[1].strip()
-            idx = int(line.split(';')[0].split(',')[0])
-            pos = line.split(';')[0].split(',')[1]
-            tab = '\t'
-            return f"{tab.join([genomeAndIdx[idx], pos, str(int(pos) + probeLen), matchedKmers])}\n"
+            idx = repKmer.idx
+            pos = repKmer.sPos
+            return f"{genomeAndIdx[idx]}\t{pos}\t{pos + probeLen}\t{matchedKmers}\n"
 
         filePath = path.sep.join(path.realpath(__file__).split(path.sep)[:-1])
         setcoverPath = '{}{}{}{}{}'.format(filePath, path.sep, 'setcover', path.sep, 'setcover')

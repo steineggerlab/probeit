@@ -210,7 +210,7 @@ class Primer:
         w.close()
 
     def makeWindow1(self):
-        ProbeitUtils.sortFasta(self.genomeFASTA)
+        # ProbeitUtils.sortFasta(self.genomeFASTA)
         ProbeitUtils.simplifyFastaHeaders(self.genomeFASTA, self.window1FASTA)
         ProbeitUtils.makeLookup(self.window1FASTA, self.lookup1, self.window1PosBED)
 

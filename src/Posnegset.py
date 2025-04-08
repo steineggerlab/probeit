@@ -6,7 +6,7 @@ from Bio.SeqIO.FastaIO import SimpleFastaParser
 from Bio.Seq import Seq
 import os
 import getopt
-from .Utils import ProbeitUtils, ThermoFilter
+from .Utils import ProbeitUtils, ThermoFilter, Kmer, Incrementer, BedLine
 
 
 class PosNegSet:
@@ -161,7 +161,7 @@ class PosNegSet:
         # FILES
         self.log = ProbeitUtils.defineFile(self.workDir, Config.log)
         self.lookup1 = ProbeitUtils.defineFile(self.workDir, 'genome.lookup')
-        self.genomeFASTA = self.inputGenome
+        self.clusteredGenome = self.inputGenome
         self.window1FASTA = ProbeitUtils.defineFile(self.inputDir1, Config.window)
         self.window1PosBED = ProbeitUtils.defineFile(self.inputDir1, 'window.bed')
         self.posKmers1FASTA = ProbeitUtils.defineFile(self.inputDir1, 'kmers.fa')
@@ -194,7 +194,6 @@ class PosNegSet:
             w.write(msg + '\n')
 
     def negFilter(self, pLen):
-        w = open(self.window1PosBED, 'w')
         negKmerResult = ProbeitUtils.defineFile(self.maskingDir, 'search.tsv')
         negKmerPosBED = ProbeitUtils.defineFile(self.maskingDir, 'search.bed')
         # REMOVE NEGATIVE K-MERS
@@ -202,17 +201,17 @@ class PosNegSet:
         self.logUpdate(ProbeitUtils.ridNegKmers(self.posKmers1FASTA, self.negGenome, negKmerResult, self.maskingDir, self.ridNegId, self.threads))
 
         # MAKE DEDUPLICATED POSITIVE GENOME COORDINATE FILE(BED)
-        idx = 0
-        for _, seq in SimpleFastaParser(open(self.window1FASTA)):
-            w.write(f'{idx}\t0\t{str(len(seq.strip()))}\n')
-            idx += 1
+        i = Incrementer()
+        with open(self.window1PosBED, 'w') as w:
+            w.writelines([BedLine(i.get(), 0, len(seq)).getLine() for _, seq in SimpleFastaParser(open(self.window1FASTA))])
 
         # EXTRACT NEGATIVE REMOVED POSITIONS BED
         w = open(negKmerPosBED, 'w')
         for i in open(negKmerResult):
             kmers = ProbeitUtils.parseKmers(i)[1:]
             for kmer in kmers:
-                w.write(f'{kmer.idx}\t{kmer.sPos}\t{kmer.sPos + pLen}\n')
+                w.write(BedLine(kmer.idx, kmer.sPos, kmer.sPos + pLen).getLine())
+
         w.close()
         self.logUpdate(ProbeitUtils.getSubtractedBed(self.window1PosBED, negKmerPosBED, self.negRemPosBED), False)
 
@@ -226,25 +225,24 @@ class PosNegSet:
         for line in open(self.negRemPosBED):
             genomeIdx, currStart, currEnd = map(int, line.strip().split())
             if genomeIdx == prevGenomeIdx:
-                negativeKmers.update(set([(genomeIdx, i) for i in range(prevEnd, currStart)]))
+                negativeKmers.update(set([Kmer(idx=genomeIdx, sPos=i) for i in range(prevEnd, currStart)]))
                 prevEnd = currEnd
                 continue
 
-            negativeKmers.update(set([(prevGenomeIdx,i) for i in range(prevEnd, self.getGenomeLength[prevGenomeIdx])]))
-            negativeKmers.update(set([(genomeIdx,i) for i in range(currStart)]))
+            negativeKmers.update(set([Kmer(idx=prevGenomeIdx,sPos=i) for i in range(prevEnd, self.getGenomeLength[prevGenomeIdx])]))
+            negativeKmers.update(set([Kmer(idx=genomeIdx, sPos=i) for i in range(currStart)]))
             prevGenomeIdx = genomeIdx
             prevEnd = currEnd
 
-        negativeKmers.update(set([(prevGenomeIdx,i) for i in range(prevEnd, self.getGenomeLength[prevGenomeIdx])]))
+        negativeKmers.update(set([Kmer(idx=prevGenomeIdx,sPos=i) for i in range(prevEnd, self.getGenomeLength[prevGenomeIdx])]))
         return negativeKmers
 
     def easyComMap(self, uniqComMap):
         w = open(uniqComMap, 'w')
         self.getGenomeLength.clear()
-        idx = 0
+        idx = Incrementer()
         for _, s in SimpleFastaParser(open(self.window1FASTA)):
-            self.getGenomeLength[idx] = len(s)
-            idx += 1
+            self.getGenomeLength[idx.get()] = len(s)
 
         negativeKmers = self.getNegativeKmers()
         for h, s in SimpleFastaParser(open(self.posKmers1FASTA)):
@@ -255,13 +253,12 @@ class PosNegSet:
             isNegative = {kmers[0]} & negativeKmers
             if isNegative or isThermoImproper or isUnregularNtFound:
                 continue
-
             w.write(f'{h}\n')
+
         w.close()
 
     def makeWindow1(self):
-        ProbeitUtils.sortFasta(self.genomeFASTA)
-        ProbeitUtils.simplifyFastaHeaders(self.genomeFASTA, self.window1FASTA)
+        ProbeitUtils.simplifyFastaHeaders(self.clusteredGenome, self.window1FASTA)
         ProbeitUtils.makeLookup(self.window1FASTA, self.lookup1, self.window1PosBED)
 
     def makeWindow2(self):
@@ -315,7 +312,6 @@ class PosNegSet:
             for kmerIdx, kmer in enumerate(kmers):
                 genome = genomeKeys[kmer.idx]
                 parsedKmers.append(f'probe_{probeIdx}_{kmerIdx}:{genome}:{kmer.sPos}')
-                kmerIdx += 1
 
             self.probe1Index += [kmer.split(':')[0] for kmer in parsedKmers]
             probe1Writer.write(f">probe_{probeIdx}\t{'|'.join(parsedKmers)}\n{seq}\n")
@@ -355,15 +351,16 @@ class PosNegSet:
         rcProbe2Writer.close()
 
     def run(self):
+        # self.genome : input
+        # self.genomeFASTA : clustered input
         # MAKE PROBE1
         self.logUpdate("[INFO] make 1st probes")
 
         # REMOVE REDUNDANCY FROM INPUT GENOME
         if self.doRemoveRedundancy:
             self.logUpdate('[INFO]deduplicate positive fasta')
-            clusteredGenome = ProbeitUtils.defineFile(self.inputDir1, 'dedup')
             tempDir = ProbeitUtils.defineDirectory('temp', make=False, root=self.inputDir1)
-            msg, self.genomeFASTA = ProbeitUtils.clusterGenome(self.inputGenome, clusteredGenome, tempDir, self.cluIdentity, threads=self.threads)
+            msg, self.clusteredGenome = ProbeitUtils.clusterGenome(self.inputGenome, ProbeitUtils.defineFile(self.inputDir1, 'dedup'), tempDir, self.cluIdentity, threads=self.threads)
             self.logUpdate(msg)
 
         # MAKE WINDOW and KMERS FOR PROBE1
