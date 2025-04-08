@@ -1,5 +1,5 @@
 pip3 install -e .
-cd probeit/setcover
+cd src/setcover
 make
 cd ../..
 
