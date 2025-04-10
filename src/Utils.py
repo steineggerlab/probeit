@@ -207,35 +207,37 @@ class ProbeitUtils:
         cls.runCommand(command2)
 
     @staticmethod
-    def simplifyFastaHeaders(inputFasta, outputFasta):
-        def _getSimpleHeader(header):
-            return header.split()[0]
+    def getSimpleHeader(header):
+        return header.split()[0]
 
+    @classmethod
+    def simplifyFastaHeaders(cls, inputFasta, outputFasta):
         with open(outputFasta, 'w') as w:
-            w.writelines([f'>{_getSimpleHeader(h)}\n{seq}\n' for h, seq in SimpleFastaParser(open(inputFasta))])
-
+            w.writelines([f'>{cls.getSimpleHeader(h)}\n{seq}\n' for h, seq in SimpleFastaParser(open(inputFasta))])
 
     @staticmethod
-    def extractKmers(genomeFasta, kmersFasta, pLen):
-        def writeKmer(seqAndKmers):
-            seq = seqAndKmers[0]
-            kmers = seqAndKmers[1]
-            repKmer = kmers[0]
-            strKmers = [kmer.getStr() for kmer in kmers]
-            return f'>{repKmer.getStr()};{"|".join(strKmers)}\n{seq}\n'
+    def writeKmer(seqAndKmers):
+        seq = seqAndKmers[0]
+        kmers = seqAndKmers[1]
+        repKmer = kmers[0]
+        strKmers = [kmer.getStr() for kmer in kmers]
+        return f'>{repKmer.getStr()};{"|".join(strKmers)}\n{seq}\n'
 
+    @classmethod
+    def extractKmers(cls, genomeFasta, kmersFasta, pLen, lookupDict=None):
         kmers = {}
-        genomeIdx = Incrementer()
-        for _, s in SimpleFastaParser(open(genomeFasta)):
+        genomeIdx = 0
+        for h, s in SimpleFastaParser(open(genomeFasta)):
             l = len(s)
             for pos in range(l - pLen + 1):
-                kmer = Kmer(idx=genomeIdx.get(), sPos=pos)
+                kmer = Kmer(idx=lookupDict[h] if lookupDict else genomeIdx, sPos=pos)
                 seq = s[pos:pos + pLen].upper()
                 kmers.setdefault(seq, [])
                 kmers[seq].append(kmer)
+            genomeIdx += 1
 
         with open(kmersFasta, 'w') as w:
-            w.writelines(map(writeKmer, kmers.items()))
+            w.writelines(map(cls.writeKmer, kmers.items()))
 
     @classmethod
     def getPatternPosition(cls, patternFasta, genomeFasta, positionsTSV):
@@ -246,13 +248,12 @@ class ProbeitUtils:
         return '[CLI] {}\n'.format(command)
 
     @classmethod
-    def clusterGenome(cls, inputFile, outputFile, directory, seqIdentity, threads):
-        cmd = 'mmseqs easy-linclust {} {} {} -v 3 --kmer-per-seq-scale 0.5 --kmer-per-seq 1000 --min-seq-id {} --cov-mode 1 -c 0.95 --remove-tmp-files 0 --threads {}'
-        cmd = cmd.format(inputFile, outputFile, directory, seqIdentity, threads)
+    def clusterGenome(cls, inputFile, outputFile, directory, seqIdentity, threads, minAlnLen=0):
+        cmd = f'mmseqs easy-linclust {inputFile} {outputFile} {directory} -v 3 --kmer-per-seq-scale 0.5 --kmer-per-seq 1000 --min-seq-id {seqIdentity} --cov-mode 1 -c 0.95 --remove-tmp-files 0 --threads {threads}'
         stdout, stderr = cls.runCommand(cmd, verbose=True)
         msg = stdout + stderr
-        outputFile += '_rep_seq.fasta'
-        return msg, outputFile
+        # outputFile += '_rep_seq.fasta'
+        return msg, outputFile+'_rep_seq.fasta', outputFile+'_cluster.tsv'
 
     @classmethod
     def ridNegKmers(cls, posKmers, negative, output, outputDir, seqInProbe, thread):
@@ -265,7 +266,7 @@ class ProbeitUtils:
 
     # COMPUTE MAPPABILITY
     @classmethod
-    def simpleComputeMappability(cls, genome, lookup, positionBED, outputCSV, pLen, improperKmers):
+    def simpleComputeMappability(cls, genome, positionBED, outputCSV, pLen, improperKmers):
         positiveKmers = set()
         w = open(outputCSV, 'w')
         for line in open(positionBED):
@@ -275,16 +276,17 @@ class ProbeitUtils:
                 positiveKmers.add(Kmer(idx=gIdx, sPos=i))
 
         seqAndKmers = {}
-        idx = Incrementer()
+        idx = 0
         for h, seq in SimpleFastaParser(open(genome)):
             l = len(seq)
             for i in range(l - pLen + 1):
-                kmer = Kmer(idx=idx.get(), sPos=i)
-                seq = seq[i:i + pLen].upper()
-                if set(seq) - Config.nucleotideSet:
+                kmer = Kmer(idx=idx, sPos=i)
+                currSeq = seq[i:i + pLen].upper()
+                if set(currSeq) - Config.nucleotideSet:
                     continue
-                seqAndKmers.setdefault(seq, [])
+                seqAndKmers.setdefault(currSeq, [])
                 seqAndKmers[seq].append(kmer)
+            idx += 1
 
         for seq, kmers in seqAndKmers.items():
             repKmer = kmers[0]
@@ -304,6 +306,7 @@ class ProbeitUtils:
         cls.runCommand(command1)
         cls.runCommand(command2)
         inputCSV = cls.defineFile(outputDir, f'{cls.getFileName(genome, False)}.genmap.csv')
+        #TODO
         for line in open(inputCSV):
             parsedKmers = findall(r'[0-9]+,[0-9]+',line)
             if not parsedKmers:
@@ -324,17 +327,41 @@ class ProbeitUtils:
 
     # LOOKUP FILES RELATED
     @classmethod
-    def makeLookup(cls, windowFasta, lookup, genomePos=''):
+    def makeLookup(cls, windowFasta, lookup, needDict=False):
         i = Incrementer()
+        genomeNameAndIdx = [(i.get(), cls.getSimpleHeader(h)) for h, _ in SimpleFastaParser(open(windowFasta))]
         with open(lookup, 'w') as w:
-            w.writelines([f'{i.get()}\t{header.strip()}\n' for header, _ in SimpleFastaParser(open(windowFasta))])
+            w.writelines([f'{i}\t{name}\n' for i, name in genomeNameAndIdx])
 
-        if not genomePos:
-            return
+        if needDict:
+            dict  = {name: i for i, name in genomeNameAndIdx}
+            return dict
 
-        i.reset()
+        return None
+
+    @classmethod
+    def makeGenomePos(cls, windowFasta, genomePos, lookupDict=None):
+        i = Incrementer()
         with open(genomePos, 'w') as w:
-            w.writelines([BedLine(i.get(), 0, len(seq)).getLine() for _, seq in SimpleFastaParser(open(windowFasta))])
+            if lookupDict:
+                w.writelines([BedLine(lookupDict[h], 0, len(seq)).getLine() for h, seq in SimpleFastaParser(open(windowFasta))])
+                return
+            w.writelines([BedLine(i.get(), 0, len(seq)).getLine() for h, seq in SimpleFastaParser(open(windowFasta))])
+
+    @classmethod
+    def makeMaskedGenomePos(cls, windowFasta, genomePos, lookupDict=None):
+        i = Incrementer()
+        for h, seq in SimpleFastaParser(open(windowFasta)):
+
+            BedLine(lookupDict[h], 0, len(seq))
+
+        with open(genomePos, 'w') as w:
+            if lookupDict:
+                w.writelines(
+                    [BedLine(lookupDict[h], 0, len(seq)).getLine() for h, seq in SimpleFastaParser(open(windowFasta))])
+                return
+            w.writelines([BedLine(i.get(), 0, len(seq)).getLine() for h, seq in SimpleFastaParser(open(windowFasta))])
+
 
     # SNPs RELATED
     @classmethod
@@ -389,6 +416,7 @@ class ProbeitUtils:
     @classmethod
     def setCover(cls, coverage, length, eStop, dist, reps, mapCSV, genome, lookup, setcoverResultBed, probeLen):
         def writeSetcoverResult(line):
+            print(line)
             repKmer = ProbeitUtils.parseKmers(line)[0]
             matchedKmers = line.split(';')[1].strip()
             idx = repKmer.idx
@@ -398,10 +426,9 @@ class ProbeitUtils:
         filePath = path.sep.join(path.realpath(__file__).split(path.sep)[:-1])
         setcoverPath = '{}{}{}{}{}'.format(filePath, path.sep, 'setcover', path.sep, 'setcover')
         setcoverPath = setcoverPath if path.exists(setcoverPath) else 'setcover'
-        command = " -c {} -l {} -p {} -d {} -i {} {} {}".format(coverage, length, eStop, dist, reps, mapCSV, genome)
-        stdOut, stdErr = cls.runCommand(setcoverPath + command, verbose=True)
+        command = "{} -c {} -l {} -p {} -d {} -i {} {} {}".format(setcoverPath, coverage, length, eStop, dist, reps, mapCSV, genome)
+        stdOut, stdErr = cls.runCommand(command, verbose=True)
         genomeAndIdx = dict()
-        print(stdOut)
         for line in open(lookup):
             idx = int(line.split()[0].strip())
             genome = line.split()[1].strip()
@@ -410,10 +437,10 @@ class ProbeitUtils:
         with open(setcoverResultBed, 'w') as w:
             w.writelines(map(writeSetcoverResult, stdOut.strip().split('\n')))
 
-        return f'{setcoverPath}{command}\n{stdOut}{stdErr}'
+        return f'{setcoverPath}{command}\n'#{stdOut}{stdErr}'
 
     @classmethod
-    def makeProbe(cls, output, scResultBed, window, lookup, probeLen, scCoverage, scEarlyStop, scScore, scRepeats, uniqComMap, overlap=False, ):
+    def makeProbe(cls, output, scResultBed, window, lookup, probeLen, scCoverage, scEarlyStop, scScore, scRepeats, uniqComMap, overlap=False):
         scLen = 1 if overlap else probeLen
         # SETCOVER
         message = "[INFO] minimize probe set\n"
@@ -455,7 +482,7 @@ class ThermoFilter:
         msg += f"\tMaximum GC percentage: {self.maxGC}\n"
         msg += f"\tHomodimer maximum Tm: {self.maxHomoDimerTm}\n"
         msg += f"\tHairpin maximum Tm: {self.maxHairpinTm}\n"
-        msg += f"[INFO] {numKmers} ligation probe candidate sets inputted.\n"
+        msg += f"[INFO] {numKmers} ligation probe candidate sets get input.\n"
         msg += f'[INFO] Improper Ligation probe candidates are removed: {numImpKmers}\n'
         return msg
 

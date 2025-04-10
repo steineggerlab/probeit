@@ -412,7 +412,8 @@ class SNP:
         self.logUpdate(msg, False)
         self.makeMaskedPosBED(pd.read_csv(self.window1TSV, sep='\t')[['seqID', 'start', 'end']], self.window1PosBED)
         ProbeitUtils.getWindowFasta(self.strGenome, self.window1PosBED, self.maskedGenomeFASTA, self.window2PosBED, self.window2FASTA, self.windowSize)
-        ProbeitUtils.makeLookup(self.window2FASTA, self.lookup, self.window2PosBED)
+        ProbeitUtils.makeLookup(self.window2FASTA, self.lookup)
+        ProbeitUtils.makeGenomePos(self.window2FASTA, self.window2PosBED)
 
     def makeProbe2(self):
         # COMPUTE MAPPABILITY
@@ -420,7 +421,7 @@ class SNP:
         message = '[INFO] compute mappability\n'
         match self.cmError2:
             case 0:
-                ProbeitUtils.simpleComputeMappability(self.window2FASTA, self.lookup, self.window2PosBED, uniqComMap, self.pLen2, improperKmers=self.impKmers2)
+                ProbeitUtils.simpleComputeMappability(self.window2FASTA, self.window2PosBED, uniqComMap, self.pLen2, improperKmers=self.impKmers2)
             case _:
                 message += ProbeitUtils.computeMappability(self.window2FASTA, self.idxDir2, self.cmError2, self.pLen2, self.cmDir2, uniqComMap, threads=self.threads, improperKmers=self.impKmers2)
 

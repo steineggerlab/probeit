@@ -210,9 +210,9 @@ class Primer:
         w.close()
 
     def makeWindow1(self):
-        # ProbeitUtils.sortFasta(self.genomeFASTA)
         ProbeitUtils.simplifyFastaHeaders(self.genomeFASTA, self.window1FASTA)
-        ProbeitUtils.makeLookup(self.window1FASTA, self.lookup1, self.window1PosBED)
+        self.lookupDict = ProbeitUtils.makeLookup(self.window1FASTA, self.lookup1, True)
+        ProbeitUtils.makeGenomePos(self.window1FASTA, self.window1PosBED)
 
     def makePrimers(self):
         def kmerParser(rawKmer):
@@ -225,6 +225,8 @@ class Primer:
 
         uniqComMap = ProbeitUtils.defineFile(self.cmDir1, 'uniq.genmap.csv')
         self.easyComMap(uniqComMap)
+        # if self.doRemoveRedundancy
+            # expandComMapp()
         msg = ProbeitUtils.makeProbe(
             self.tempProbe1, self.scPosBed1, self.window1FASTA, self.lookup1, self.pLen1,
             self.scCoverage1, self.scEarlyStop1, self.scScore1, self.scRepeats1, uniqComMap,
@@ -299,12 +301,14 @@ class Primer:
             self.logUpdate('[INFO]deduplicate positive fasta')
             clusteredGenome = ProbeitUtils.defineFile(self.inputDir1, 'dedup')
             tempDir = ProbeitUtils.defineDirectory('temp', make=False, root=self.inputDir1)
-            msg, self.genomeFASTA = ProbeitUtils.clusterGenome(self.inputGenome, clusteredGenome, tempDir,
-                                                               self.cluIdentity, threads=self.threads)
+            msg, self.genomeFASTA, cluFile = ProbeitUtils.clusterGenome(self.inputGenome, clusteredGenome, tempDir, self.cluIdentity, threads=self.threads)
             self.logUpdate(msg)
 
         # MAKE WINDOW and KMERS FOR PROBE1
-        self.makeWindow1()
+        # self.makeWindow1()
+        ProbeitUtils.simplifyFastaHeaders(self.genomeFASTA, self.window1FASTA)
+        ProbeitUtils.makeLookup(self.window1FASTA, self.lookup1, )
+        ProbeitUtils.makeGenomePos(self.window1FASTA, self.window1PosBED, self.lookup1)
         ProbeitUtils.extractKmers(self.window1FASTA, self.posKmers1FASTA, self.pLen1)
 
         # DO NEG FILTER FOR PROBE1

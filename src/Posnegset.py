@@ -1,12 +1,10 @@
 #!/usr/bin/env python
-from numpy.f2py.cfuncs import needs
-
 from .config import Config
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 from Bio.Seq import Seq
 import os
 import getopt
-from .Utils import ProbeitUtils, ThermoFilter, Kmer, Incrementer, BedLine
+from .Utils import ProbeitUtils, ThermoFilter, Kmer, BedLine, Incrementer
 
 
 class PosNegSet:
@@ -52,12 +50,14 @@ class PosNegSet:
     scScore2 = 20
     scRepeats2 = 10
     threads = 8
-    impKmers1 = set()
-    impKmers2 = set()
-    probe1Index = []
-    getGenomeLength = {}
 
     def __init__(self, args):
+        self.cluFile2 = None
+        self.cluFile = None
+        self.impKmers1 = set()
+        self.impKmers2 = set()
+        self.probe1Index = []
+        self.lookupDict = {}
         args = getopt.getopt(args, self.shortParams, self.longParams)[0]
         print(f"Your arguments: probeit posnegset {ProbeitUtils.getUserArgs(args)}")
         # PARSE PARAMETERS
@@ -173,8 +173,9 @@ class PosNegSet:
         self.rcProbe1 = ProbeitUtils.defineFile(self.workDir, Config.rcprobe1)
 
         if self.needProbe2:
-            self.window2FASTA = ProbeitUtils.defineFile(self.inputDir2, Config.window)
-            self.window2PosBED = ProbeitUtils.defineFile(self.inputDir1, 'window.bed')
+            self.genome2 = ProbeitUtils.defineFile(self.inputDir2, "genome.fa")
+            self.window2FASTA = self.genome2 #ProbeitUtils.defineFile(self.inputDir2, Config.window)
+            self.window2PosBED = ProbeitUtils.defineFile(self.inputDir2, 'window.bed')
             self.lookup2 = ProbeitUtils.defineFile(self.workDir, 'probe1.lookup')
             self.kmers2FASTA = ProbeitUtils.defineFile(self.inputDir2, 'kmers.fa')
             self.thermoCalc2TSV = ProbeitUtils.defineFile(self.thermoFiltering2Dir, 'thermo_uncut.tsv')
@@ -194,16 +195,11 @@ class PosNegSet:
             w.write(msg + '\n')
 
     def negFilter(self, pLen):
-        negKmerResult = ProbeitUtils.defineFile(self.maskingDir, 'search.tsv')
-        negKmerPosBED = ProbeitUtils.defineFile(self.maskingDir, 'search.bed')
+        negKmerResult = ProbeitUtils.defineFile(self.maskingDir, Config.negKmers)
+        negKmerPosBED = ProbeitUtils.defineFile(self.maskingDir, Config.negBed)
         # REMOVE NEGATIVE K-MERS
         self.logUpdate('[INFO]remove probes found in negative genome')
         self.logUpdate(ProbeitUtils.ridNegKmers(self.posKmers1FASTA, self.negGenome, negKmerResult, self.maskingDir, self.ridNegId, self.threads))
-
-        # MAKE DEDUPLICATED POSITIVE GENOME COORDINATE FILE(BED)
-        i = Incrementer()
-        with open(self.window1PosBED, 'w') as w:
-            w.writelines([BedLine(i.get(), 0, len(seq)).getLine() for _, seq in SimpleFastaParser(open(self.window1FASTA))])
 
         # EXTRACT NEGATIVE REMOVED POSITIONS BED
         w = open(negKmerPosBED, 'w')
@@ -216,6 +212,10 @@ class PosNegSet:
         self.logUpdate(ProbeitUtils.getSubtractedBed(self.window1PosBED, negKmerPosBED, self.negRemPosBED), False)
 
     def getNegativeKmers(self):
+        genomeLength = {name: 0 for name in self.lookupDict.values()}
+        for h, s in SimpleFastaParser(open(self.window1FASTA)):
+            genomeLength[self.lookupDict[h]] = len(s)
+
         negativeKmers = set()
         if not self.negGenome:
             return negativeKmers
@@ -229,21 +229,16 @@ class PosNegSet:
                 prevEnd = currEnd
                 continue
 
-            negativeKmers.update(set([Kmer(idx=prevGenomeIdx,sPos=i) for i in range(prevEnd, self.getGenomeLength[prevGenomeIdx])]))
+            negativeKmers.update(set([Kmer(idx=prevGenomeIdx,sPos=i) for i in range(prevEnd, genomeLength[prevGenomeIdx])]))
             negativeKmers.update(set([Kmer(idx=genomeIdx, sPos=i) for i in range(currStart)]))
             prevGenomeIdx = genomeIdx
             prevEnd = currEnd
 
-        negativeKmers.update(set([Kmer(idx=prevGenomeIdx,sPos=i) for i in range(prevEnd, self.getGenomeLength[prevGenomeIdx])]))
+        negativeKmers.update(set([Kmer(idx=prevGenomeIdx,sPos=i) for i in range(prevEnd, genomeLength[prevGenomeIdx])]))
         return negativeKmers
 
     def easyComMap(self, uniqComMap):
         w = open(uniqComMap, 'w')
-        self.getGenomeLength.clear()
-        idx = Incrementer()
-        for _, s in SimpleFastaParser(open(self.window1FASTA)):
-            self.getGenomeLength[idx.get()] = len(s)
-
         negativeKmers = self.getNegativeKmers()
         for h, s in SimpleFastaParser(open(self.posKmers1FASTA)):
             kmers = ProbeitUtils.parseKmers(h)
@@ -254,14 +249,78 @@ class PosNegSet:
             if isNegative or isThermoImproper or isUnregularNtFound:
                 continue
             w.write(f'{h}\n')
-
         w.close()
 
-    def makeWindow1(self):
-        ProbeitUtils.simplifyFastaHeaders(self.clusteredGenome, self.window1FASTA)
-        ProbeitUtils.makeLookup(self.window1FASTA, self.lookup1, self.window1PosBED)
+    def expandMapResult(self, comMap):
+        i = Incrementer()
+        genomeSeqs = {i.get(): s for _, s in SimpleFastaParser(open(self.inputGenome))}
+        childGenomeDict = {}
+        for line in open(self.cluFile):
+            parentGenome, childGenome = line.strip().split()
+            parentIdx = self.lookupDict[parentGenome]
+            childIdx = self.lookupDict[childGenome]
+            if parentIdx == childIdx:
+                continue
+            childGenomeDict.setdefault(parentIdx, []).append(childIdx)
 
-    def makeWindow2(self):
+        newComMap = []
+        for line in open(comMap):
+            kmers = ProbeitUtils.parseKmers(line)[1:]
+            for kmer in kmers:
+                gIdx = kmer.idx
+                sPos = kmer.sPos
+                if gIdx not in childGenomeDict:
+                    continue
+                childrenIndecies = childGenomeDict[gIdx]
+                seq = genomeSeqs[gIdx][sPos: sPos + self.pLen1].upper()
+                for childIdx in childrenIndecies:
+                    childSeq = genomeSeqs[childIdx].upper()
+                    childStartPos = childSeq.find(seq)
+                    if childStartPos == -1:
+                        continue
+                    kmers.append(Kmer(idx=childIdx, sPos=childStartPos))
+
+            newComMap.append(f"{kmers[0].getStr()};{'|'.join([kmer.getStr() for kmer in kmers])}\n")
+        with open(comMap, 'w') as w:
+            w.writelines(newComMap)
+
+    def expandMapResult2(self, comMap):
+        i = Incrementer()
+        genomeSeqs = {i.get(): s for _, s in SimpleFastaParser(open(self.genome2))}
+        childGenomeDict = {}
+        print(self.cluFile2)
+        for line in open(self.cluFile2):
+            parentGenome, childGenome = line.strip().split()
+            parentIdx = self.lookupDict[parentGenome]
+            childIdx = self.lookupDict[childGenome]
+            if parentIdx == childIdx:
+                continue
+            childGenomeDict.setdefault(parentIdx, []).append(childIdx)
+
+        newComMap = []
+        for line in open(comMap):
+            kmers = ProbeitUtils.parseKmers(line)[1:]
+            for kmer in kmers:
+                gIdx = kmer.idx
+                sPos = kmer.sPos
+                if gIdx not in childGenomeDict:
+                    continue
+
+                childrenIndecies = childGenomeDict[gIdx]
+                seq = genomeSeqs[gIdx][sPos: sPos + self.pLen2].upper()
+                for childIdx in childrenIndecies:
+                    childSeq = genomeSeqs[childIdx].upper()
+                    childStartPos = childSeq.find(seq)
+                    if childStartPos == -1:
+                        continue
+
+                    kmers.append(Kmer(idx=childIdx, sPos=childStartPos))
+
+            newComMap.append(f"{kmers[0].getStr()};{'|'.join([kmer.getStr() for kmer in kmers])}\n")
+        with open(comMap, 'w') as w:
+            w.writelines(newComMap)
+
+    def getMaskedGenome(self):
         def _getWindowSeq(kmer, idx1, idx2):
             gIdx = kmer.idx
             sPos = kmer.sPos
@@ -276,28 +335,26 @@ class PosNegSet:
 
         window1Headers = []
         window1Seqs = []
-        for h, s in SimpleFastaParser(open(self.window1FASTA)):
-            window1Headers.append(h)
+        for h, s in SimpleFastaParser(open(self.inputGenome)):
+            window1Headers.append(h.split()[0])
             window1Seqs.append(s)
 
         probe1Kmers = [ProbeitUtils.parseKmers(line) for line in open(self.scPosBed1)]
         for kmers in probe1Kmers:
             for kmer in kmers:
                 ePos = kmer.sPos + self.pLen1
+                print(kmer.idx, kmer.sPos, ePos)
                 window1Seqs[kmer.idx] = window1Seqs[kmer.idx][:kmer.sPos] + 'N' * self.pLen1 + window1Seqs[kmer.idx][ePos:]
 
-        with open(self.window2FASTA, 'w') as w:
+        with open(self.genome2, 'w') as w:
             w.writelines([_getWindowSeq(kmer, i, j) for i, kmers in enumerate(probe1Kmers) for j, kmer in enumerate(kmers)])
 
-        ProbeitUtils.makeLookup(self.window2FASTA, self.lookup2, self.window2PosBED)
-
     def makeProbe1(self):
-        uniqComMap = ProbeitUtils.defineFile(self.cmDir1, 'uniq.genmap.csv')
+        uniqComMap = ProbeitUtils.defineFile(self.cmDir1, Config.uniqMapping)
         self.easyComMap(uniqComMap)
-        msg = ProbeitUtils.makeProbe(
-            self.tempProbe1, self.scPosBed1, self.window1FASTA, self.lookup1, self.pLen1,
-            self.scCoverage1, self.scEarlyStop1, self.scScore1, self.scRepeats1, uniqComMap,
-        )
+        if self.doRemoveRedundancy:
+            self.expandMapResult(uniqComMap)
+        msg = ProbeitUtils.makeProbe(self.tempProbe1, self.scPosBed1, self.inputGenome, self.lookup1, self.pLen1, self.scCoverage1, self.scEarlyStop1, self.scScore1,  self.scRepeats1, uniqComMap)
         self.logUpdate(msg, False)
         with open(self.lookup1) as f:
             genomeKeys = {int(i.split()[0]): i.split()[1] for i in f}
@@ -322,19 +379,18 @@ class PosNegSet:
         rcprobe1Writer.close()
 
     def makeProbe2(self):
-        uniqComMap = ProbeitUtils.defineFile(self.cmDir2, 'uniq.genmap.csv')
+        uniqComMap = ProbeitUtils.defineFile(self.cmDir2, Config.uniqMapping)
         match self.cmError2:
             case 0:
-                ProbeitUtils.simpleComputeMappability(self.window2FASTA, self.lookup2, self.window2PosBED, uniqComMap, self.pLen2, improperKmers=self.impKmers2)
+                ProbeitUtils.simpleComputeMappability(self.genome2, self.window2PosBED, uniqComMap, self.pLen2, improperKmers=self.impKmers2)
             case _:
-                ProbeitUtils.computeMappability(self.window2FASTA, self.idxDir2, self.cmError2, self.pLen2, self.cmDir2, uniqComMap, threads=self.threads, improperKmers=self.impKmers2)
+                ProbeitUtils.computeMappability(self.genome2, self.idxDir2, self.cmError2, self.pLen2, self.cmDir2, uniqComMap, threads=self.threads, improperKmers=self.impKmers2)
+
+        if self.doRemoveRedundancy:
+            self.expandMapResult2(uniqComMap)
 
         scBed = ProbeitUtils.defineFile(self.scDir2, 'result.bed')
-        msg = ProbeitUtils.makeProbe(
-            self.tempProbe2, scBed, self.window2FASTA, self.lookup2, self.pLen2,
-            self.scCoverage2, self.scEarlyStop2, self.scScore2, self.scRepeats2, uniqComMap,
-            overlap=True
-        )
+        msg = ProbeitUtils.makeProbe(self.tempProbe2, scBed, self.genome2, self.lookup2, self.pLen2, self.scCoverage2, self.scEarlyStop2, self.scScore2, self.scRepeats2, uniqComMap, overlap=True)
         self.logUpdate(msg, False)
         probeIdx = 0
         probe2Writer = open(self.probe2, 'w')
@@ -360,13 +416,14 @@ class PosNegSet:
         if self.doRemoveRedundancy:
             self.logUpdate('[INFO]deduplicate positive fasta')
             tempDir = ProbeitUtils.defineDirectory('temp', make=False, root=self.inputDir1)
-            msg, self.clusteredGenome = ProbeitUtils.clusterGenome(self.inputGenome, ProbeitUtils.defineFile(self.inputDir1, 'dedup'), tempDir, self.cluIdentity, threads=self.threads)
+            msg, self.clusteredGenome, self.cluFile = ProbeitUtils.clusterGenome(self.inputGenome, ProbeitUtils.defineFile(self.inputDir1, 'dedup'), tempDir, self.cluIdentity, threads=self.threads)
             self.logUpdate(msg)
 
         # MAKE WINDOW and KMERS FOR PROBE1
-        self.makeWindow1()
-        ProbeitUtils.extractKmers(self.window1FASTA, self.posKmers1FASTA, self.pLen1)
-
+        ProbeitUtils.simplifyFastaHeaders(self.clusteredGenome, self.window1FASTA)
+        self.lookupDict = ProbeitUtils.makeLookup(self.inputGenome, self.lookup1, True)
+        ProbeitUtils.makeGenomePos(self.window1FASTA, self.window1PosBED, self.lookupDict)
+        ProbeitUtils.extractKmers(self.window1FASTA, self.posKmers1FASTA, self.pLen1, self.lookupDict)
         # DO NEG FILTER FOR PROBE1
         if self.negGenome:
             self.negFilter(self.pLen1)
@@ -388,11 +445,19 @@ class PosNegSet:
         self.logUpdate("[INFO] make 2nd probes")
 
         # MAKE WINDOW FOR PROBE2
-        self.makeWindow2()
+        self.getMaskedGenome()
+        self.lookupDict = ProbeitUtils.makeLookup(self.genome2, self.lookup2, True)
+
+        # REMOVE REDUNDANCY FROM MASKED GENOME
+        if self.doRemoveRedundancy:
+            msg, self.window2FASTA, self.cluFile2 = ProbeitUtils.clusterGenome(self.genome2, ProbeitUtils.defineFile(self.inputDir2, 'dedup'), ProbeitUtils.defineDirectory('temp', make=False, root=self.inputDir2), self.cluIdentity, threads=self.threads)
+            self.logUpdate(msg)
+
+        ProbeitUtils.makeGenomePos(self.window2FASTA, self.window2PosBED, self.lookupDict)
 
         # THERMO FILTER FOR PROBE2
         if self.doThermoFilter2:
-            ProbeitUtils.extractKmers(self.window2FASTA, self.kmers2FASTA, self.pLen2)
+            ProbeitUtils.extractKmers(self.window2FASTA, self.kmers2FASTA, self.pLen2, self.lookupDict)
             thermoFilter2 = ThermoFilter(self.kmers2FASTA, self.pLen2, self.thermoCalc2TSV)
             msg, self.impKmers2 = thermoFilter2.run()
             self.logUpdate(msg)

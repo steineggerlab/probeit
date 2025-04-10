@@ -17,6 +17,11 @@ class Config:
     rcprobe2 = 'rcprobe2.fa'
     primer = 'primer.fa'
 
+    uniqMapping = 'uniq.genmap.csv'
+    negKmers = 'search.tsv'
+    negBed = 'search.bed'
+
+
     # data
     nucleotideSet = {'A', 'C', 'G', 'T'}
 
