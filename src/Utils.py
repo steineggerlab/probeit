@@ -224,13 +224,13 @@ class ProbeitUtils:
         return f'>{repKmer.getStr()};{"|".join(strKmers)}\n{seq}\n'
 
     @classmethod
-    def extractKmers(cls, genomeFasta, kmersFasta, pLen, lookupDict=None):
+    def extractKmers(cls, genomeFasta, kmersFasta, pLen):
         kmers = {}
         genomeIdx = 0
         for h, s in SimpleFastaParser(open(genomeFasta)):
             l = len(s)
             for pos in range(l - pLen + 1):
-                kmer = Kmer(idx=lookupDict[h] if lookupDict else genomeIdx, sPos=pos)
+                kmer = Kmer(idx=genomeIdx, sPos=pos)
                 seq = s[pos:pos + pLen].upper()
                 kmers.setdefault(seq, [])
                 kmers[seq].append(kmer)
@@ -281,11 +281,11 @@ class ProbeitUtils:
             l = len(seq)
             for i in range(l - pLen + 1):
                 kmer = Kmer(idx=idx, sPos=i)
-                currSeq = seq[i:i + pLen].upper()
-                if set(currSeq) - Config.nucleotideSet:
+                subSeq = seq[i:i + pLen].upper()
+                if set(subSeq) - Config.nucleotideSet:
                     continue
-                seqAndKmers.setdefault(currSeq, [])
-                seqAndKmers[seq].append(kmer)
+                seqAndKmers.setdefault(subSeq, [])
+                seqAndKmers[subSeq].append(kmer)
             idx += 1
 
         for seq, kmers in seqAndKmers.items():
@@ -318,6 +318,45 @@ class ProbeitUtils:
         w.close()
         return '[CLI] {}\n[CLI] {}\n'.format(command1, command2)
 
+    @staticmethod
+    def expandMapResult(comMap, window, genome, cluFile, lookupDict, pLen):
+        i = Incrementer()
+        windowNames = [h for h, _ in SimpleFastaParser(open(window))]
+        genomeSeqs = {i.get(): s for _, s in SimpleFastaParser(open(genome))}
+        childGenomeDict = {}
+        for line in open(cluFile):
+            parentGenome, childGenome = line.strip().split()
+            parentIdx = lookupDict[parentGenome]
+            childIdx = lookupDict[childGenome]
+            if parentIdx == childIdx:
+                continue
+            childGenomeDict.setdefault(parentIdx, []).append(childIdx)
+
+        newComMap = []
+        foundKmers = []
+        for line in open(comMap):
+            parsedKmers = ProbeitUtils.parseKmers(line)[1:]
+            foundKmers.clear()
+            for kmer in parsedKmers:
+                # convert window idx to genome idx
+                gIdx = lookupDict[windowNames[kmer.idx]]
+                sPos = kmer.sPos
+                foundKmers.append(Kmer(idx=gIdx, sPos=sPos))
+                if gIdx not in childGenomeDict:
+                    continue
+
+                childrenIndecies = childGenomeDict[gIdx]
+                seq = genomeSeqs[gIdx][sPos: sPos + pLen].upper()
+                for childIdx in childrenIndecies:
+                    childSeq = genomeSeqs[childIdx].upper()
+                    childStartPos = childSeq.find(seq)
+                    if childStartPos == -1:
+                        continue
+                    foundKmers.append(Kmer(idx=childIdx, sPos=childStartPos))
+            newComMap.append(f"{foundKmers[0].getStr()};{'|'.join([kmer.getStr() for kmer in foundKmers])}\n")
+        with open(comMap, 'w') as w:
+            w.writelines(newComMap)
+
     # BED FILES RELATED
     @classmethod
     def getSubtractedBed(cls, positiveBed, negativeBed, bedFileName):
@@ -340,28 +379,12 @@ class ProbeitUtils:
         return None
 
     @classmethod
-    def makeGenomePos(cls, windowFasta, genomePos, lookupDict=None):
-        i = Incrementer()
-        with open(genomePos, 'w') as w:
-            if lookupDict:
-                w.writelines([BedLine(lookupDict[h], 0, len(seq)).getLine() for h, seq in SimpleFastaParser(open(windowFasta))])
-                return
-            w.writelines([BedLine(i.get(), 0, len(seq)).getLine() for h, seq in SimpleFastaParser(open(windowFasta))])
-
-    @classmethod
-    def makeMaskedGenomePos(cls, windowFasta, genomePos, lookupDict=None):
+    def makeGenomePos(cls, windowFasta, genomePos):
         i = Incrementer()
         for h, seq in SimpleFastaParser(open(windowFasta)):
-
-            BedLine(lookupDict[h], 0, len(seq))
-
+            print(len(seq))
         with open(genomePos, 'w') as w:
-            if lookupDict:
-                w.writelines(
-                    [BedLine(lookupDict[h], 0, len(seq)).getLine() for h, seq in SimpleFastaParser(open(windowFasta))])
-                return
             w.writelines([BedLine(i.get(), 0, len(seq)).getLine() for h, seq in SimpleFastaParser(open(windowFasta))])
-
 
     # SNPs RELATED
     @classmethod
@@ -392,7 +415,8 @@ class ProbeitUtils:
     # PARSE GENMAP KMER PATTERNS
     @staticmethod
     def parseKmers(line):
-        return [Kmer(kmerHeader) for kmerHeader in findall(r'[0-9]+,[0-9]+', line)]
+        # return [Kmer(kmerHeader) for kmerHeader in findall(r'[0-9]+,[0-9]+', line)]
+        return [Kmer(kmerHeader) for kmerHeader in findall(r'\d+,\d+', line)]
 
     # @staticmethod
     # def parseKmers2(line):
