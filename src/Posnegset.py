@@ -261,7 +261,6 @@ class PosNegSet:
         for kmers in probe1Kmers:
             for kmer in kmers:
                 ePos = kmer.sPos + self.pLen1
-                print(kmer.idx, kmer.sPos, ePos)
                 window1Seqs[kmer.idx] = window1Seqs[kmer.idx][:kmer.sPos] + 'N' * self.pLen1 + window1Seqs[kmer.idx][ePos:]
 
         with open(self.genome2, 'w') as w:
