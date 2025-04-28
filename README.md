@@ -146,7 +146,7 @@ git clone https://github.com/steineggerlab/probeit.git
 * You must compile **setcover** before using **Probeit**.
 
 ```
-conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
+conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython python=3.10 -y -v
 conda activate probeit
 cd probeit
 bash install.sh
