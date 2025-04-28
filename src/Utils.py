@@ -440,7 +440,7 @@ class ProbeitUtils:
     @classmethod
     def setCover(cls, coverage, length, eStop, dist, reps, mapCSV, genome, lookup, setcoverResultBed, probeLen):
         def writeSetcoverResult(line):
-            print(line)
+            #print(line)
             repKmer = ProbeitUtils.parseKmers(line)[0]
             matchedKmers = line.split(';')[1].strip()
             idx = repKmer.idx
