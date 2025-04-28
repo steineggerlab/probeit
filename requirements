@@ -1,4 +1,4 @@
-conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython -y -v
+conda create -n probeit -c conda-forge -c anaconda -c bioconda pandas entrez-direct primer3-py bedtools  mmseqs2 seqkit genmap primer3 biopython python=3.10 -y -v
 conda activate probeit
 cd probeit
 pip install -e .
