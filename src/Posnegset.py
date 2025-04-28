@@ -58,6 +58,7 @@ class PosNegSet:
         self.impKmers2 = set()
         self.probe1Index = []
         self.lookupDict = {}
+        self.negativeKmers = set()
         args = getopt.getopt(args, self.shortParams, self.longParams)[0]
         print(f"Your arguments: probeit posnegset {ProbeitUtils.getUserArgs(args)}")
         # PARSE PARAMETERS
